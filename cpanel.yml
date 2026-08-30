@@ -1,0 +1,14 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/itsoluti/itsolution.bd
+    - /bin/mkdir -p $DEPLOYPATH
+    - /usr/bin/rsync -av --exclude='.git' --exclude='.env' --exclude='storage/app/public' . $DEPLOYPATH
+    - /bin/chmod -R 775 $DEPLOYPATH/storage $DEPLOYPATH/bootstrap/cache
+    - /bin/chmod -R 755 $DEPLOYPATH/public
+    - /usr/local/bin/php $DEPLOYPATH/artisan optimize:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan migrate --force
+    - /usr/local/bin/php $DEPLOYPATH/artisan storage:link
+    - /usr/local/bin/php $DEPLOYPATH/artisan config:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan route:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan view:cache
