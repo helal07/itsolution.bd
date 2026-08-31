@@ -19,8 +19,9 @@ Route::get('/', HomeController::class)->name('home');
 
 // Services & Items
 Route::get('/services', [ServicesController::class, 'index'])->name('services.index');
-Route::get('/services/{category:slug}', [ServicesController::class, 'category'])->name('services.category');
-Route::get('/services/{category:slug}/{item:slug}', [ServicesController::class, 'show'])->name('services.item');
+Route::get('/services/{categorySlug}', [ServicesController::class, 'category'])->name('services.category');
+Route::get('/services/{categorySlug}/{itemSlug}', [ServicesController::class, 'show'])->name('services.item');
+Route::get('/item/{itemSlug}', [ServicesController::class, 'showItemDirect'])->name('services.item.direct');
 
 // Portfolio
 Route::get('/portfolio', [PortfolioController::class, 'index'])->name('portfolio.index');

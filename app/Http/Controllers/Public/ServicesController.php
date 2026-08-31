@@ -29,8 +29,21 @@ class ServicesController extends Controller
     /**
      * Display a specific category's items grid (/services/{category})
      */
-    public function category(Category $category): Response
+    public function category(string $categorySlug): Response|RedirectResponse
     {
+        $category = Category::where('slug', $categorySlug)->first();
+
+        if (!$category) {
+            // Fallback: check if slug matches an item directly
+            $item = Item::where('slug', $categorySlug)->with('category')->first();
+            if ($item) {
+                $catSlug = $item->category ? $item->category->slug : 'apps';
+                return redirect()->route('services.item', ['categorySlug' => $catSlug, 'itemSlug' => $item->slug]);
+            }
+
+            return redirect()->route('services.index');
+        }
+
         $items = Item::where('category_id', $category->id)
             ->where('status', 'published')
             ->orderBy('is_featured', 'desc')
@@ -51,18 +64,41 @@ class ServicesController extends Controller
     /**
      * Display the dedicated page for a single item (/services/{category}/{item})
      */
-    public function show(Category $category, Item $item): Response
+    public function show(string $categorySlug, string $itemSlug): Response|RedirectResponse
     {
-        abort_if($item->category_id !== $category->id || $item->status !== 'published', 404);
+        $item = Item::where('slug', $itemSlug)->with(['images', 'category'])->first();
 
-        $item->load(['images', 'category']);
+        if (!$item) {
+            // Fallback by ID if slug is numeric
+            if (is_numeric($itemSlug)) {
+                $item = Item::with(['images', 'category'])->find($itemSlug);
+            }
+        }
+
+        if (!$item) {
+            abort(404, 'Service or product solution not found.');
+        }
+
+        $category = $item->category;
+
+        // If the URL category doesn't match the item's actual category, redirect to the canonical URL
+        if ($category && $category->slug !== $categorySlug && $categorySlug !== 'services') {
+            return redirect()->route('services.item', [
+                'categorySlug' => $category->slug,
+                'itemSlug' => $item->slug
+            ]);
+        }
+
+        if (!$category) {
+            $category = Category::where('slug', $categorySlug)->first() ?? new Category(['name' => 'Services', 'slug' => 'services']);
+        }
 
         $relatedPortfolios = $item->portfolios()
             ->with('client')
             ->take(3)
             ->get();
 
-        $relatedItems = Item::where('category_id', $category->id)
+        $relatedItems = Item::where('category_id', $item->category_id)
             ->where('id', '!=', $item->id)
             ->where('status', 'published')
             ->take(3)
@@ -74,5 +110,15 @@ class ServicesController extends Controller
             'relatedPortfolios' => $relatedPortfolios,
             'relatedItems' => $relatedItems,
         ]);
+    }
+
+    /**
+     * Direct item link shortcut (/item/{itemSlug})
+     */
+    public function showItemDirect(string $itemSlug): RedirectResponse
+    {
+        $item = Item::where('slug', $itemSlug)->with('category')->firstOrFail();
+        $catSlug = $item->category ? $item->category->slug : 'apps';
+        return redirect()->route('services.item', ['categorySlug' => $catSlug, 'itemSlug' => $item->slug]);
     }
 }

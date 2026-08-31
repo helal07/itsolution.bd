@@ -16,7 +16,7 @@ export default function FeaturedStrip({ items = [] }) {
 
     const [activeIndex, setActiveIndex] = useState(0);
     const activeItem = items[activeIndex] || items[0];
-    const activeItemCatSlug = activeItem?.category?.slug || 'services';
+    const activeItemCatSlug = activeItem?.category?.slug || (activeItem?.category_id === 1 ? 'apps' : activeItem?.category_id === 2 ? 'website' : activeItem?.category_id === 3 ? 'software' : 'services');
     const activeItemUrl = `/services/${activeItemCatSlug}/${activeItem?.slug}`;
 
     return (

@@ -66,7 +66,6 @@ export default function SupportChatBot() {
     const [messages, setMessages] = useState(initialMessages);
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [showBubblePrompt, setShowBubblePrompt] = useState(true);
     const [isLiveAgentMode, setIsLiveAgentMode] = useState(false);
     const [agentConnected, setAgentConnected] = useState(false);
     
@@ -88,7 +87,6 @@ export default function SupportChatBot() {
     useEffect(() => {
         if (isOpen) {
             scrollToBottom();
-            setShowBubblePrompt(false);
             setTimeout(() => inputRef.current?.focus(), 150);
         }
     }, [isOpen, messages, isTyping, isLiveAgentMode]);
@@ -253,26 +251,7 @@ export default function SupportChatBot() {
     return (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
             
-            {/* 1. Floating Welcome Bubble Prompt */}
-            {!isOpen && showBubblePrompt && (
-                <div className="mb-3 p-3.5 max-w-xs bg-white rounded-2xl shadow-xl border border-neutral-200 text-neutral-800 text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                        <p className="leading-snug">Need help with apps or wish to talk to our Support Team?</p>
-                    </div>
-                    <button 
-                        onClick={() => setShowBubblePrompt(false)} 
-                        className="text-neutral-400 hover:text-neutral-600 p-1"
-                        aria-label="Dismiss prompt"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            )}
-
-            {/* 2. Chat Window */}
+            {/* 1. Chat Window */}
             {isOpen && (
                 <div className="w-[92vw] sm:w-[390px] h-[530px] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-neutral-200/80 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 mb-3">
                     

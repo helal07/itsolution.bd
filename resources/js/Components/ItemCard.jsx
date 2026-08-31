@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
 export default function ItemCard({ item, categorySlug }) {
-    const catSlug = categorySlug || item.category?.slug || 'services';
+    const catSlug = categorySlug || item.category?.slug || (item.category_id === 1 ? 'apps' : item.category_id === 2 ? 'website' : item.category_id === 3 ? 'software' : 'services');
     const detailUrl = `/services/${catSlug}/${item.slug}`;
 
     return (
