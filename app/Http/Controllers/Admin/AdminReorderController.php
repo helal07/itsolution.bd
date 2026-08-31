@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Item;
 use App\Models\Reorder;
 use App\Models\User;
+use App\Services\SmsService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -183,20 +184,50 @@ class AdminReorderController extends Controller
     }
 
     /**
-     * Record a sent reminder via WhatsApp or SMS.
+     * Record and dispatch a sent reminder via WhatsApp or SMS.
      */
     public function sendReminder(Request $request, Reorder $reorder): RedirectResponse
     {
         $channel = $request->input('channel', 'whatsapp'); // 'whatsapp' | 'sms'
-        
+
+        if ($channel === 'sms') {
+            $phone = trim((string)$reorder->client_phone);
+            if (empty($phone)) {
+                return redirect()->back()->with('error', "Cannot send SMS: No phone number registered for {$reorder->client_name}.");
+            }
+
+            $message = trim((string)$request->input('message', ''));
+            if (empty($message)) {
+                $days = $reorder->days_remaining;
+                $urgency = $days < 0 
+                    ? "expired on {$reorder->finish_date}" 
+                    : ($days === 0 ? "expires today ({$reorder->finish_date})" : "expires on {$reorder->finish_date}");
+                $message = "IT SOLUTIONS: Dear {$reorder->client_name}, your {$reorder->package_name} ({$reorder->billing_cycle}) {$urgency}. Renewal amount: ৳" . number_format($reorder->price) . " BDT. Thank you!";
+            }
+
+            $result = SmsService::send($phone, $message);
+
+            if (!$result['success']) {
+                return redirect()->back()->with('error', "SMS Gateway Failed: " . $result['message']);
+            }
+
+            $reorder->increment('reminder_count');
+            $reorder->update([
+                'last_reminder_sent_at' => now(),
+                'reminder_channel' => 'sms',
+            ]);
+
+            return redirect()->back()->with('success', "SMS reminder dispatched to {$reorder->client_name} ({$phone}): " . $result['message']);
+        }
+
+        // WhatsApp Reminder
         $reorder->increment('reminder_count');
         $reorder->update([
             'last_reminder_sent_at' => now(),
-            'reminder_channel' => $channel,
+            'reminder_channel' => 'whatsapp',
         ]);
 
-        $channelLabel = $channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
-        return redirect()->back()->with('success', "{$channelLabel} reminder logged for {$reorder->client_name}.");
+        return redirect()->back()->with('success', "WhatsApp reminder logged for {$reorder->client_name}.");
     }
 
     /**
