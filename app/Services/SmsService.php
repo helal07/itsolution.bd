@@ -106,17 +106,75 @@ class SmsService
                     ];
 
                 case 'mimsms':
-                    // MIM SMS BD
-                    $url = 'https://api.mimsms.com/api/sendsms';
-                    $response = Http::timeout(10)->post($url, [
-                        'ApiKey' => $apiKey,
-                        'SenderId' => $senderId,
-                        'Mobile' => $localPhone,
-                        'Message' => $message,
-                    ]);
+                    // MIM SMS BD v2 API (https://apidoc.mimsms.com/)
+                    $userName = !empty($apiSecret) ? trim($apiSecret) : SiteSetting::get('contact_email', '');
+                    if (empty($userName)) {
+                        return [
+                            'success' => false,
+                            'message' => 'MIM SMS requires your MiMSMS login email address (userName). Please enter it in the API Secret / Username field in SMS Settings.'
+                        ];
+                    }
+
+                    $url = 'https://api.mimsms.com/api/V2/SMS';
+                    $payload = [
+                        'apiKey' => trim($apiKey),
+                        'userName' => trim($userName),
+                        'senderName' => trim($senderId),
+                        'transactionType' => 'T',
+                        'mobileNumber' => $intlPhone,
+                        'message' => $message,
+                        'campaignName' => 'null',
+                    ];
+
+                    $response = Http::timeout(12)
+                        ->withHeaders([
+                            'Content-Type' => 'application/json',
+                            'Accept' => 'application/json',
+                        ])
+                        ->post($url, $payload);
+
+                    $body = $response->body();
+                    $data = json_decode($body, true);
+
+                    if (is_array($data)) {
+                        $statusCode = $data['statusCode'] ?? ($data['code'] ?? null);
+                        $status = strtolower((string)($data['status'] ?? ''));
+                        $responseResult = $data['responseResult'] ?? ($data['message'] ?? '');
+
+                        $isOk = ($statusCode == '200' || $statusCode == 200 || $status === 'success' || str_contains(strtolower($responseResult), 'successful'));
+
+                        if ($isOk) {
+                            $trxId = $data['trxnId'] ?? '';
+                            return [
+                                'success' => true,
+                                'message' => 'MIM SMS: ' . ($responseResult ?: 'SMS sent successfully!') . ($trxId ? " (Trx ID: {$trxId})" : '')
+                            ];
+                        }
+
+                        $errorDetail = '';
+                        if (!empty($data['error_Data']) && is_array($data['error_Data'])) {
+                            $errList = [];
+                            foreach ($data['error_Data'] as $err) {
+                                if (is_array($err) && !empty($err['error'])) {
+                                    $errList[] = $err['error'];
+                                } elseif (is_string($err)) {
+                                    $errList[] = $err;
+                                }
+                            }
+                            if (!empty($errList)) {
+                                $errorDetail = ' (' . implode(', ', $errList) . ')';
+                            }
+                        }
+
+                        return [
+                            'success' => false,
+                            'message' => 'MIM SMS: ' . ($responseResult ?: 'Failed') . $errorDetail . ($status ? " [Status: {$status}]" : '')
+                        ];
+                    }
+
                     return [
                         'success' => $response->successful(),
-                        'message' => 'MIM SMS: ' . $response->body()
+                        'message' => 'MIM SMS: ' . $body
                     ];
 
                 case 'sslwireless':

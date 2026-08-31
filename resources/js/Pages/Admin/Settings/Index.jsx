@@ -473,15 +473,39 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">API Secret (Optional)</label>
+                                    <label className="block font-bold text-slate-700 mb-1">
+                                        {data.sms_provider === 'mimsms' 
+                                            ? 'MiMSMS Login Email (userName)' 
+                                            : data.sms_provider === 'twilio' 
+                                            ? 'Twilio Auth Token' 
+                                            : 'API Secret / Username (Optional)'}
+                                    </label>
                                     <input
-                                        type="password"
+                                        type={data.sms_provider === 'mimsms' ? 'email' : 'password'}
                                         value={data.sms_api_secret}
                                         onChange={(e) => setData('sms_api_secret', e.target.value)}
-                                        placeholder="Optional Secret"
+                                        placeholder={
+                                            data.sms_provider === 'mimsms'
+                                                ? 'Account Email registered with MiMSMS'
+                                                : data.sms_provider === 'twilio'
+                                                ? 'Twilio Auth Token'
+                                                : 'Optional Secret / Username'
+                                        }
                                         className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono text-slate-900 focus:bg-white focus:border-blue-500"
                                     />
                                 </div>
+
+                                {data.sms_provider === 'mimsms' && (
+                                    <div className="md:col-span-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 space-y-1">
+                                        <p className="font-bold text-amber-800">MiMSMS Integration Notice:</p>
+                                        <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-900/80">
+                                            <li><strong>API Key:</strong> Found under <span className="font-mono">sms.mimsms.com → Utility → Developer</span> (must be <em>Activated</em>).</li>
+                                            <li><strong>Login Email:</strong> Enter your registered MiMSMS account email in the field above.</li>
+                                            <li><strong>Sender ID:</strong> Use your registered Masking name or Non-masking number from <span className="font-mono">Utility → Sender ID</span>.</li>
+                                            <li><strong>IP Whitelist:</strong> Ensure your server/hosting IP is whitelisted under <span className="font-mono">Utility → Developer</span>.</li>
+                                        </ul>
+                                    </div>
+                                )}
 
                                 {data.sms_provider === 'custom' && (
                                     <div className="md:col-span-2">
