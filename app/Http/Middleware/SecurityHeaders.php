@@ -28,8 +28,8 @@ class SecurityHeaders
         // Restrict referrer leakage to third-party domains
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        // Restrict browser features and device hardware APIs
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        // Allow camera and geolocation for self origin (staff attendance & selfie checkin) while blocking unauthorized hardware access
+        $response->headers->set('Permissions-Policy', 'camera=(self), geolocation=(self), microphone=()');
 
         // Enforce HTTPS HSTS when connecting over SSL/TLS
         if ($request->isSecure()) {
