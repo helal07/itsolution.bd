@@ -19,6 +19,7 @@ class StoreQuoteRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:30'],
             'message' => ['required', 'string', 'max:3000'],
             'item_id' => ['nullable', 'exists:items,id'],
+            'website' => ['prohibited'], // Honeypot trap: if automated bots fill this, request is blocked
         ];
     }
 }

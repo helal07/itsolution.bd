@@ -31,4 +31,19 @@ class Employee extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'assigned_to');
+    }
+
+    public function taskSteps()
+    {
+        return $this->hasMany(TaskStep::class, 'assigned_to');
+    }
+
+    public function dailyWorkLogs()
+    {
+        return $this->hasMany(DailyWorkLog::class, 'employee_id');
+    }
 }

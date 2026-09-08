@@ -11,17 +11,32 @@ use App\Http\Controllers\Admin\AdminQuoteController;
 use App\Http\Controllers\Admin\AdminReorderController;
 use App\Http\Controllers\Admin\AdminReviewController;
 use App\Http\Controllers\Admin\AdminSettingController;
+use App\Http\Controllers\Admin\AdminTaskController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminWorkLogController;
 use App\Http\Controllers\Admin\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
 
+    // Tasks & Subtasks Management
+    Route::get('/tasks', [AdminTaskController::class, 'index'])->name('tasks.index');
+    Route::post('/tasks', [AdminTaskController::class, 'store'])->name('tasks.store');
+    Route::put('/tasks/{task}', [AdminTaskController::class, 'update'])->name('tasks.update');
+    Route::delete('/tasks/{task}', [AdminTaskController::class, 'destroy'])->name('tasks.destroy');
+    Route::post('/tasks/{task}/steps', [AdminTaskController::class, 'storeStep'])->name('tasks.steps.store');
+    Route::patch('/tasks/steps/{step}/toggle', [AdminTaskController::class, 'toggleStep'])->name('tasks.steps.toggle');
+    Route::delete('/tasks/steps/{step}', [AdminTaskController::class, 'destroyStep'])->name('tasks.steps.destroy');
+
+    // Daily Work Logs Review & Evaluation
+    Route::get('/work-logs', [AdminWorkLogController::class, 'index'])->name('work-logs.index');
+    Route::patch('/work-logs/{log}/notes', [AdminWorkLogController::class, 'updateNotes'])->name('work-logs.notes');
+
     // Site & Hero Settings
     Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
-    Route::post('/settings/test-sms', [AdminSettingController::class, 'testSms'])->name('settings.test-sms');
+    Route::post('/settings/test-sms', [AdminSettingController::class, 'testSms'])->middleware('throttle:sms-test')->name('settings.test-sms');
 
     // Registered Website Users Management
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');

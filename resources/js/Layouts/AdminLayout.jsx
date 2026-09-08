@@ -24,7 +24,11 @@ import {
     ChevronRight,
     Sparkles,
     Bot,
-    User
+    User,
+    CheckSquare,
+    ListTodo,
+    ClipboardCheck,
+    FileText
 } from 'lucide-react';
 
 export default function AdminLayout({ children, title }) {
@@ -33,9 +37,14 @@ export default function AdminLayout({ children, title }) {
 
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
     const brandName = siteSettings.site_name || 'IT SOLUTIONS';
+    const isAdmin = auth?.user?.role === 'admin';
 
     const navItems = [
         { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/admin/tasks', label: 'Tasks & Steps', icon: CheckSquare },
+        { href: '/my-tasks', label: 'My Tasks', icon: ListTodo },
+        { href: '/admin/work-logs', label: 'Staff Work Logs', icon: ClipboardCheck },
+        { href: '/daily-work-log', label: 'Daily Submission', icon: FileText },
         { href: '/admin/orders', label: 'Orders & Sales', icon: ShoppingBag },
         { href: '/admin/quotes', label: 'Quotations', icon: MessageSquare },
         { href: '/admin/chat-questions', label: 'Live Chat & Q&A', icon: Bot },

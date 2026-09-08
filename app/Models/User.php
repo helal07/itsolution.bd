@@ -82,4 +82,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Review::class);
     }
+
+    public function dailyWorkLogs()
+    {
+        return $this->hasMany(DailyWorkLog::class);
+    }
 }
