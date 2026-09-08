@@ -18,8 +18,18 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(<App {...props} />);
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator && import.meta.env.PROD) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch((err) => {
+                    console.error('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
     },
     progress: {
-        color: '#4B5563',
+        color: '#4f46e5',
     },
 });
+

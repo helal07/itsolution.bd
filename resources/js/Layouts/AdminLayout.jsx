@@ -28,7 +28,10 @@ import {
     CheckSquare,
     ListTodo,
     ClipboardCheck,
-    FileText
+    FileText,
+    Camera,
+    CalendarDays,
+    Banknote
 } from 'lucide-react';
 
 export default function AdminLayout({ children, title }) {
@@ -41,6 +44,9 @@ export default function AdminLayout({ children, title }) {
 
     const navItems = [
         { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/attendance', label: 'Selfie Attendance', icon: Camera },
+        { href: '/leaves', label: 'Leave Requests', icon: CalendarDays },
+        { href: '/admin/salary', label: 'Salary & Payroll', icon: Banknote },
         { href: '/admin/tasks', label: 'Tasks & Steps', icon: CheckSquare },
         { href: '/my-tasks', label: 'My Tasks', icon: ListTodo },
         { href: '/admin/work-logs', label: 'Staff Work Logs', icon: ClipboardCheck },

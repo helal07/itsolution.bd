@@ -62,6 +62,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/daily-work-log', [DailyWorkLogController::class, 'index'])->name('staff.daily-log.index');
     Route::post('/daily-work-log', [DailyWorkLogController::class, 'store'])->name('staff.daily-log.store');
 
+    // Attendance (Selfie & GPS Check-in / Check-out)
+    Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/attendance/check-in', [\App\Http\Controllers\AttendanceController::class, 'checkIn'])->name('attendance.check-in');
+    Route::post('/attendance/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut'])->name('attendance.check-out');
+
+    // Leaves Management
+    Route::get('/leaves', [\App\Http\Controllers\LeaveController::class, 'index'])->name('leaves.index');
+    Route::post('/leaves', [\App\Http\Controllers\LeaveController::class, 'store'])->name('leaves.store');
+    Route::patch('/leaves/{leave}/status', [\App\Http\Controllers\LeaveController::class, 'updateStatus'])->name('leaves.status');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/review', [ProfileController::class, 'storeReview'])->middleware('throttle:5,1')->name('profile.review.store');

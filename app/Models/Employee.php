@@ -46,4 +46,19 @@ class Employee extends Model
     {
         return $this->hasMany(DailyWorkLog::class, 'employee_id');
     }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function leaves()
+    {
+        return $this->hasMany(Leave::class);
+    }
+
+    public function salaries()
+    {
+        return $this->hasMany(Salary::class);
+    }
 }

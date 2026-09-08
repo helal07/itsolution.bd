@@ -98,6 +98,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/employees/{employee}', [AdminEmployeeController::class, 'update'])->name('employees.update');
     Route::delete('/employees/{employee}', [AdminEmployeeController::class, 'destroy'])->name('employees.destroy');
 
+    // Salary & Payroll Management
+    Route::get('/salary', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'index'])->name('salary.index');
+    Route::post('/salary/generate', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'generateMonthly'])->name('salary.generate');
+    Route::put('/salary/{salary}', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'update'])->name('salary.update');
+    Route::post('/salary/{salary}/pay', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'markPaid'])->name('salary.pay');
+    Route::delete('/salary/{salary}', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'destroy'])->name('salary.destroy');
+
     // Live Chat Box Questions & Selections Management
     Route::get('/chat-questions', [AdminChatQuestionController::class, 'index'])->name('chat-questions.index');
     Route::post('/chat-questions', [AdminChatQuestionController::class, 'store'])->name('chat-questions.store');
