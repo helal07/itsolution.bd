@@ -29,7 +29,7 @@ import {
 import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
 
-export default function Index({ employees, stats = {}, filters = {} }) {
+export default function Index({ employees, availableRoles = [], stats = {}, filters = {} }) {
     const [search, setSearch] = useState(filters.search || '');
     const [selectedDept, setSelectedDept] = useState(filters.department || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
@@ -45,6 +45,8 @@ export default function Index({ employees, stats = {}, filters = {} }) {
     const [addAvatarPreview, setAddAvatarPreview] = useState('');
     const [editAvatarPreview, setEditAvatarPreview] = useState('');
 
+    const defaultRole = availableRoles[0]?.name || 'Developer';
+
     const { data: addData, setData: setAddData, post: postAdd, processing: addProcessing, reset: resetAdd, errors: addErrors } = useForm({
         name: '',
         email: '',
@@ -57,7 +59,7 @@ export default function Index({ employees, stats = {}, filters = {} }) {
         avatar: '',
         avatar_file: null,
         create_user_account: false,
-        user_role: 'admin',
+        system_role: defaultRole,
         password: '',
     });
 
@@ -73,7 +75,8 @@ export default function Index({ employees, stats = {}, filters = {} }) {
         joined_date: '',
         avatar: '',
         avatar_file: null,
-        grant_admin: false,
+        system_role: defaultRole,
+        grant_access: false,
         password: '',
     });
 
@@ -139,7 +142,8 @@ export default function Index({ employees, stats = {}, filters = {} }) {
             joined_date: emp.joined_date ? emp.joined_date.substring(0, 10) : '',
             avatar: emp.avatar || '',
             avatar_file: null,
-            grant_admin: false,
+            system_role: emp.system_role || (emp.user_id ? 'Admin' : defaultRole),
+            grant_access: !!emp.user_id,
             password: '',
         });
     };
@@ -395,12 +399,17 @@ export default function Index({ employees, stats = {}, filters = {} }) {
                                             {emp.department}
                                         </span>
 
-                                        {emp.user_id && (
+                                        {emp.system_role ? (
+                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                                                <Shield className="w-2.5 h-2.5" />
+                                                <span>{emp.system_role}</span>
+                                            </span>
+                                        ) : emp.user_id ? (
                                             <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
                                                 <Shield className="w-2.5 h-2.5" />
                                                 <span>Admin Access</span>
                                             </span>
-                                        )}
+                                        ) : null}
                                     </div>
 
                                     {/* Contact & Meta Details */}
@@ -525,12 +534,16 @@ export default function Index({ employees, stats = {}, filters = {} }) {
                                             </td>
 
                                             <td className="p-3.5">
-                                                {emp.user_id ? (
+                                                {emp.system_role ? (
                                                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                                        {emp.system_role}
+                                                    </span>
+                                                ) : emp.user_id ? (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                                         Admin
                                                     </span>
                                                 ) : (
-                                                    <span className="text-[11px] text-slate-400">Staff</span>
+                                                    <span className="text-[11px] text-slate-400">Staff Member</span>
                                                 )}
                                             </td>
 
@@ -714,20 +727,21 @@ export default function Index({ employees, stats = {}, filters = {} }) {
                                     onChange={(e) => setAddData('create_user_account', e.target.checked)}
                                     className="rounded text-blue-600 focus:ring-0"
                                 />
-                                <span className="font-bold text-slate-800">Grant Admin Panel Access</span>
+                                <span className="font-bold text-slate-800">Grant System / Admin Panel Access</span>
                             </label>
 
                             {addData.create_user_account && (
-                                <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block text-slate-700 font-bold mb-1">Account Role</label>
+                                        <label className="block text-slate-700 font-bold mb-1">System Role (Permission)</label>
                                         <select
-                                            value={addData.user_role}
-                                            onChange={(e) => setAddData('user_role', e.target.value)}
+                                            value={addData.system_role}
+                                            onChange={(e) => setAddData('system_role', e.target.value)}
                                             className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 font-bold text-xs"
                                         >
-                                            <option value="admin">Administrator</option>
-                                            <option value="client">Staff / Standard</option>
+                                            {availableRoles.map(role => (
+                                                <option key={role.id} value={role.name}>{role.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>
@@ -907,16 +921,32 @@ export default function Index({ employees, stats = {}, filters = {} }) {
                             </div>
                         </div>
 
-                        {/* Password Reset */}
-                        <div className="pt-2 border-t border-slate-100">
-                            <label className="block text-slate-700 font-bold mb-1">Reset Account Password (Optional)</label>
-                            <input
-                                type="password"
-                                value={editData.password}
-                                onChange={(e) => setEditData('password', e.target.value)}
-                                placeholder="Leave blank to keep current password"
-                                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                            />
+                        {/* System Role & Password Reset in Edit */}
+                        <div className="pt-3 border-t border-slate-100 space-y-3">
+                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1">System Role (Permission)</label>
+                                    <select
+                                        value={editData.system_role}
+                                        onChange={(e) => setEditData('system_role', e.target.value)}
+                                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 font-bold text-xs"
+                                    >
+                                        {availableRoles.map(role => (
+                                            <option key={role.id} value={role.name}>{role.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1">Reset Password (Optional)</label>
+                                    <input
+                                        type="password"
+                                        value={editData.password}
+                                        onChange={(e) => setEditData('password', e.target.value)}
+                                        placeholder="Leave blank to keep current"
+                                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 text-xs font-mono"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -988,9 +1018,9 @@ export default function Index({ employees, stats = {}, filters = {} }) {
                             </div>
 
                             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase block">Access Level</span>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase block">System Role</span>
                                 <span className="font-bold text-purple-700 mt-0.5 block">
-                                    {viewingEmployee.user_id ? 'Administrator' : 'Staff Member'}
+                                    {viewingEmployee.system_role || (viewingEmployee.user_id ? 'Administrator' : 'Staff Member')}
                                 </span>
                             </div>
                         </div>

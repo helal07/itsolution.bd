@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 class AdminEmployeeController extends Controller
 {
@@ -19,7 +20,7 @@ class AdminEmployeeController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = Employee::with('user')->latest();
+        $query = Employee::with(['user.roles'])->latest();
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -42,6 +43,19 @@ class AdminEmployeeController extends Controller
 
         $employees = $query->paginate(20)->withQueryString();
 
+        // Attach primary role name to each employee
+        $employees->getCollection()->transform(function ($emp) {
+            $roleName = $emp->user?->roles->first()?->name;
+            if (!$roleName && $emp->user) {
+                $roleName = $emp->user->role === 'admin' ? 'Super Admin' : 'Staff';
+            }
+            $emp->system_role = $roleName;
+            return $emp;
+        });
+
+        // Get all staff roles available for assignment (excluding Client)
+        $availableRoles = Role::where('name', '!=', 'Client')->get(['id', 'name']);
+
         // Department statistics & Monthly Payroll
         $stats = [
             'total' => Employee::count(),
@@ -55,13 +69,14 @@ class AdminEmployeeController extends Controller
 
         return Inertia::render('Admin/Employees/Index', [
             'employees' => $employees,
+            'availableRoles' => $availableRoles,
             'stats' => $stats,
             'filters' => $request->only(['search', 'department', 'status']),
         ]);
     }
 
     /**
-     * Store a newly created employee & optional user account.
+     * Store a newly created employee & optional user account with Role.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -77,7 +92,7 @@ class AdminEmployeeController extends Controller
             'avatar' => 'nullable|string|max:2000',
             'avatar_file' => 'nullable|image|max:4096',
             'create_user_account' => 'boolean',
-            'user_role' => 'nullable|in:client,admin',
+            'system_role' => 'nullable|string|exists:roles,name',
             'password' => 'nullable|string|min:6',
         ]);
 
@@ -89,16 +104,21 @@ class AdminEmployeeController extends Controller
 
         $userId = null;
 
-        // Optionally create user account for system login
+        // Optionally create user account for system login and attach Spatie Role
         if ($request->boolean('create_user_account') && !empty($validated['password'])) {
+            $selectedRole = $validated['system_role'] ?? 'Developer';
+            $isAdminRole = in_array($selectedRole, ['Super Admin', 'Admin']);
+
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'phone' => $validated['phone'] ?? null,
                 'password' => Hash::make($validated['password']),
-                'role' => $validated['user_role'] ?? 'admin',
+                'role' => $isAdminRole ? 'admin' : 'staff',
                 'email_verified_at' => now(),
             ]);
+
+            $user->assignRole($selectedRole);
             $userId = $user->id;
         }
 
@@ -119,7 +139,7 @@ class AdminEmployeeController extends Controller
     }
 
     /**
-     * Update the specified employee in storage.
+     * Update the specified employee in storage and sync Role.
      */
     public function update(Request $request, Employee $employee): RedirectResponse
     {
@@ -134,7 +154,8 @@ class AdminEmployeeController extends Controller
             'joined_date' => 'nullable|date',
             'avatar' => 'nullable|string|max:2000',
             'avatar_file' => 'nullable|image|max:4096',
-            'grant_admin' => 'nullable|boolean',
+            'system_role' => 'nullable|string|exists:roles,name',
+            'grant_access' => 'nullable|boolean',
             'password' => 'nullable|string|min:6',
         ]);
 
@@ -150,30 +171,46 @@ class AdminEmployeeController extends Controller
             $avatarUrl = $validated['avatar'];
         }
 
-        // If employee has associated user, update it
+        $selectedRole = $validated['system_role'] ?? null;
+        $isAdminRole = $selectedRole && in_array($selectedRole, ['Super Admin', 'Admin']);
+
+        // If employee has associated user, update details and sync Spatie Role
         if ($employee->user) {
-            $employee->user->update([
+            $userUpdate = [
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'phone' => $validated['phone'] ?? null,
-            ]);
+            ];
+
+            if ($selectedRole) {
+                $userUpdate['role'] = $isAdminRole ? 'admin' : 'staff';
+                $employee->user->syncRoles([$selectedRole]);
+            }
 
             if (!empty($validated['password'])) {
-                $employee->user->update([
-                    'password' => Hash::make($validated['password']),
-                ]);
+                $userUpdate['password'] = Hash::make($validated['password']);
             }
-        } elseif ($request->boolean('grant_admin') && !empty($validated['password'])) {
+
+            $employee->user->update($userUpdate);
+        } elseif (($request->boolean('grant_access') || !empty($selectedRole)) && !empty($validated['password'])) {
+            // Provision new user account
             $user = User::firstOrCreate(
                 ['email' => $validated['email']],
                 [
                     'name' => $validated['name'],
                     'phone' => $validated['phone'] ?? null,
                     'password' => Hash::make($validated['password']),
-                    'role' => 'admin',
+                    'role' => $isAdminRole ? 'admin' : 'staff',
                     'email_verified_at' => now(),
                 ]
             );
+
+            if ($selectedRole) {
+                $user->syncRoles([$selectedRole]);
+            } else {
+                $user->assignRole('Developer');
+            }
+
             $employee->user_id = $user->id;
         }
 

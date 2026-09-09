@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\AdminQuoteController;
 use App\Http\Controllers\Admin\AdminReorderController;
 use App\Http\Controllers\Admin\AdminReviewController;
+use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Admin\AdminTaskController;
 use App\Http\Controllers\Admin\AdminUserController;
@@ -47,6 +48,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
     Route::post('/settings/test-sms', [AdminSettingController::class, 'testSms'])->middleware('throttle:sms-test')->name('settings.test-sms');
+
+    // Role & Permissions Management (RBAC)
+    Route::get('/roles', [AdminRoleController::class, 'index'])->name('roles.index');
+    Route::post('/roles', [AdminRoleController::class, 'store'])->name('roles.store');
+    Route::put('/roles/{role}', [AdminRoleController::class, 'update'])->name('roles.update');
+    Route::delete('/roles/{role}', [AdminRoleController::class, 'destroy'])->name('roles.destroy');
 
     // Registered Website Users Management
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');

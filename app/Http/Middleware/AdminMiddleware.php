@@ -13,7 +13,19 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user() || ! $request->user()->isAdmin()) {
+        $user = $request->user();
+
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        // If user is a client, prevent admin access and redirect to client portal
+        if ($user->isClient()) {
+            return redirect()->route('client.dashboard')->with('error', 'Access restricted to customer portal.');
+        }
+
+        // Staff and Admin members are permitted
+        if (! $user->isStaff() && ! $user->isAdmin()) {
             abort(403, 'Unauthorized access to administrative area.');
         }
 

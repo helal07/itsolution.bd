@@ -37,6 +37,10 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                'roles' => $request->user() ? $request->user()->getRoleNames()->values()->toArray() : [],
+                'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name')->values()->toArray() : [],
+                'is_admin' => $request->user() ? $request->user()->isAdmin() : false,
+                'is_client' => $request->user() ? $request->user()->isClient() : false,
             ],
             'siteSettings' => function () {
                 return SiteSetting::allCached();

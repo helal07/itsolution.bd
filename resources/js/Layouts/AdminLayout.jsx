@@ -37,7 +37,8 @@ import {
     Palette,
     UserCog,
     CreditCard,
-    Smartphone
+    Smartphone,
+    Shield
 } from 'lucide-react';
 
 export default function AdminLayout({ children, title }) {
@@ -46,50 +47,57 @@ export default function AdminLayout({ children, title }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const brandName = siteSettings.site_name || 'IT SOLUTIONS';
-    const isAdmin = auth?.user?.role === 'admin';
+    const isSuperOrAdmin = auth?.is_admin || auth?.roles?.includes('Super Admin') || auth?.roles?.includes('Admin');
+    const userPermissions = auth?.permissions || [];
+
+    const hasPerm = (perm) => {
+        if (!perm || isSuperOrAdmin) return true;
+        return userPermissions.includes(perm);
+    };
 
     // Sub-items specifically grouped under Sales & Commerce
     const salesSubItems = [
-        { href: '/admin/clients', label: 'Clients Directory', icon: Building2 },
-        { href: '/admin/orders', label: 'Orders & Sales', icon: ShoppingBag },
-        { href: '/admin/quotes', label: 'Quotations', icon: MessageSquare },
-        { href: '/admin/reorders', label: 'Subscriptions', icon: RefreshCw },
-        { href: '/admin/users', label: 'Registered Users', icon: Users },
-    ];
+        { href: '/admin/clients', label: 'Clients Directory', icon: Building2, permission: 'manage clients' },
+        { href: '/admin/orders', label: 'Orders & Sales', icon: ShoppingBag, permission: 'manage sales' },
+        { href: '/admin/quotes', label: 'Quotations', icon: MessageSquare, permission: 'manage quotes' },
+        { href: '/admin/reorders', label: 'Subscriptions', icon: RefreshCw, permission: 'manage reorders' },
+        { href: '/admin/users', label: 'Registered Users', icon: Users, permission: 'manage users' },
+    ].filter(i => hasPerm(i.permission));
 
     // Sub-items specifically grouped under HRM Main Menu
     const hrmSubItems = [
         { href: '/attendance', label: 'Selfie Attendance', icon: Camera },
         { href: '/leaves', label: 'Leave Requests', icon: CalendarDays },
-        { href: '/admin/leave-settings', label: 'Leave Settings', icon: SlidersHorizontal },
-    ];
+        { href: '/admin/leave-settings', label: 'Leave Settings', icon: SlidersHorizontal, permission: 'manage leave settings' },
+    ].filter(i => hasPerm(i.permission));
 
     // Sub-items specifically grouped under Frontend Settings
     const frontendSubItems = [
-        { href: '/admin/items', label: 'Services & Products', icon: Layers },
-        { href: '/admin/portfolios', label: 'Portfolio', icon: FolderGit2 },
-        { href: '/admin/reviews', label: 'Reviews', icon: Star },
-        { href: '/admin/chat-questions', label: 'Live Chat & QA', icon: Bot },
-        { href: '/admin/hero-banner', label: 'Hero Banner', icon: Sparkles },
-        { href: '/admin/trust-matrix', label: 'Trust Matrix', icon: TrendingUp },
-        { href: '/admin/social-links', label: 'Social Links', icon: Share2 },
-    ];
+        { href: '/admin/items', label: 'Services & Products', icon: Layers, permission: 'manage items' },
+        { href: '/admin/portfolios', label: 'Portfolio', icon: FolderGit2, permission: 'manage portfolio' },
+        { href: '/admin/reviews', label: 'Reviews', icon: Star, permission: 'manage reviews' },
+        { href: '/admin/chat-questions', label: 'Live Chat & QA', icon: Bot, permission: 'manage chat' },
+        { href: '/admin/hero-banner', label: 'Hero Banner', icon: Sparkles, permission: 'manage hero banner' },
+        { href: '/admin/trust-matrix', label: 'Trust Matrix', icon: TrendingUp, permission: 'manage trust matrix' },
+        { href: '/admin/social-links', label: 'Social Links', icon: Share2, permission: 'manage social links' },
+    ].filter(i => hasPerm(i.permission));
 
     // Sub-items specifically grouped under Team & Operations
     const teamSubItems = [
-        { href: '/admin/employees', label: 'Staff Team', icon: UserCheck },
-        { href: '/admin/tasks', label: 'Tasks & Steps', icon: CheckSquare },
+        { href: '/admin/employees', label: 'Staff Team', icon: UserCheck, permission: 'manage employees' },
+        { href: '/admin/tasks', label: 'Tasks & Steps', icon: CheckSquare, permission: 'manage tasks' },
         { href: '/my-tasks', label: 'My Tasks', icon: ListTodo },
-        { href: '/admin/work-logs', label: 'Staff Work Logs', icon: ClipboardCheck },
+        { href: '/admin/work-logs', label: 'Staff Work Logs', icon: ClipboardCheck, permission: 'manage work logs' },
         { href: '/daily-work-log', label: 'Daily Submission', icon: FileText },
-    ];
+    ].filter(i => hasPerm(i.permission));
 
     // Sub-items specifically grouped under Settings Main Menu
     const settingsSubItems = [
-        { href: '/admin/settings?tab=brand', label: 'Brand & Logo', icon: Building2 },
-        { href: '/admin/settings?tab=sms', label: 'SMS Gateway', icon: Smartphone },
-        { href: '/admin/settings?tab=payment', label: 'Payment Gateway', icon: CreditCard },
-    ];
+        { href: '/admin/settings?tab=brand', label: 'Brand & Logo', icon: Building2, permission: 'manage settings' },
+        { href: '/admin/settings?tab=sms', label: 'SMS Gateway', icon: Smartphone, permission: 'manage settings' },
+        { href: '/admin/settings?tab=payment', label: 'Payment Gateway', icon: CreditCard, permission: 'manage settings' },
+        { href: '/admin/roles', label: 'Role & Permissions', icon: Shield, permission: 'manage roles' },
+    ].filter(i => hasPerm(i.permission));
 
     // Helper to evaluate active route matches
     const isItemActive = (item) => {
@@ -122,7 +130,7 @@ export default function AdminLayout({ children, title }) {
         if (hrmSubItems.some(isItemActive)) return 'hrm';
         if (frontendSubItems.some(isItemActive)) return 'frontend';
         if (
-            (typeof window !== 'undefined' && window.location.pathname === '/admin/settings') ||
+            (typeof window !== 'undefined' && (window.location.pathname === '/admin/settings' || window.location.pathname.startsWith('/admin/roles'))) ||
             settingsSubItems.some(isItemActive)
         ) {
             return 'settings';
@@ -142,8 +150,8 @@ export default function AdminLayout({ children, title }) {
         setOpenMenu((prev) => (prev === key ? null : key));
     };
 
-    // Navigation sections & hierarchical layout
-    const navSections = [
+    // Navigation sections & hierarchical layout (exact specified order)
+    const rawNavSections = [
         {
             group: 'Main',
             items: [
@@ -173,9 +181,9 @@ export default function AdminLayout({ children, title }) {
         },
         {
             group: 'Salary & Payroll',
-            items: [
+            items: hasPerm('manage payroll') ? [
                 { href: '/admin/salary', label: 'Salary & Payroll', icon: Banknote },
-            ]
+            ] : []
         },
         {
             group: 'Frontend & Showcase',
@@ -192,6 +200,8 @@ export default function AdminLayout({ children, title }) {
             items: settingsSubItems,
         }
     ];
+
+    const navSections = rawNavSections.filter(sec => sec.items && sec.items.length > 0);
 
     // Find active page title fallback
     const allFlatItems = [

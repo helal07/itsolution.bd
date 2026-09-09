@@ -7,11 +7,12 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -28,6 +29,7 @@ class User extends Authenticatable
 
     protected $appends = [
         'avatar',
+        'is_admin',
     ];
 
     /**
@@ -55,7 +57,17 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === 'admin' || (method_exists($this, 'hasAnyRole') && $this->hasAnyRole(['Super Admin', 'Admin']));
+    }
+
+    public function isClient(): bool
+    {
+        return $this->role === 'client' || (method_exists($this, 'hasRole') && $this->hasRole('Client'));
+    }
+
+    public function isStaff(): bool
+    {
+        return !$this->isClient();
     }
 
     public function getIsAdminAttribute(): bool
