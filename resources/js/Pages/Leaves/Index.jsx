@@ -112,28 +112,37 @@ export default function LeavesIndex({
 
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                         {isAdmin && (
-                            <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
-                                <button
-                                    onClick={() => setActiveTab('my')}
-                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                        activeTab === 'my'
-                                            ? 'bg-white text-blue-600 shadow-xs'
-                                            : 'text-slate-600 hover:text-slate-900'
-                                    }`}
+                            <>
+                                <a
+                                    href="/admin/leave-settings"
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all"
                                 >
-                                    My Leaves
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('admin_requests')}
-                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                        activeTab === 'admin_requests'
-                                            ? 'bg-white text-blue-600 shadow-xs'
-                                            : 'text-slate-600 hover:text-slate-900'
-                                    }`}
-                                >
-                                    All Requests ({allLeaves.filter(l => l.status === 'pending').length} Pending)
-                                </button>
-                            </div>
+                                    <span>Leave Settings</span>
+                                </a>
+
+                                <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                                    <button
+                                        onClick={() => setActiveTab('my')}
+                                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                            activeTab === 'my'
+                                                ? 'bg-white text-blue-600 shadow-xs'
+                                                : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        My Leaves
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('admin_requests')}
+                                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                            activeTab === 'admin_requests'
+                                                ? 'bg-white text-blue-600 shadow-xs'
+                                                : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        All Requests ({allLeaves.filter(l => l.status === 'pending').length} Pending)
+                                    </button>
+                                </div>
+                            </>
                         )}
 
                         <button
@@ -146,58 +155,37 @@ export default function LeavesIndex({
                     </div>
                 </div>
 
-                {/* Leave Quota Balance Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* Casual */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-                        <div className="space-y-1">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Casual Leave</span>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-black text-slate-900">
-                                    {(leaveStats.casual?.total || 10) - (leaveStats.casual?.used || 0)}
-                                </span>
-                                <span className="text-xs text-slate-500">/ {leaveStats.casual?.total || 10} Days Left</span>
-                            </div>
-                            <p className="text-[11px] text-slate-400 font-medium">Used: {leaveStats.casual?.used || 0} days</p>
-                        </div>
-                        <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                            <Coffee className="w-6 h-6" />
-                        </div>
-                    </div>
+                {/* Leave Quota Balance Cards (Dynamic) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.values(leaveStats).map((stat) => {
+                        const total = stat.total || 0;
+                        const used = stat.used || 0;
+                        const remaining = Math.max(0, total - used);
 
-                    {/* Sick */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-                        <div className="space-y-1">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Sick Leave</span>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-black text-slate-900">
-                                    {(leaveStats.sick?.total || 10) - (leaveStats.sick?.used || 0)}
-                                </span>
-                                <span className="text-xs text-slate-500">/ {leaveStats.sick?.total || 10} Days Left</span>
+                        return (
+                            <div key={stat.id} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                        {stat.name}
+                                    </span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-3xl font-black text-slate-900">
+                                            {remaining}
+                                        </span>
+                                        <span className="text-xs text-slate-500">
+                                            / {total} Days Left
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 font-medium">
+                                        Used: {used} days {stat.is_paid === false && '(Unpaid)'}
+                                    </p>
+                                </div>
+                                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                                    <CalendarDays className="w-6 h-6" />
+                                </div>
                             </div>
-                            <p className="text-[11px] text-slate-400 font-medium">Used: {leaveStats.sick?.used || 0} days</p>
-                        </div>
-                        <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
-                            <HeartPulse className="w-6 h-6" />
-                        </div>
-                    </div>
-
-                    {/* Annual */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-                        <div className="space-y-1">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Annual Leave</span>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-black text-slate-900">
-                                    {(leaveStats.annual?.total || 14) - (leaveStats.annual?.used || 0)}
-                                </span>
-                                <span className="text-xs text-slate-500">/ {leaveStats.annual?.total || 14} Days Left</span>
-                            </div>
-                            <p className="text-[11px] text-slate-400 font-medium">Used: {leaveStats.annual?.used || 0} days</p>
-                        </div>
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <Sun className="w-6 h-6" />
-                        </div>
-                    </div>
+                        );
+                    })}
                 </div>
 
                 {/* ================= TAB 1: MY LEAVES ================= */}
@@ -413,11 +401,21 @@ export default function LeavesIndex({
                                     onChange={(e) => setData('leave_type', e.target.value)}
                                     className="w-full text-xs rounded-xl border border-slate-200 p-2.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 >
-                                    <option value="casual">Casual Leave</option>
-                                    <option value="sick">Sick Leave</option>
-                                    <option value="annual">Annual / Earned Leave</option>
-                                    <option value="emergency">Emergency Leave</option>
-                                    <option value="other">Other / Special</option>
+                                    {Object.values(leaveStats).length > 0 ? (
+                                        Object.values(leaveStats).map((t) => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.name} ({t.total} days/yr {t.is_paid ? '• Paid' : '• Unpaid'})
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <>
+                                            <option value="casual">Casual Leave</option>
+                                            <option value="sick">Sick Leave</option>
+                                            <option value="annual">Annual / Earned Leave</option>
+                                            <option value="emergency">Emergency Leave</option>
+                                            <option value="other">Other / Special</option>
+                                        </>
+                                    )}
                                 </select>
                             </div>
 

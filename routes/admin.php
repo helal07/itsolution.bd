@@ -3,7 +3,9 @@
 use App\Http\Controllers\Admin\AdminChatQuestionController;
 use App\Http\Controllers\Admin\AdminClientController;
 use App\Http\Controllers\Admin\AdminEmployeeController;
+use App\Http\Controllers\Admin\AdminFrontendController;
 use App\Http\Controllers\Admin\AdminItemController;
+use App\Http\Controllers\Admin\AdminLeaveSettingController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminPortfolioController;
 use App\Http\Controllers\Admin\AdminProfileController;
@@ -19,6 +21,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
+
+    // Frontend Settings (Hero Banner, Trust Matrix, Social Links)
+    Route::get('/hero-banner', [AdminFrontendController::class, 'hero'])->name('hero.index');
+    Route::post('/hero-banner', [AdminFrontendController::class, 'updateHero'])->name('hero.update');
+    Route::get('/trust-matrix', [AdminFrontendController::class, 'metrics'])->name('metrics.index');
+    Route::post('/trust-matrix', [AdminFrontendController::class, 'updateMetrics'])->name('metrics.update');
+    Route::get('/social-links', [AdminFrontendController::class, 'social'])->name('social.index');
+    Route::post('/social-links', [AdminFrontendController::class, 'updateSocial'])->name('social.update');
 
     // Tasks & Subtasks Management
     Route::get('/tasks', [AdminTaskController::class, 'index'])->name('tasks.index');
@@ -104,6 +114,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/salary/{salary}', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'update'])->name('salary.update');
     Route::post('/salary/{salary}/pay', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'markPaid'])->name('salary.pay');
     Route::delete('/salary/{salary}', [\App\Http\Controllers\Admin\AdminSalaryController::class, 'destroy'])->name('salary.destroy');
+
+    // HRM Leave Types & Quotas Configuration
+    Route::get('/leave-settings', [AdminLeaveSettingController::class, 'index'])->name('leave-settings.index');
+    Route::post('/leave-settings', [AdminLeaveSettingController::class, 'update'])->name('leave-settings.update');
 
     // Live Chat Box Questions & Selections Management
     Route::get('/chat-questions', [AdminChatQuestionController::class, 'index'])->name('chat-questions.index');

@@ -39,28 +39,39 @@ class AdminSettingController extends Controller
             'sms_notify_payment' => SiteSetting::get('sms_notify_payment', '1'),
             'sms_notify_progress' => SiteSetting::get('sms_notify_progress', '1'),
 
-            // Hero Banner
-            'hero_headline' => SiteSetting::get('hero_headline', 'We Build World-Class Apps, Websites & Enterprise Software'),
-            'hero_subheadline' => SiteSetting::get('hero_subheadline', 'Empowering ambitious businesses with high-impact digital solutions, custom software architecture, and modern mobile experiences.'),
-            'hero_badge' => SiteSetting::get('hero_badge', 'PREMIUM IT SOLUTIONS, APPS & WEB ENGINEERING'),
-            'hero_image_1' => SiteSetting::get('hero_image_1', 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1000&auto=format&fit=crop&q=80'),
-            'hero_image_2' => SiteSetting::get('hero_image_2', 'https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&auto=format&fit=crop&q=80'),
-            'hero_image_1_tag' => SiteSetting::get('hero_image_1_tag', 'Enterprise Cloud & Web Apps'),
-            'hero_image_2_tag' => SiteSetting::get('hero_image_2_tag', 'Mobile & High Scale Systems'),
+            // Payment Gateways (bKash, EPS, SSLCommerz, Manual)
+            'payment_default_gateway' => SiteSetting::get('payment_default_gateway', 'bkash'),
             
-            // Metrics & Stats
-            'hero_stat1_value' => SiteSetting::get('hero_stat1_value', '100+'),
-            'hero_stat1_label' => SiteSetting::get('hero_stat1_label', 'Projects Delivered'),
-            'hero_stat2_value' => SiteSetting::get('hero_stat2_value', '99.9%'),
-            'hero_stat2_label' => SiteSetting::get('hero_stat2_label', 'Uptime Guarantee'),
-            'hero_stat3_value' => SiteSetting::get('hero_stat3_value', '5.0 ★'),
-            'hero_stat3_label' => SiteSetting::get('hero_stat3_label', 'Client Rating'),
+            // bKash PGW
+            'bkash_enabled' => SiteSetting::get('bkash_enabled', '1'),
+            'bkash_mode' => SiteSetting::get('bkash_mode', 'sandbox'),
+            'bkash_app_key' => SiteSetting::get('bkash_app_key', ''),
+            'bkash_app_secret' => SiteSetting::get('bkash_app_secret', ''),
+            'bkash_username' => SiteSetting::get('bkash_username', ''),
+            'bkash_password' => SiteSetting::get('bkash_password', ''),
+            'bkash_base_url' => SiteSetting::get('bkash_base_url', 'https://tokenized.sandbox.bka.sh/v1.2.0-beta'),
 
-            // Social
-            'facebook_url' => SiteSetting::get('facebook_url', 'https://facebook.com'),
-            'linkedin_url' => SiteSetting::get('linkedin_url', 'https://linkedin.com'),
-            'github_url' => SiteSetting::get('github_url', 'https://github.com'),
-            'youtube_url' => SiteSetting::get('youtube_url', 'https://youtube.com'),
+            // EPS (Easy Payment System)
+            'eps_enabled' => SiteSetting::get('eps_enabled', '0'),
+            'eps_mode' => SiteSetting::get('eps_mode', 'sandbox'),
+            'eps_merchant_id' => SiteSetting::get('eps_merchant_id', ''),
+            'eps_store_id' => SiteSetting::get('eps_store_id', ''),
+            'eps_hash_key' => SiteSetting::get('eps_hash_key', ''),
+            'eps_secret_key' => SiteSetting::get('eps_secret_key', ''),
+            'eps_api_url' => SiteSetting::get('eps_api_url', 'https://sandbox.eps.com.bd'),
+
+            // SSLCommerz
+            'sslcommerz_enabled' => SiteSetting::get('sslcommerz_enabled', '0'),
+            'sslcommerz_mode' => SiteSetting::get('sslcommerz_mode', 'sandbox'),
+            'sslcommerz_store_id' => SiteSetting::get('sslcommerz_store_id', ''),
+            'sslcommerz_store_passwd' => SiteSetting::get('sslcommerz_store_passwd', ''),
+            'sslcommerz_api_url' => SiteSetting::get('sslcommerz_api_url', 'https://sandbox.sslcommerz.com'),
+
+            // Manual / Offline Accounts
+            'manual_bkash_number' => SiteSetting::get('manual_bkash_number', ''),
+            'manual_nagad_number' => SiteSetting::get('manual_nagad_number', ''),
+            'manual_rocket_number' => SiteSetting::get('manual_rocket_number', ''),
+            'manual_bank_details' => SiteSetting::get('manual_bank_details', ''),
         ];
 
         return Inertia::render('Admin/Settings/Index', [
@@ -96,30 +107,39 @@ class AdminSettingController extends Controller
             'sms_notify_payment' => 'nullable|string|in:0,1',
             'sms_notify_progress' => 'nullable|string|in:0,1',
 
-            // Hero
-            'hero_headline' => 'nullable|string|max:255',
-            'hero_subheadline' => 'nullable|string|max:1000',
-            'hero_badge' => 'nullable|string|max:150',
-            'hero_image_1' => 'nullable|string|max:2000',
-            'hero_image_1_file' => 'nullable|image|max:8192',
-            'hero_image_2' => 'nullable|string|max:2000',
-            'hero_image_2_file' => 'nullable|image|max:8192',
-            'hero_image_1_tag' => 'nullable|string|max:100',
-            'hero_image_2_tag' => 'nullable|string|max:100',
+            // Payment Gateways
+            'payment_default_gateway' => 'nullable|string|max:50',
 
-            // Stats
-            'hero_stat1_value' => 'nullable|string|max:50',
-            'hero_stat1_label' => 'nullable|string|max:100',
-            'hero_stat2_value' => 'nullable|string|max:50',
-            'hero_stat2_label' => 'nullable|string|max:100',
-            'hero_stat3_value' => 'nullable|string|max:50',
-            'hero_stat3_label' => 'nullable|string|max:100',
+            // bKash
+            'bkash_enabled' => 'nullable|string|in:0,1',
+            'bkash_mode' => 'nullable|string|in:sandbox,live',
+            'bkash_app_key' => 'nullable|string|max:255',
+            'bkash_app_secret' => 'nullable|string|max:255',
+            'bkash_username' => 'nullable|string|max:150',
+            'bkash_password' => 'nullable|string|max:255',
+            'bkash_base_url' => 'nullable|string|max:500',
 
-            // Social
-            'facebook_url' => 'nullable|string|max:255',
-            'linkedin_url' => 'nullable|string|max:255',
-            'github_url' => 'nullable|string|max:255',
-            'youtube_url' => 'nullable|string|max:255',
+            // EPS
+            'eps_enabled' => 'nullable|string|in:0,1',
+            'eps_mode' => 'nullable|string|in:sandbox,live',
+            'eps_merchant_id' => 'nullable|string|max:150',
+            'eps_store_id' => 'nullable|string|max:150',
+            'eps_hash_key' => 'nullable|string|max:255',
+            'eps_secret_key' => 'nullable|string|max:255',
+            'eps_api_url' => 'nullable|string|max:500',
+
+            // SSLCommerz
+            'sslcommerz_enabled' => 'nullable|string|in:0,1',
+            'sslcommerz_mode' => 'nullable|string|in:sandbox,live',
+            'sslcommerz_store_id' => 'nullable|string|max:150',
+            'sslcommerz_store_passwd' => 'nullable|string|max:255',
+            'sslcommerz_api_url' => 'nullable|string|max:500',
+
+            // Manual
+            'manual_bkash_number' => 'nullable|string|max:150',
+            'manual_nagad_number' => 'nullable|string|max:150',
+            'manual_rocket_number' => 'nullable|string|max:150',
+            'manual_bank_details' => 'nullable|string|max:1000',
         ]);
 
         if ($request->hasFile('site_logo_file')) {
@@ -132,28 +152,16 @@ class AdminSettingController extends Controller
             $validated['site_favicon'] = '/storage/' . $path;
         }
 
-        if ($request->hasFile('hero_image_1_file')) {
-            $path = $request->file('hero_image_1_file')->store('settings', 'public');
-            $validated['hero_image_1'] = '/storage/' . $path;
-        }
-
-        if ($request->hasFile('hero_image_2_file')) {
-            $path = $request->file('hero_image_2_file')->store('settings', 'public');
-            $validated['hero_image_2'] = '/storage/' . $path;
-        }
-
         unset(
             $validated['site_logo_file'], 
-            $validated['site_favicon_file'],
-            $validated['hero_image_1_file'],
-            $validated['hero_image_2_file']
+            $validated['site_favicon_file']
         );
 
         foreach ($validated as $key => $value) {
             SiteSetting::set($key, $value);
         }
 
-        return back()->with('success', 'Site settings updated successfully.');
+        return back()->with('success', 'Settings updated successfully.');
     }
 
     public function testSms(Request $request): RedirectResponse

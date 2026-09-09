@@ -1,25 +1,25 @@
-import React, { useState, useRef } from 'react';
-import { useForm } from '@inertiajs/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { 
     Save, 
     Check, 
     Building2, 
     Smartphone, 
-    Sparkles, 
-    TrendingUp, 
-    Share2, 
+    CreditCard,
     Send, 
     Eye, 
     EyeOff, 
     Upload, 
-    Image as ImageIcon,
-    CheckCircle2
+    Shield,
+    Sliders,
+    Landmark
 } from 'lucide-react';
 
-export default function SettingsIndex({ settings, flash = {} }) {
+export default function SettingsIndex({ settings = {}, flash = {} }) {
+    const { url } = usePage();
     const { data, setData, post, processing, recentlySuccessful } = useForm({
-        // Brand
+        // Brand & Identity
         site_name: settings.site_name || 'IT SOLUTIONS',
         site_tagline: settings.site_tagline || 'Enterprise Software & Digital Engineering',
         site_logo: settings.site_logo || '',
@@ -33,7 +33,7 @@ export default function SettingsIndex({ settings, flash = {} }) {
         currency_symbol: settings.currency_symbol || '৳',
         currency_code: settings.currency_code || 'BDT',
 
-        // SMS
+        // SMS Gateway
         sms_enabled: settings.sms_enabled ?? '0',
         sms_provider: settings.sms_provider || 'bulksmsbd',
         sms_api_key: settings.sms_api_key || '',
@@ -44,44 +44,78 @@ export default function SettingsIndex({ settings, flash = {} }) {
         sms_notify_payment: settings.sms_notify_payment ?? '1',
         sms_notify_progress: settings.sms_notify_progress ?? '1',
 
-        // Hero
-        hero_headline: settings.hero_headline || '',
-        hero_subheadline: settings.hero_subheadline || '',
-        hero_badge: settings.hero_badge || '',
-        hero_image_1: settings.hero_image_1 || '',
-        hero_image_1_file: null,
-        hero_image_2: settings.hero_image_2 || '',
-        hero_image_2_file: null,
-        hero_image_1_tag: settings.hero_image_1_tag || '',
-        hero_image_2_tag: settings.hero_image_2_tag || '',
+        // Payment Gateway Settings
+        payment_default_gateway: settings.payment_default_gateway || 'bkash',
 
-        // Metrics
-        hero_stat1_value: settings.hero_stat1_value || '100+',
-        hero_stat1_label: settings.hero_stat1_label || 'Projects Delivered',
-        hero_stat2_value: settings.hero_stat2_value || '99.9%',
-        hero_stat2_label: settings.hero_stat2_label || 'Uptime Guarantee',
-        hero_stat3_value: settings.hero_stat3_value || '5.0 ★',
-        hero_stat3_label: settings.hero_stat3_label || 'Client Rating',
+        // bKash PGW
+        bkash_enabled: settings.bkash_enabled ?? '1',
+        bkash_mode: settings.bkash_mode || 'sandbox',
+        bkash_app_key: settings.bkash_app_key || '',
+        bkash_app_secret: settings.bkash_app_secret || '',
+        bkash_username: settings.bkash_username || '',
+        bkash_password: settings.bkash_password || '',
+        bkash_base_url: settings.bkash_base_url || 'https://tokenized.sandbox.bka.sh/v1.2.0-beta',
 
-        // Social
-        facebook_url: settings.facebook_url || '',
-        linkedin_url: settings.linkedin_url || '',
-        github_url: settings.github_url || '',
-        youtube_url: settings.youtube_url || '',
+        // EPS (Easy Payment System)
+        eps_enabled: settings.eps_enabled ?? '0',
+        eps_mode: settings.eps_mode || 'sandbox',
+        eps_merchant_id: settings.eps_merchant_id || '',
+        eps_store_id: settings.eps_store_id || '',
+        eps_hash_key: settings.eps_hash_key || '',
+        eps_secret_key: settings.eps_secret_key || '',
+        eps_api_url: settings.eps_api_url || 'https://sandbox.eps.com.bd',
+
+        // SSLCommerz
+        sslcommerz_enabled: settings.sslcommerz_enabled ?? '0',
+        sslcommerz_mode: settings.sslcommerz_mode || 'sandbox',
+        sslcommerz_store_id: settings.sslcommerz_store_id || '',
+        sslcommerz_store_passwd: settings.sslcommerz_store_passwd || '',
+        sslcommerz_api_url: settings.sslcommerz_api_url || 'https://sandbox.sslcommerz.com',
+
+        // Offline / Manual Accounts
+        manual_bkash_number: settings.manual_bkash_number || '',
+        manual_nagad_number: settings.manual_nagad_number || '',
+        manual_rocket_number: settings.manual_rocket_number || '',
+        manual_bank_details: settings.manual_bank_details || '',
     });
 
-    const [activeTab, setActiveTab] = useState('brand');
-    const [showApiKey, setShowApiKey] = useState(false);
+    const validTabs = ['brand', 'sms', 'payment'];
+    const getTabFromUrl = () => {
+        if (typeof window === 'undefined') return 'brand';
+        const tabParam = new URLSearchParams(window.location.search).get('tab');
+        return validTabs.includes(tabParam) ? tabParam : 'brand';
+    };
+
+    const [activeTab, setActiveTab] = useState(getTabFromUrl());
+
+    // Password & Secret key visibility states
+    const [showSmsApiKey, setShowSmsApiKey] = useState(false);
+    const [showBkashSecret, setShowBkashSecret] = useState(false);
+    const [showBkashPass, setShowBkashPass] = useState(false);
+    const [showEpsSecret, setShowEpsSecret] = useState(false);
+    const [showEpsHash, setShowEpsHash] = useState(false);
+    const [showSslPass, setShowSslPass] = useState(false);
+
+    // Synchronize tab state with URL / Inertia navigations
+    useEffect(() => {
+        const currentTab = getTabFromUrl();
+        setActiveTab(currentTab);
+    }, [url]);
+
+    const handleTabChange = (tabId) => {
+        setActiveTab(tabId);
+        if (typeof window !== 'undefined') {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('tab', tabId);
+            window.history.replaceState({}, '', currentUrl.toString());
+        }
+    };
     
     const [logoPreview, setLogoPreview] = useState(settings.site_logo || '');
     const [faviconPreview, setFaviconPreview] = useState(settings.site_favicon || '');
-    const [hero1Preview, setHero1Preview] = useState(settings.hero_image_1 || '');
-    const [hero2Preview, setHero2Preview] = useState(settings.hero_image_2 || '');
 
     const logoInputRef = useRef(null);
     const faviconInputRef = useRef(null);
-    const hero1InputRef = useRef(null);
-    const hero2InputRef = useRef(null);
 
     const testSmsForm = useForm({
         test_phone: '',
@@ -119,46 +153,28 @@ export default function SettingsIndex({ settings, flash = {} }) {
         }
     };
 
-    const handleHero1FileSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setData('hero_image_1_file', file);
-            setHero1Preview(URL.createObjectURL(file));
-        }
-    };
-
-    const handleHero2FileSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setData('hero_image_2_file', file);
-            setHero2Preview(URL.createObjectURL(file));
-        }
-    };
-
     const tabs = [
         { id: 'brand', label: 'Brand & Logo', icon: Building2 },
         { id: 'sms', label: 'SMS Gateway', icon: Smartphone },
-        { id: 'hero', label: 'Hero Banner', icon: Sparkles },
-        { id: 'metrics', label: 'Trust Metrics', icon: TrendingUp },
-        { id: 'social', label: 'Social Links', icon: Share2 },
+        { id: 'payment', label: 'Payment Gateway', icon: CreditCard },
     ];
 
     return (
-        <AdminLayout title="Site Settings">
+        <AdminLayout title="Settings">
             <div className="space-y-5 max-w-5xl mx-auto pb-10">
                 
                 {/* Clean Top Header Bar */}
                 <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold">
-                            <Building2 className="w-5 h-5" />
+                            <Sliders className="w-5 h-5" />
                         </div>
                         <div>
                             <h1 className="font-extrabold text-xl text-slate-900 tracking-tight">
-                                Site Settings
+                                Settings
                             </h1>
                             <span className="text-xs text-slate-400 font-medium">
-                                Configure website identity, logo, SMS gateway & hero content
+                                Configure brand identity, SMS gateway & payment gateway integrations
                             </span>
                         </div>
                     </div>
@@ -191,7 +207,7 @@ export default function SettingsIndex({ settings, flash = {} }) {
                             <button
                                 key={t.id}
                                 type="button"
-                                onClick={() => setActiveTab(t.id)}
+                                onClick={() => handleTabChange(t.id)}
                                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                                     isActive
                                         ? 'bg-blue-600 text-white shadow-xs'
@@ -255,7 +271,7 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                                 setData('site_logo', e.target.value);
                                                 setLogoPreview(e.target.value);
                                             }}
-                                            placeholder="Or enter logo URL"
+                                            placeholder="Or enter logo image URL"
                                             className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800 font-mono"
                                         />
                                     </div>
@@ -269,14 +285,14 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                         title="Click to select favicon"
                                     >
                                         {faviconPreview ? (
-                                            <img src={faviconPreview} alt="Favicon" className="w-full h-full object-contain" />
+                                            <img src={faviconPreview} alt="Favicon" className="w-8 h-8 object-contain" />
                                         ) : (
-                                            <ImageIcon className="w-5 h-5 text-slate-400 group-hover:text-blue-600" />
+                                            <Upload className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0 space-y-1.5">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs font-bold text-slate-800">Favicon Icon</span>
+                                            <span className="text-xs font-bold text-slate-800">Favicon (.ico, .png)</span>
                                             <button
                                                 type="button"
                                                 onClick={() => faviconInputRef.current?.click()}
@@ -304,23 +320,24 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                         />
                                     </div>
                                 </div>
+
                             </div>
                         </div>
 
-                        {/* General Info Card */}
+                        {/* General Brand Info Card */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
                             <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                                Identity & Contact
+                                Brand Identity & Contact Info
                             </h2>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Website Name</label>
+                                    <label className="block font-bold text-slate-700 mb-1">Company / Brand Name</label>
                                     <input
                                         type="text"
                                         value={data.site_name}
                                         onChange={(e) => setData('site_name', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:bg-white focus:border-blue-500"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>
 
@@ -330,7 +347,7 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                         type="text"
                                         value={data.site_tagline}
                                         onChange={(e) => setData('site_tagline', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>
 
@@ -340,17 +357,17 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                         type="email"
                                         value={data.contact_email}
                                         onChange={(e) => setData('contact_email', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-mono"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Hotline Phone</label>
+                                    <label className="block font-bold text-slate-700 mb-1">Contact Phone</label>
                                     <input
                                         type="text"
                                         value={data.contact_phone}
                                         onChange={(e) => setData('contact_phone', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-mono"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>
 
@@ -360,38 +377,37 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                         type="text"
                                         value={data.whatsapp_number}
                                         onChange={(e) => setData('whatsapp_number', e.target.value)}
-                                        placeholder="017XXXXXXXX"
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-mono"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Currency (Symbol & Code)</label>
+                                    <label className="block font-bold text-slate-700 mb-1">Currency Code & Symbol</label>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <input
-                                            type="text"
-                                            value={data.currency_symbol}
-                                            onChange={(e) => setData('currency_symbol', e.target.value)}
-                                            placeholder="৳"
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-bold text-center text-slate-900"
-                                        />
                                         <input
                                             type="text"
                                             value={data.currency_code}
                                             onChange={(e) => setData('currency_code', e.target.value)}
                                             placeholder="BDT"
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono text-center text-slate-900"
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold uppercase"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={data.currency_symbol}
+                                            onChange={(e) => setData('currency_symbol', e.target.value)}
+                                            placeholder="৳"
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block font-bold text-slate-700 mb-1">Office Address</label>
+                                    <label className="block font-bold text-slate-700 mb-1">Official Office Address</label>
                                     <input
                                         type="text"
                                         value={data.company_address}
                                         onChange={(e) => setData('company_address', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>
                             </div>
@@ -403,24 +419,22 @@ export default function SettingsIndex({ settings, flash = {} }) {
                 {activeTab === 'sms' && (
                     <div className="space-y-5">
                         
-                        {/* Gateway Setup Card */}
+                        {/* Gateway Configuration Card */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-                            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div className="flex items-center justify-between">
                                 <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                                    Gateway Setup
+                                    SMS Gateway Provider & API
                                 </h2>
-                                
-                                <button
-                                    type="button"
-                                    onClick={() => setData('sms_enabled', data.sms_enabled === '1' ? '0' : '1')}
-                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                                        data.sms_enabled === '1'
-                                            ? 'bg-emerald-600 text-white shadow-2xs'
-                                            : 'bg-slate-100 text-slate-600'
-                                    }`}
-                                >
-                                    {data.sms_enabled === '1' ? '✓ Gateway Active' : 'Gateway Disabled'}
-                                </button>
+
+                                <label className="inline-flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.sms_enabled === '1'}
+                                        onChange={(e) => setData('sms_enabled', e.target.checked ? '1' : '0')}
+                                        className="rounded text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="text-xs font-bold text-slate-900">Enable Live SMS Alerts</span>
+                                </label>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
@@ -429,102 +443,77 @@ export default function SettingsIndex({ settings, flash = {} }) {
                                     <select
                                         value={data.sms_provider}
                                         onChange={(e) => setData('sms_provider', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:bg-white focus:border-blue-500"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold"
                                     >
-                                        <option value="bulksmsbd">BulkSMS BD (bulksmsbd.net)</option>
-                                        <option value="greenweb">Greenweb BD (greenweb.com.bd)</option>
-                                        <option value="alphasms">Alpha SMS (sms.net.bd)</option>
-                                        <option value="mimsms">MIM SMS (mimsms.com)</option>
-                                        <option value="sslwireless">SSL Wireless (SMSPlus)</option>
-                                        <option value="twilio">Twilio Global</option>
-                                        <option value="custom">Custom API Endpoint</option>
+                                        <option value="greenweb">Greenweb BD</option>
+                                        <option value="bulksmsbd">BulkSMSBD</option>
+                                        <option value="custom">Custom API URL</option>
                                     </select>
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Sender ID / Masking</label>
+                                    <label className="block font-bold text-slate-700 mb-1">Sender ID (Masking/Non-Masking)</label>
                                     <input
                                         type="text"
                                         value={data.sms_sender_id}
                                         onChange={(e) => setData('sms_sender_id', e.target.value)}
                                         placeholder="e.g. ITSOLUTIONS"
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-500"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">API Key / Token</label>
-                                    <div className="relative">
-                                        <input
-                                            type={showApiKey ? "text" : "password"}
-                                            value={data.sms_api_key}
-                                            onChange={(e) => setData('sms_api_key', e.target.value)}
-                                            placeholder="Enter Gateway API Key"
-                                            className="w-full pl-3 pr-10 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono text-slate-900 focus:bg-white focus:border-blue-500"
-                                        />
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="font-bold text-slate-700">API Key / Token</label>
                                         <button
                                             type="button"
-                                            onClick={() => setShowApiKey(!showApiKey)}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                                            onClick={() => setShowSmsApiKey(!showSmsApiKey)}
+                                            className="text-[10px] text-blue-600 hover:text-blue-700 font-bold cursor-pointer"
                                         >
-                                            {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                            {showSmsApiKey ? 'Hide' : 'Reveal'}
                                         </button>
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label className="block font-bold text-slate-700 mb-1">
-                                        {data.sms_provider === 'mimsms' 
-                                            ? 'MiMSMS Login Email (userName)' 
-                                            : data.sms_provider === 'twilio' 
-                                            ? 'Twilio Auth Token' 
-                                            : 'API Secret / Username (Optional)'}
-                                    </label>
                                     <input
-                                        type={data.sms_provider === 'mimsms' ? 'email' : 'password'}
-                                        value={data.sms_api_secret}
-                                        onChange={(e) => setData('sms_api_secret', e.target.value)}
-                                        placeholder={
-                                            data.sms_provider === 'mimsms'
-                                                ? 'Account Email registered with MiMSMS'
-                                                : data.sms_provider === 'twilio'
-                                                ? 'Twilio Auth Token'
-                                                : 'Optional Secret / Username'
-                                        }
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono text-slate-900 focus:bg-white focus:border-blue-500"
+                                        type={showSmsApiKey ? 'text' : 'password'}
+                                        value={data.sms_api_key}
+                                        onChange={(e) => setData('sms_api_key', e.target.value)}
+                                        placeholder="Enter Gateway API Key"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
                                     />
                                 </div>
 
-                                {data.sms_provider === 'mimsms' && (
-                                    <div className="md:col-span-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 space-y-1">
-                                        <p className="font-bold text-amber-800">MiMSMS Integration Notice:</p>
-                                        <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-900/80">
-                                            <li><strong>API Key:</strong> Found under <span className="font-mono">sms.mimsms.com → Utility → Developer</span> (must be <em>Activated</em>).</li>
-                                            <li><strong>Login Email:</strong> Enter your registered MiMSMS account email in the field above.</li>
-                                            <li><strong>Sender ID:</strong> Use your registered Masking name or Non-masking number from <span className="font-mono">Utility → Sender ID</span>.</li>
-                                            <li><strong>IP Whitelist:</strong> Ensure your server/hosting IP is whitelisted under <span className="font-mono">Utility → Developer</span>.</li>
-                                        </ul>
-                                    </div>
-                                )}
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">API Secret / Client ID (If required)</label>
+                                    <input
+                                        type="password"
+                                        value={data.sms_api_secret}
+                                        onChange={(e) => setData('sms_api_secret', e.target.value)}
+                                        placeholder="Enter Secret Key"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
+                                    />
+                                </div>
 
                                 {data.sms_provider === 'custom' && (
                                     <div className="md:col-span-2">
-                                        <label className="block font-bold text-slate-700 mb-1">Custom API Endpoint URL</label>
+                                        <label className="block font-bold text-slate-700 mb-1">Custom API URL Template</label>
                                         <input
                                             type="text"
                                             value={data.sms_api_url}
                                             onChange={(e) => setData('sms_api_url', e.target.value)}
-                                            placeholder="https://api.gateway.com/send?apiKey={apikey}&to={to}&msg={message}&senderid={senderid}"
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono text-[11px] text-slate-900"
+                                            placeholder="https://api.sms.com/send?apiKey={API_KEY}&to={TO}&msg={MSG}"
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs"
                                         />
                                     </div>
                                 )}
                             </div>
 
-                            {/* SMS Automation Events */}
+                            {/* SMS Notifications Toggle */}
                             <div className="pt-3 border-t border-slate-100">
-                                <span className="block text-xs font-bold text-slate-700 mb-2">Automated Notifications</span>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                                    Automatic Trigger Alerts
+                                </span>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <label className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 cursor-pointer">
                                         <input
                                             type="checkbox"
@@ -596,274 +585,450 @@ export default function SettingsIndex({ settings, flash = {} }) {
                     </div>
                 )}
 
-                {/* TAB 3: HERO BANNER */}
-                {activeTab === 'hero' && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-                        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                            Home Hero Banner
-                        </h2>
+                {/* TAB 3: PAYMENT GATEWAY */}
+                {activeTab === 'payment' && (
+                    <div className="space-y-6">
+                        
+                        {/* Primary Gateway Selection */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-blue-600" />
+                                    Default Primary Gateway
+                                </h2>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Select the default payment processor presented to clients during checkout & invoice payments.
+                                </p>
+                            </div>
+                            <select
+                                value={data.payment_default_gateway}
+                                onChange={(e) => setData('payment_default_gateway', e.target.value)}
+                                className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer min-w-[180px]"
+                            >
+                                <option value="bkash">bKash (Direct Tokenized)</option>
+                                <option value="eps">EPS (Easy Payment System)</option>
+                                <option value="sslcommerz">SSLCommerz Hosted</option>
+                                <option value="manual">Manual / Offline Accounts</option>
+                            </select>
+                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-                            <div className="space-y-3">
+                        {/* GATEWAY 1: bKash */}
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-pink-50/50 to-white">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-pink-600/10 text-pink-600 flex items-center justify-center font-black text-sm tracking-wider">
+                                        bK
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-bold text-slate-900 text-sm">bKash PGW (Tokenized API)</h3>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                data.bkash_mode === 'live' 
+                                                    ? 'bg-emerald-100 text-emerald-700' 
+                                                    : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {data.bkash_mode.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500">Official tokenized checkout gateway for seamless instant payments</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        value={data.bkash_mode}
+                                        onChange={(e) => {
+                                            const mode = e.target.value;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                bkash_mode: mode,
+                                                bkash_base_url: mode === 'live'
+                                                    ? 'https://tokenized.pay.bka.sh/v1.2.0-beta'
+                                                    : 'https://tokenized.sandbox.bka.sh/v1.2.0-beta'
+                                            }));
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800"
+                                    >
+                                        <option value="sandbox">Sandbox / Testing</option>
+                                        <option value="live">Live / Production</option>
+                                    </select>
+
+                                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.bkash_enabled === '1'}
+                                            onChange={(e) => setData('bkash_enabled', e.target.checked ? '1' : '0')}
+                                            className="rounded text-pink-600 focus:ring-pink-500"
+                                        />
+                                        <span className="text-xs font-bold text-slate-900">Active</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Badge Text</label>
+                                    <label className="block font-bold text-slate-700 mb-1">bKash App Key</label>
                                     <input
                                         type="text"
-                                        value={data.hero_badge}
-                                        onChange={(e) => setData('hero_badge', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
+                                        value={data.bkash_app_key}
+                                        onChange={(e) => setData('bkash_app_key', e.target.value)}
+                                        placeholder="e.g. 4fxxxxxxxxxxxxxxxx"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 transition-all"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Headline</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="font-bold text-slate-700">bKash App Secret</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowBkashSecret(!showBkashSecret)}
+                                            className="text-[10px] text-pink-600 hover:text-pink-700 font-bold cursor-pointer"
+                                        >
+                                            {showBkashSecret ? 'Hide' : 'Reveal'}
+                                        </button>
+                                    </div>
                                     <input
-                                        type="text"
-                                        value={data.hero_headline}
-                                        onChange={(e) => setData('hero_headline', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold"
+                                        type={showBkashSecret ? 'text' : 'password'}
+                                        value={data.bkash_app_secret}
+                                        onChange={(e) => setData('bkash_app_secret', e.target.value)}
+                                        placeholder="Enter bKash App Secret Key"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 transition-all"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Subheadline</label>
+                                    <label className="block font-bold text-slate-700 mb-1">bKash Username</label>
+                                    <input
+                                        type="text"
+                                        value={data.bkash_username}
+                                        onChange={(e) => setData('bkash_username', e.target.value)}
+                                        placeholder="Merchant bKash Username"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="font-bold text-slate-700">bKash Password</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowBkashPass(!showBkashPass)}
+                                            className="text-[10px] text-pink-600 hover:text-pink-700 font-bold cursor-pointer"
+                                        >
+                                            {showBkashPass ? 'Hide' : 'Reveal'}
+                                        </button>
+                                    </div>
+                                    <input
+                                        type={showBkashPass ? 'text' : 'password'}
+                                        value={data.bkash_password}
+                                        onChange={(e) => setData('bkash_password', e.target.value)}
+                                        placeholder="Merchant bKash Password"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 transition-all"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block font-bold text-slate-700 mb-1">Base API URL</label>
+                                    <input
+                                        type="text"
+                                        value={data.bkash_base_url}
+                                        onChange={(e) => setData('bkash_base_url', e.target.value)}
+                                        placeholder="https://tokenized.sandbox.bka.sh/v1.2.0-beta"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:bg-white focus:border-pink-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* GATEWAY 2: EPS (Easy Payment System) */}
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50/50 to-white">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-600/10 text-emerald-600 flex items-center justify-center font-black text-sm tracking-wider">
+                                        EPS
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-bold text-slate-900 text-sm">EPS (Easy Payment System)</h3>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                data.eps_mode === 'live' 
+                                                    ? 'bg-emerald-100 text-emerald-700' 
+                                                    : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {data.eps_mode.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500">Bangladesh Bank licensed multi-channel payment gateway</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        value={data.eps_mode}
+                                        onChange={(e) => {
+                                            const mode = e.target.value;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                eps_mode: mode,
+                                                eps_api_url: mode === 'live'
+                                                    ? 'https://api.eps.com.bd'
+                                                    : 'https://sandbox.eps.com.bd'
+                                            }));
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800"
+                                    >
+                                        <option value="sandbox">Sandbox / Testing</option>
+                                        <option value="live">Live / Production</option>
+                                    </select>
+
+                                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.eps_enabled === '1'}
+                                            onChange={(e) => setData('eps_enabled', e.target.checked ? '1' : '0')}
+                                            className="rounded text-emerald-600 focus:ring-emerald-500"
+                                        />
+                                        <span className="text-xs font-bold text-slate-900">Active</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">EPS Merchant ID</label>
+                                    <input
+                                        type="text"
+                                        value={data.eps_merchant_id}
+                                        onChange={(e) => setData('eps_merchant_id', e.target.value)}
+                                        placeholder="Enter EPS Merchant ID"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">EPS Store ID</label>
+                                    <input
+                                        type="text"
+                                        value={data.eps_store_id}
+                                        onChange={(e) => setData('eps_store_id', e.target.value)}
+                                        placeholder="Enter EPS Store ID"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="font-bold text-slate-700">EPS Hash Key</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEpsHash(!showEpsHash)}
+                                            className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold cursor-pointer"
+                                        >
+                                            {showEpsHash ? 'Hide' : 'Reveal'}
+                                        </button>
+                                    </div>
+                                    <input
+                                        type={showEpsHash ? 'text' : 'password'}
+                                        value={data.eps_hash_key}
+                                        onChange={(e) => setData('eps_hash_key', e.target.value)}
+                                        placeholder="Enter EPS Hash Key"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="font-bold text-slate-700">EPS Secret Key</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEpsSecret(!showEpsSecret)}
+                                            className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold cursor-pointer"
+                                        >
+                                            {showEpsSecret ? 'Hide' : 'Reveal'}
+                                        </button>
+                                    </div>
+                                    <input
+                                        type={showEpsSecret ? 'text' : 'password'}
+                                        value={data.eps_secret_key}
+                                        onChange={(e) => setData('eps_secret_key', e.target.value)}
+                                        placeholder="Enter EPS Secret Key"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block font-bold text-slate-700 mb-1">EPS API Base URL</label>
+                                    <input
+                                        type="text"
+                                        value={data.eps_api_url}
+                                        onChange={(e) => setData('eps_api_url', e.target.value)}
+                                        placeholder="https://sandbox.eps.com.bd"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:bg-white focus:border-emerald-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* GATEWAY 3: SSLCommerz */}
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50/50 to-white">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center font-black text-sm tracking-wider">
+                                        SSL
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-bold text-slate-900 text-sm">SSLCommerz Hosted Gateway</h3>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                data.sslcommerz_mode === 'live' 
+                                                    ? 'bg-emerald-100 text-emerald-700' 
+                                                    : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {data.sslcommerz_mode.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500">Universal card, MFS & internet banking payment gateway</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        value={data.sslcommerz_mode}
+                                        onChange={(e) => {
+                                            const mode = e.target.value;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                sslcommerz_mode: mode,
+                                                sslcommerz_api_url: mode === 'live'
+                                                    ? 'https://securepay.sslcommerz.com'
+                                                    : 'https://sandbox.sslcommerz.com'
+                                            }));
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800"
+                                    >
+                                        <option value="sandbox">Sandbox / Testing</option>
+                                        <option value="live">Live / Production</option>
+                                    </select>
+
+                                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.sslcommerz_enabled === '1'}
+                                            onChange={(e) => setData('sslcommerz_enabled', e.target.checked ? '1' : '0')}
+                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs font-bold text-slate-900">Active</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">Store ID</label>
+                                    <input
+                                        type="text"
+                                        value={data.sslcommerz_store_id}
+                                        onChange={(e) => setData('sslcommerz_store_id', e.target.value)}
+                                        placeholder="Enter SSLCommerz Store ID"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="font-bold text-slate-700">Store Password / Secret Key</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSslPass(!showSslPass)}
+                                            className="text-[10px] text-blue-600 hover:text-blue-700 font-bold cursor-pointer"
+                                        >
+                                            {showSslPass ? 'Hide' : 'Reveal'}
+                                        </button>
+                                    </div>
+                                    <input
+                                        type={showSslPass ? 'text' : 'password'}
+                                        value={data.sslcommerz_store_passwd}
+                                        onChange={(e) => setData('sslcommerz_store_passwd', e.target.value)}
+                                        placeholder="Enter SSLCommerz Store Password"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block font-bold text-slate-700 mb-1">SSLCommerz API URL</label>
+                                    <input
+                                        type="text"
+                                        value={data.sslcommerz_api_url}
+                                        onChange={(e) => setData('sslcommerz_api_url', e.target.value)}
+                                        placeholder="https://sandbox.sslcommerz.com"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:bg-white focus:border-blue-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECTION 4: Manual / Offline Accounts */}
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center">
+                                        <Landmark className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 text-sm">Offline & Manual Payment Accounts</h3>
+                                        <p className="text-xs text-slate-500">Provide direct MFS & Bank transfer details for manual invoice settlements</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">Manual bKash Number (Merchant/Personal)</label>
+                                    <input
+                                        type="text"
+                                        value={data.manual_bkash_number}
+                                        onChange={(e) => setData('manual_bkash_number', e.target.value)}
+                                        placeholder="e.g. 01700-000000 (Personal)"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">Manual Nagad Number</label>
+                                    <input
+                                        type="text"
+                                        value={data.manual_nagad_number}
+                                        onChange={(e) => setData('manual_nagad_number', e.target.value)}
+                                        placeholder="e.g. 01800-000000 (Merchant)"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">Manual Rocket Number</label>
+                                    <input
+                                        type="text"
+                                        value={data.manual_rocket_number}
+                                        onChange={(e) => setData('manual_rocket_number', e.target.value)}
+                                        placeholder="e.g. 01900-0000008"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-3">
+                                    <label className="block font-bold text-slate-700 mb-1">Bank Account Transfer Details</label>
                                     <textarea
-                                        rows={4}
-                                        value={data.hero_subheadline}
-                                        onChange={(e) => setData('hero_subheadline', e.target.value)}
-                                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 resize-none"
+                                        rows={3}
+                                        value={data.manual_bank_details}
+                                        onChange={(e) => setData('manual_bank_details', e.target.value)}
+                                        placeholder="Bank Name: City Bank&#10;Account Name: IT SOLUTIONS BD&#10;Account Number: 1102938475001&#10;Branch: Gulshan Branch, Dhaka&#10;Routing: 225272345"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>
                             </div>
-
-                            <div className="space-y-4">
-                                
-                                {/* Hero Image 1 (Main) Selection Box */}
-                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-bold text-slate-800">Hero Image 1 (Main)</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => hero1InputRef.current?.click()}
-                                            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                                        >
-                                            Select File
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div 
-                                            onClick={() => hero1InputRef.current?.click()}
-                                            className="w-20 h-14 rounded-lg bg-white border border-dashed border-slate-300 hover:border-blue-500 flex items-center justify-center cursor-pointer transition-all overflow-hidden shadow-2xs group flex-shrink-0"
-                                            title="Click to select main hero image"
-                                        >
-                                            {hero1Preview ? (
-                                                <img src={hero1Preview} alt="Hero 1" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <Upload className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-                                            )}
-                                        </div>
-
-                                        <div className="flex-1 space-y-1.5">
-                                            <input
-                                                type="file"
-                                                ref={hero1InputRef}
-                                                accept="image/*"
-                                                onChange={handleHero1FileSelect}
-                                                className="hidden"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={data.hero_image_1}
-                                                onChange={(e) => {
-                                                    setData('hero_image_1', e.target.value);
-                                                    setHero1Preview(e.target.value);
-                                                }}
-                                                placeholder="Or enter image URL"
-                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800 font-mono"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={data.hero_image_1_tag}
-                                                onChange={(e) => setData('hero_image_1_tag', e.target.value)}
-                                                placeholder="Caption tag (e.g. Enterprise Cloud)"
-                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Hero Image 2 (Accent) Selection Box */}
-                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-bold text-slate-800">Hero Image 2 (Accent)</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => hero2InputRef.current?.click()}
-                                            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                                        >
-                                            Select File
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div 
-                                            onClick={() => hero2InputRef.current?.click()}
-                                            className="w-20 h-14 rounded-lg bg-white border border-dashed border-slate-300 hover:border-blue-500 flex items-center justify-center cursor-pointer transition-all overflow-hidden shadow-2xs group flex-shrink-0"
-                                            title="Click to select accent hero image"
-                                        >
-                                            {hero2Preview ? (
-                                                <img src={hero2Preview} alt="Hero 2" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <Upload className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-                                            )}
-                                        </div>
-
-                                        <div className="flex-1 space-y-1.5">
-                                            <input
-                                                type="file"
-                                                ref={hero2InputRef}
-                                                accept="image/*"
-                                                onChange={handleHero2FileSelect}
-                                                className="hidden"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={data.hero_image_2}
-                                                onChange={(e) => {
-                                                    setData('hero_image_2', e.target.value);
-                                                    setHero2Preview(e.target.value);
-                                                }}
-                                                placeholder="Or enter image URL"
-                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800 font-mono"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={data.hero_image_2_tag}
-                                                onChange={(e) => setData('hero_image_2_tag', e.target.value)}
-                                                placeholder="Caption tag (e.g. Mobile Apps)"
-                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
                         </div>
-                    </div>
-                )}
 
-                {/* TAB 4: METRICS */}
-                {activeTab === 'metrics' && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-                        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                            Trust Metrics Counters
-                        </h2>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Metric 1</span>
-                                <input
-                                    type="text"
-                                    value={data.hero_stat1_value}
-                                    onChange={(e) => setData('hero_stat1_value', e.target.value)}
-                                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-black text-slate-900"
-                                />
-                                <input
-                                    type="text"
-                                    value={data.hero_stat1_label}
-                                    onChange={(e) => setData('hero_stat1_label', e.target.value)}
-                                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-900"
-                                />
-                            </div>
-
-                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Metric 2</span>
-                                <input
-                                    type="text"
-                                    value={data.hero_stat2_value}
-                                    onChange={(e) => setData('hero_stat2_value', e.target.value)}
-                                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-black text-slate-900"
-                                />
-                                <input
-                                    type="text"
-                                    value={data.hero_stat2_label}
-                                    onChange={(e) => setData('hero_stat2_label', e.target.value)}
-                                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-900"
-                                />
-                            </div>
-
-                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Metric 3</span>
-                                <input
-                                    type="text"
-                                    value={data.hero_stat3_value}
-                                    onChange={(e) => setData('hero_stat3_value', e.target.value)}
-                                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-black text-slate-900"
-                                />
-                                <input
-                                    type="text"
-                                    value={data.hero_stat3_label}
-                                    onChange={(e) => setData('hero_stat3_label', e.target.value)}
-                                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-900"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* TAB 5: SOCIAL */}
-                {activeTab === 'social' && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-                        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                            Social Media Accounts
-                        </h2>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                            <div>
-                                <label className="block font-bold text-slate-700 mb-1">Facebook</label>
-                                <input
-                                    type="url"
-                                    value={data.facebook_url}
-                                    onChange={(e) => setData('facebook_url', e.target.value)}
-                                    placeholder="https://facebook.com/..."
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block font-bold text-slate-700 mb-1">LinkedIn</label>
-                                <input
-                                    type="url"
-                                    value={data.linkedin_url}
-                                    onChange={(e) => setData('linkedin_url', e.target.value)}
-                                    placeholder="https://linkedin.com/company/..."
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block font-bold text-slate-700 mb-1">GitHub</label>
-                                <input
-                                    type="url"
-                                    value={data.github_url}
-                                    onChange={(e) => setData('github_url', e.target.value)}
-                                    placeholder="https://github.com/..."
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block font-bold text-slate-700 mb-1">YouTube</label>
-                                <input
-                                    type="url"
-                                    value={data.youtube_url}
-                                    onChange={(e) => setData('youtube_url', e.target.value)}
-                                    placeholder="https://youtube.com/@..."
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                                />
-                            </div>
-                        </div>
                     </div>
                 )}
             </div>

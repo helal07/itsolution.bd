@@ -36,20 +36,24 @@ class LeaveController extends Controller
             ->whereYear('start_date', $currentYear)
             ->get();
 
-        $leaveStats = [
-            'casual' => [
-                'total' => 10,
-                'used' => $approvedLeavesThisYear->where('leave_type', 'casual')->sum('total_days'),
-            ],
-            'sick' => [
-                'total' => 10,
-                'used' => $approvedLeavesThisYear->where('leave_type', 'sick')->sum('total_days'),
-            ],
-            'annual' => [
-                'total' => 14,
-                'used' => $approvedLeavesThisYear->where('leave_type', 'annual')->sum('total_days'),
-            ],
-        ];
+        // Get configured leave types from settings
+        $configuredTypes = \App\Http\Controllers\Admin\AdminLeaveSettingController::getLeaveTypes();
+
+        $leaveStats = [];
+        foreach ($configuredTypes as $type) {
+            if ($type['enabled'] ?? true) {
+                $typeId = $type['id'];
+                $leaveStats[$typeId] = [
+                    'id' => $typeId,
+                    'name' => $type['name'],
+                    'total' => (float) ($type['days'] ?? 0),
+                    'is_paid' => (bool) ($type['is_paid'] ?? true),
+                    'color' => $type['color'] ?? 'blue',
+                    'description' => $type['description'] ?? '',
+                    'used' => (float) $approvedLeavesThisYear->where('leave_type', $typeId)->sum('total_days'),
+                ];
+            }
+        }
 
         // All leaves for Admin overview
         $allLeaves = [];
@@ -64,6 +68,7 @@ class LeaveController extends Controller
             'myLeaves' => $myLeaves,
             'allLeaves' => $allLeaves,
             'leaveStats' => $leaveStats,
+            'leaveTypes' => array_values($configuredTypes),
             'currentYear' => $currentYear,
             'isAdmin' => (bool) $user->is_admin,
         ]);
@@ -79,8 +84,12 @@ class LeaveController extends Controller
             ->orWhere('email', $user->email)
             ->first();
 
+        $configuredTypes = \App\Http\Controllers\Admin\AdminLeaveSettingController::getLeaveTypes();
+        $validTypeKeys = array_column($configuredTypes, 'id');
+        $validTypesRule = implode(',', array_merge($validTypeKeys, ['casual', 'sick', 'annual', 'emergency', 'other']));
+
         $validated = $request->validate([
-            'leave_type' => 'required|in:casual,sick,annual,emergency,other',
+            'leave_type' => 'required|string|in:' . $validTypesRule,
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string|max:1000',
