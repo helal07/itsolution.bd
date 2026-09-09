@@ -111,7 +111,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Employees & Team Members Management (Staff)
     Route::get('/employees', [AdminEmployeeController::class, 'index'])->name('employees.index');
+    Route::get('/employees/create', [AdminEmployeeController::class, 'create'])->name('employees.create');
     Route::post('/employees', [AdminEmployeeController::class, 'store'])->name('employees.store');
+    Route::get('/employees/{employee}/edit', [AdminEmployeeController::class, 'edit'])->name('employees.edit');
     Route::put('/employees/{employee}', [AdminEmployeeController::class, 'update'])->name('employees.update');
     Route::delete('/employees/{employee}', [AdminEmployeeController::class, 'destroy'])->name('employees.destroy');
 
@@ -125,6 +127,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // HRM Leave Types & Quotas Configuration
     Route::get('/leave-settings', [AdminLeaveSettingController::class, 'index'])->name('leave-settings.index');
     Route::post('/leave-settings', [AdminLeaveSettingController::class, 'update'])->name('leave-settings.update');
+
+    // HRM Departments Management
+    Route::get('/departments', [\App\Http\Controllers\Admin\AdminDepartmentController::class, 'index'])->name('departments.index');
+    Route::post('/departments', [\App\Http\Controllers\Admin\AdminDepartmentController::class, 'store'])->name('departments.store');
+    Route::put('/departments/{department}', [\App\Http\Controllers\Admin\AdminDepartmentController::class, 'update'])->name('departments.update');
+    Route::delete('/departments/{department}', [\App\Http\Controllers\Admin\AdminDepartmentController::class, 'destroy'])->name('departments.destroy');
 
     // Live Chat Box Questions & Selections Management
     Route::get('/chat-questions', [AdminChatQuestionController::class, 'index'])->name('chat-questions.index');

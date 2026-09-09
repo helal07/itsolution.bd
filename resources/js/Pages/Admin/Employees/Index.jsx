@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { 
     Plus, 
     Search, 
@@ -17,68 +17,29 @@ import {
     List, 
     Eye, 
     MessageSquare, 
-    Upload, 
     Calendar, 
     Briefcase, 
     CheckCircle2, 
     AlertCircle,
     UserCheck,
-    Lock,
+    CreditCard,
+    MapPin,
+    Share2,
+    FileText,
+    Percent,
     ExternalLink
 } from 'lucide-react';
 import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
 
-export default function Index({ employees, availableRoles = [], stats = {}, filters = {} }) {
+export default function Index({ employees, availableRoles = [], availableDepartments = [], stats = {}, filters = {} }) {
     const [search, setSearch] = useState(filters.search || '');
     const [selectedDept, setSelectedDept] = useState(filters.department || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
     const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
 
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [viewingEmployee, setViewingEmployee] = useState(null);
-    const [editingEmployee, setEditingEmployee] = useState(null);
     const [deletingEmployee, setDeletingEmployee] = useState(null);
-
-    const addAvatarInputRef = useRef(null);
-    const editAvatarInputRef = useRef(null);
-    const [addAvatarPreview, setAddAvatarPreview] = useState('');
-    const [editAvatarPreview, setEditAvatarPreview] = useState('');
-
-    const defaultRole = availableRoles[0]?.name || 'Developer';
-
-    const { data: addData, setData: setAddData, post: postAdd, processing: addProcessing, reset: resetAdd, errors: addErrors } = useForm({
-        name: '',
-        email: '',
-        phone: '',
-        designation: '',
-        department: 'Engineering',
-        status: 'active',
-        salary: '',
-        joined_date: new Date().toISOString().split('T')[0],
-        avatar: '',
-        avatar_file: null,
-        create_user_account: false,
-        system_role: defaultRole,
-        password: '',
-    });
-
-    const { data: editData, setData: setEditData, post: postEdit, processing: editProcessing, errors: editErrors } = useForm({
-        _method: 'PUT',
-        name: '',
-        email: '',
-        phone: '',
-        designation: '',
-        department: 'Engineering',
-        status: 'active',
-        salary: '',
-        joined_date: '',
-        avatar: '',
-        avatar_file: null,
-        system_role: defaultRole,
-        grant_access: false,
-        password: '',
-    });
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -99,66 +60,6 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
         }, { preserveState: true, replace: true });
     };
 
-    const handleAddAvatarSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setAddData('avatar_file', file);
-            setAddAvatarPreview(URL.createObjectURL(file));
-        }
-    };
-
-    const handleEditAvatarSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setEditData('avatar_file', file);
-            setEditAvatarPreview(URL.createObjectURL(file));
-        }
-    };
-
-    const submitAdd = (e) => {
-        e.preventDefault();
-        postAdd('/admin/employees', {
-            forceFormData: true,
-            onSuccess: () => {
-                setIsAddModalOpen(false);
-                resetAdd();
-                setAddAvatarPreview('');
-            }
-        });
-    };
-
-    const openEdit = (emp) => {
-        setEditingEmployee(emp);
-        setEditAvatarPreview(emp.avatar || '');
-        setEditData({
-            _method: 'PUT',
-            name: emp.name,
-            email: emp.email,
-            phone: emp.phone || '',
-            designation: emp.designation,
-            department: emp.department,
-            status: emp.status,
-            salary: emp.salary || '',
-            joined_date: emp.joined_date ? emp.joined_date.substring(0, 10) : '',
-            avatar: emp.avatar || '',
-            avatar_file: null,
-            system_role: emp.system_role || (emp.user_id ? 'Admin' : defaultRole),
-            grant_access: !!emp.user_id,
-            password: '',
-        });
-    };
-
-    const submitEdit = (e) => {
-        e.preventDefault();
-        postEdit(`/admin/employees/${editingEmployee.id}`, {
-            forceFormData: true,
-            onSuccess: () => {
-                setEditingEmployee(null);
-                setEditAvatarPreview('');
-            }
-        });
-    };
-
     const confirmDelete = () => {
         if (!deletingEmployee) return;
         router.delete(`/admin/employees/${deletingEmployee.id}`, {
@@ -166,14 +67,15 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
         });
     };
 
-    const departments = [
+    const departments = availableDepartments.length > 0 ? availableDepartments : [
         'Engineering',
         'Cyber Security',
         'Mobile Development',
         'Cloud & DevOps',
         'UI/UX Design',
         'Sales & Growth',
-        'Management'
+        'Management',
+        'HR & Accounts'
     ];
 
     const getDeptBadgeClass = (dept) => {
@@ -190,6 +92,8 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                 return 'bg-rose-50 text-rose-700 border-rose-200';
             case 'Sales & Growth':
                 return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'HR & Accounts':
+                return 'bg-amber-50 text-amber-700 border-amber-200';
             default:
                 return 'bg-slate-50 text-slate-700 border-slate-200';
         }
@@ -242,13 +146,14 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                             </button>
                         </div>
 
-                        <button
-                            onClick={() => setIsAddModalOpen(true)}
+                        {/* Link to Full-Page Add Team Member */}
+                        <Link
+                            href="/admin/employees/create"
                             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
                         >
                             <Plus className="w-4 h-4" />
                             <span>Add Team Member</span>
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
@@ -370,7 +275,7 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
 
                                             <div className="min-w-0">
                                                 <h3 className="font-extrabold text-sm text-slate-900 truncate leading-tight group-hover:text-blue-600 transition-colors">
-                                                    {emp.name}
+                                                    {emp.prefix ? `${emp.prefix}. ` : ''}{emp.name}
                                                 </h3>
                                                 <p className="text-xs text-slate-500 font-medium truncate mt-0.5">
                                                     {emp.designation}
@@ -381,9 +286,9 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                                         <ActionDropdown label="">
                                             <div className="py-1">
                                                 <ActionItem onClick={() => setViewingEmployee(emp)} icon={Eye}>
-                                                    View Dossier
+                                                    View Profile
                                                 </ActionItem>
-                                                <ActionItem onClick={() => openEdit(emp)} icon={Edit}>
+                                                <ActionItem onClick={() => router.visit(`/admin/employees/${emp.id}/edit`)} icon={Edit}>
                                                     Edit Details
                                                 </ActionItem>
                                                 <ActionItem onClick={() => setDeletingEmployee(emp)} icon={Trash2} danger>
@@ -410,6 +315,12 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                                                 <span>Admin Access</span>
                                             </span>
                                         ) : null}
+
+                                        {emp.sales_commission_percentage > 0 && (
+                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-0.5">
+                                                <span>{emp.sales_commission_percentage}% Comm.</span>
+                                            </span>
+                                        )}
                                     </div>
 
                                     {/* Contact & Meta Details */}
@@ -474,7 +385,7 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                                         <th className="p-3.5">Contact</th>
                                         <th className="p-3.5">Salary</th>
                                         <th className="p-3.5">Status</th>
-                                        <th className="p-3.5">Access</th>
+                                        <th className="p-3.5">Access Role</th>
                                         <th className="p-3.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -491,7 +402,7 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                                                         </div>
                                                     )}
                                                     <div>
-                                                        <p className="font-bold text-slate-900">{emp.name}</p>
+                                                        <p className="font-bold text-slate-900">{emp.prefix ? `${emp.prefix}. ` : ''}{emp.name}</p>
                                                         <p className="text-[10px] text-slate-400 font-mono">
                                                             Joined: {emp.joined_date ? emp.joined_date.substring(0, 10) : 'N/A'}
                                                         </p>
@@ -553,7 +464,7 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                                                         <ActionItem onClick={() => setViewingEmployee(emp)} icon={Eye}>
                                                             View Profile
                                                         </ActionItem>
-                                                        <ActionItem onClick={() => openEdit(emp)} icon={Edit}>
+                                                        <ActionItem onClick={() => router.visit(`/admin/employees/${emp.id}/edit`)} icon={Edit}>
                                                             Edit Member
                                                         </ActionItem>
                                                         <ActionItem onClick={() => setDeletingEmployee(emp)} icon={Trash2} danger>
@@ -571,423 +482,33 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                 )}
             </div>
 
-            {/* 1. ADD TEAM MEMBER MODAL */}
-            <Modal show={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} maxWidth="md">
-                <div className="bg-white p-6 space-y-4 rounded-2xl text-slate-800">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <div>
-                            <h3 className="font-bold text-base text-slate-900">Add Team Member</h3>
-                            <p className="text-xs text-slate-400 mt-0.5">Enter personal details, role, and optional login credentials</p>
-                        </div>
-                        <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <form onSubmit={submitAdd} className="space-y-3.5 text-xs">
-                        
-                        {/* Avatar Picker Row */}
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                            <div 
-                                onClick={() => addAvatarInputRef.current?.click()}
-                                className="w-14 h-14 rounded-full bg-white border-2 border-dashed border-slate-300 hover:border-blue-500 flex items-center justify-center cursor-pointer transition-all overflow-hidden flex-shrink-0 shadow-2xs"
-                                title="Click to upload profile photo"
-                            >
-                                {addAvatarPreview ? (
-                                    <img src={addAvatarPreview} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    <Upload className="w-4 h-4 text-slate-400" />
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-1">
-                                <span className="font-bold text-slate-800 block">Profile Photo (Avatar)</span>
-                                <input
-                                    type="file"
-                                    ref={addAvatarInputRef}
-                                    accept="image/*"
-                                    onChange={handleAddAvatarSelect}
-                                    className="hidden"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => addAvatarInputRef.current?.click()}
-                                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                                >
-                                    Browse Photo File
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-slate-700 font-bold mb-1">Full Name *</label>
-                            <input
-                                type="text"
-                                required
-                                value={addData.name}
-                                onChange={(e) => setAddData('name', e.target.value)}
-                                placeholder="e.g. Tanvir Ahmed"
-                                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-bold"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Email *</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={addData.email}
-                                    onChange={(e) => setAddData('email', e.target.value)}
-                                    placeholder="tanvir@company.com"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Phone Number</label>
-                                <input
-                                    type="text"
-                                    value={addData.phone}
-                                    onChange={(e) => setAddData('phone', e.target.value)}
-                                    placeholder="017XXXXXXXX"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-mono"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Designation *</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={addData.designation}
-                                    onChange={(e) => setAddData('designation', e.target.value)}
-                                    placeholder="e.g. Lead Software Architect"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Department</label>
-                                <select
-                                    value={addData.department}
-                                    onChange={(e) => setAddData('department', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-semibold"
-                                >
-                                    {departments.map((d) => (
-                                        <option key={d} value={d}>{d}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Status</label>
-                                <select
-                                    value={addData.status}
-                                    onChange={(e) => setAddData('status', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold"
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="on_leave">On Leave</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Salary (৳ BDT)</label>
-                                <input
-                                    type="number"
-                                    value={addData.salary}
-                                    onChange={(e) => setAddData('salary', e.target.value)}
-                                    placeholder="e.g. 65000"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Joined Date</label>
-                                <input
-                                    type="date"
-                                    value={addData.joined_date}
-                                    onChange={(e) => setAddData('joined_date', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                                />
-                            </div>
-                        </div>
-
-                        {/* User Login Account Switch */}
-                        <div className="pt-3 border-t border-slate-100 space-y-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={addData.create_user_account}
-                                    onChange={(e) => setAddData('create_user_account', e.target.checked)}
-                                    className="rounded text-blue-600 focus:ring-0"
-                                />
-                                <span className="font-bold text-slate-800">Grant System / Admin Panel Access</span>
-                            </label>
-
-                            {addData.create_user_account && (
-                                <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-slate-700 font-bold mb-1">System Role (Permission)</label>
-                                        <select
-                                            value={addData.system_role}
-                                            onChange={(e) => setAddData('system_role', e.target.value)}
-                                            className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 font-bold text-xs"
-                                        >
-                                            {availableRoles.map(role => (
-                                                <option key={role.id} value={role.name}>{role.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-slate-700 font-bold mb-1">Password *</label>
-                                        <input
-                                            type="password"
-                                            value={addData.password}
-                                            onChange={(e) => setAddData('password', e.target.value)}
-                                            placeholder="Min 6 characters"
-                                            className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 text-xs font-mono"
-                                            required={addData.create_user_account}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={() => setIsAddModalOpen(false)}
-                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={addProcessing}
-                                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-                            >
-                                {addProcessing ? 'Adding...' : 'Add Member'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </Modal>
-
-            {/* 2. EDIT TEAM MEMBER MODAL */}
-            <Modal show={!!editingEmployee} onClose={() => setEditingEmployee(null)} maxWidth="md">
-                <div className="bg-white p-6 space-y-4 rounded-2xl text-slate-800">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <div>
-                            <h3 className="font-bold text-base text-slate-900">Edit Team Member</h3>
-                            <p className="text-xs text-slate-400 mt-0.5">Update designations, salary, or login permissions</p>
-                        </div>
-                        <button onClick={() => setEditingEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <form onSubmit={submitEdit} className="space-y-3.5 text-xs">
-                        
-                        {/* Edit Avatar Row */}
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                            <div 
-                                onClick={() => editAvatarInputRef.current?.click()}
-                                className="w-14 h-14 rounded-full bg-white border-2 border-dashed border-slate-300 hover:border-blue-500 flex items-center justify-center cursor-pointer transition-all overflow-hidden flex-shrink-0 shadow-2xs"
-                                title="Click to upload profile photo"
-                            >
-                                {editAvatarPreview ? (
-                                    <img src={editAvatarPreview} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    <Upload className="w-4 h-4 text-slate-400" />
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-1">
-                                <span className="font-bold text-slate-800 block">Change Photo</span>
-                                <input
-                                    type="file"
-                                    ref={editAvatarInputRef}
-                                    accept="image/*"
-                                    onChange={handleEditAvatarSelect}
-                                    className="hidden"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => editAvatarInputRef.current?.click()}
-                                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                                >
-                                    Browse Photo File
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-slate-700 font-bold mb-1">Full Name *</label>
-                            <input
-                                type="text"
-                                required
-                                value={editData.name}
-                                onChange={(e) => setEditData('name', e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-bold"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Email *</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={editData.email}
-                                    onChange={(e) => setEditData('email', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Phone</label>
-                                <input
-                                    type="text"
-                                    value={editData.phone}
-                                    onChange={(e) => setEditData('phone', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-mono"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Designation *</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={editData.designation}
-                                    onChange={(e) => setEditData('designation', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Department</label>
-                                <select
-                                    value={editData.department}
-                                    onChange={(e) => setEditData('department', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-semibold"
-                                >
-                                    {departments.map((d) => (
-                                        <option key={d} value={d}>{d}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Status</label>
-                                <select
-                                    value={editData.status}
-                                    onChange={(e) => setEditData('status', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold"
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="on_leave">On Leave</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Salary (৳ BDT)</label>
-                                <input
-                                    type="number"
-                                    value={editData.salary}
-                                    onChange={(e) => setEditData('salary', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Joined Date</label>
-                                <input
-                                    type="date"
-                                    value={editData.joined_date}
-                                    onChange={(e) => setEditData('joined_date', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                                />
-                            </div>
-                        </div>
-
-                        {/* System Role & Password Reset in Edit */}
-                        <div className="pt-3 border-t border-slate-100 space-y-3">
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">System Role (Permission)</label>
-                                    <select
-                                        value={editData.system_role}
-                                        onChange={(e) => setEditData('system_role', e.target.value)}
-                                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 font-bold text-xs"
-                                    >
-                                        {availableRoles.map(role => (
-                                            <option key={role.id} value={role.name}>{role.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Reset Password (Optional)</label>
-                                    <input
-                                        type="password"
-                                        value={editData.password}
-                                        onChange={(e) => setEditData('password', e.target.value)}
-                                        placeholder="Leave blank to keep current"
-                                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 text-xs font-mono"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={() => setEditingEmployee(null)}
-                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={editProcessing}
-                                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-                            >
-                                {editProcessing ? 'Saving...' : 'Save Changes'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </Modal>
-
-            {/* 3. VIEW DOSSIER MODAL */}
+            {/* COMPREHENSIVE DOSSIER / PROFILE MODAL */}
             {viewingEmployee && (
-                <Modal show={!!viewingEmployee} onClose={() => setViewingEmployee(null)} maxWidth="md">
+                <Modal show={!!viewingEmployee} onClose={() => setViewingEmployee(null)} maxWidth="2xl">
                     <div className="bg-white p-6 space-y-5 rounded-2xl text-slate-800">
-                        <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-3.5">
+                        {/* Header Profile Summary */}
+                        <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+                            <div className="flex items-center gap-4">
                                 {viewingEmployee.avatar ? (
-                                    <img src={viewingEmployee.avatar} alt={viewingEmployee.name} className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shadow-xs" />
+                                    <img src={viewingEmployee.avatar} alt={viewingEmployee.name} className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-xs" />
                                 ) : (
-                                    <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white font-black text-xl flex items-center justify-center shadow-xs">
+                                    <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white font-black text-2xl flex items-center justify-center shadow-xs">
                                         {viewingEmployee.name.charAt(0).toUpperCase()}
                                     </div>
                                 )}
                                 <div>
-                                    <h3 className="font-extrabold text-base text-slate-900">{viewingEmployee.name}</h3>
+                                    <h3 className="font-extrabold text-lg text-slate-900">
+                                        {viewingEmployee.prefix ? `${viewingEmployee.prefix}. ` : ''}{viewingEmployee.name}
+                                    </h3>
                                     <p className="text-xs text-slate-500 font-medium">{viewingEmployee.designation}</p>
-                                    <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold border mt-1 ${getDeptBadgeClass(viewingEmployee.department)}`}>
-                                        {viewingEmployee.department}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${getDeptBadgeClass(viewingEmployee.department)}`}>
+                                            {viewingEmployee.department}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                            {viewingEmployee.system_role || (viewingEmployee.user_id ? 'Administrator' : 'Staff Member')}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <button onClick={() => setViewingEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
@@ -995,82 +516,165 @@ export default function Index({ employees, availableRoles = [], stats = {}, filt
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase block">Status</span>
-                                <span className="font-bold text-slate-900 capitalize mt-0.5 block">
-                                    {viewingEmployee.status.replace('_', ' ')}
-                                </span>
+                        {/* Multi-section Details */}
+                        <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1 text-xs">
+                            
+                            {/* 1. Job & Operational Data */}
+                            <div>
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1.5">Job & Financials</span>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                                        <span className="text-[10px] text-slate-400 font-medium block">Monthly Salary</span>
+                                        <span className="font-bold text-emerald-600 font-mono mt-0.5 block">
+                                            {viewingEmployee.salary ? formatCurrency(viewingEmployee.salary) : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                                        <span className="text-[10px] text-slate-400 font-medium block">Commission Rate</span>
+                                        <span className="font-bold text-slate-800 font-mono mt-0.5 block">
+                                            {viewingEmployee.sales_commission_percentage ? `${viewingEmployee.sales_commission_percentage}%` : '0%'}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                                        <span className="text-[10px] text-slate-400 font-medium block">Joined Date</span>
+                                        <span className="font-semibold text-slate-800 font-mono mt-0.5 block">
+                                            {viewingEmployee.joined_date ? viewingEmployee.joined_date.substring(0, 10) : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                                        <span className="text-[10px] text-slate-400 font-medium block">Status</span>
+                                        <span className="font-bold text-slate-800 capitalize mt-0.5 block">
+                                            {viewingEmployee.status?.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase block">Monthly Salary</span>
-                                <span className="font-bold text-emerald-600 font-mono mt-0.5 block">
-                                    {viewingEmployee.salary ? formatCurrency(viewingEmployee.salary) : 'Not Disclosed'}
-                                </span>
+                            {/* 2. Personal Demographics & Contact */}
+                            <div>
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1.5">Personal & Identity</span>
+                                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <div>
+                                        <span className="text-slate-400 font-medium block">Email:</span>
+                                        <a href={`mailto:${viewingEmployee.email}`} className="font-bold text-blue-600 hover:underline break-all">{viewingEmployee.email}</a>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 font-medium block">Mobile Number:</span>
+                                        <span className="font-bold font-mono text-slate-900">{viewingEmployee.phone || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 font-medium block">Alternate Phone:</span>
+                                        <span className="font-mono text-slate-700">{viewingEmployee.alternate_phone || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 font-medium block">Date of Birth:</span>
+                                        <span className="font-mono text-slate-700">{viewingEmployee.dob ? viewingEmployee.dob.substring(0, 10) : 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 font-medium block">Gender / Marital:</span>
+                                        <span className="font-semibold text-slate-700">{viewingEmployee.gender || 'N/A'} / {viewingEmployee.marital_status || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 font-medium block">Blood Group:</span>
+                                        <span className="font-bold text-rose-600">{viewingEmployee.blood_group || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 font-medium block">Guardian Name:</span>
+                                        <span className="font-semibold text-slate-800">{viewingEmployee.guardian_name || 'N/A'}</span>
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <span className="text-slate-400 font-medium block">{viewingEmployee.id_proof_name || 'ID Document'}:</span>
+                                        <span className="font-mono font-bold text-slate-900">{viewingEmployee.id_proof_number || 'N/A'}</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase block">Joined Date</span>
-                                <span className="font-semibold text-slate-900 font-mono mt-0.5 block">
-                                    {viewingEmployee.joined_date ? viewingEmployee.joined_date.substring(0, 10) : 'N/A'}
-                                </span>
-                            </div>
-
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase block">System Role</span>
-                                <span className="font-bold text-purple-700 mt-0.5 block">
-                                    {viewingEmployee.system_role || (viewingEmployee.user_id ? 'Administrator' : 'Staff Member')}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Contact Shortcuts */}
-                        <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 space-y-2 text-xs">
-                            <div className="flex items-center justify-between">
-                                <span className="text-slate-500 font-medium">Email:</span>
-                                <a href={`mailto:${viewingEmployee.email}`} className="font-bold text-blue-600 hover:underline">
-                                    {viewingEmployee.email}
-                                </a>
-                            </div>
-                            {viewingEmployee.phone && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate-500 font-medium">Phone:</span>
-                                    <span className="font-bold font-mono text-slate-900">{viewingEmployee.phone}</span>
+                            {/* 3. Addresses */}
+                            {(viewingEmployee.current_address || viewingEmployee.permanent_address) && (
+                                <div>
+                                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1.5">Addresses</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                                            <span className="text-[10px] text-slate-400 font-medium block">Current Address</span>
+                                            <p className="text-slate-800 font-medium mt-0.5">{viewingEmployee.current_address || 'N/A'}</p>
+                                        </div>
+                                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                                            <span className="text-[10px] text-slate-400 font-medium block">Permanent Address</span>
+                                            <p className="text-slate-800 font-medium mt-0.5">{viewingEmployee.permanent_address || 'N/A'}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
+
+                            {/* 4. Bank & Tax Details */}
+                            <div>
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1.5">Bank & Tax Accounts</span>
+                                <div className="p-3.5 rounded-xl bg-indigo-50/50 border border-indigo-100 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <div>
+                                        <span className="text-slate-500 font-medium block">Account Holder:</span>
+                                        <span className="font-bold text-slate-900">{viewingEmployee.bank_account_holder_name || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 font-medium block">Account Number:</span>
+                                        <span className="font-mono font-bold text-slate-900">{viewingEmployee.bank_account_number || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 font-medium block">Bank Name:</span>
+                                        <span className="font-semibold text-slate-800">{viewingEmployee.bank_name || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 font-medium block">Routing / Swift:</span>
+                                        <span className="font-mono text-slate-700">{viewingEmployee.bank_identifier_code || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 font-medium block">Branch:</span>
+                                        <span className="text-slate-700">{viewingEmployee.bank_branch || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 font-medium block">Tax Payer ID (TIN):</span>
+                                        <span className="font-mono text-slate-700">{viewingEmployee.tax_payer_id || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                            {viewingEmployee.phone && (
-                                <a
-                                    href={`https://wa.me/${viewingEmployee.phone.replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors shadow-2xs"
+                        {/* Modal Footer Actions */}
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                            <div>
+                                {viewingEmployee.phone && (
+                                    <a
+                                        href={`https://wa.me/${viewingEmployee.phone.replace(/[^0-9]/g, '')}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors shadow-2xs"
+                                    >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                        <span>WhatsApp</span>
+                                    </a>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewingEmployee(null)}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
                                 >
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                    <span>WhatsApp</span>
-                                </a>
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const emp = viewingEmployee;
-                                    setViewingEmployee(null);
-                                    openEdit(emp);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shadow-2xs cursor-pointer"
-                            >
-                                <Edit className="w-3.5 h-3.5" />
-                                <span>Edit Profile</span>
-                            </button>
+                                    Close
+                                </button>
+                                <Link
+                                    href={`/admin/employees/${viewingEmployee.id}/edit`}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shadow-2xs cursor-pointer"
+                                >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    <span>Edit Full Profile</span>
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </Modal>
             )}
 
-            {/* 4. DELETE CONFIRMATION MODAL */}
+            {/* DELETE CONFIRMATION MODAL */}
             {deletingEmployee && (
                 <Modal show={!!deletingEmployee} onClose={() => setDeletingEmployee(null)} maxWidth="sm">
                     <div className="bg-white p-6 space-y-4 rounded-2xl text-slate-800">

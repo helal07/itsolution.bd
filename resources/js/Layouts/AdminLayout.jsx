@@ -69,6 +69,7 @@ export default function AdminLayout({ children, title }) {
         { href: '/attendance', label: 'Selfie Attendance', icon: Camera },
         { href: '/leaves', label: 'Leave Requests', icon: CalendarDays },
         { href: '/admin/leave-settings', label: 'Leave Settings', icon: SlidersHorizontal, permission: 'manage leave settings' },
+        { href: '/admin/departments', label: 'Departments', icon: Building2, permission: 'manage staff' },
     ].filter(i => hasPerm(i.permission));
 
     // Sub-items specifically grouped under Frontend Settings
