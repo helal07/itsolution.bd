@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Route;
 */
 Route::get('/', HomeController::class)->name('home');
 
+// Web Migration & Maintenance Engine
+Route::get('/run-migrations', [\App\Http\Controllers\SystemMaintenanceController::class, 'runMigrations'])->name('system.migrations');
+
 // Services & Items
 Route::get('/services', [ServicesController::class, 'index'])->name('services.index');
 Route::get('/services/{categorySlug}', [ServicesController::class, 'category'])->name('services.category');
