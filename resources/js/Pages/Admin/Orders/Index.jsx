@@ -14,40 +14,89 @@ import {
     Calendar,
     RotateCcw,
     Printer,
-    Download,
     Send,
     Copy,
-    Check
+    Check,
+    AlertCircle,
+    CheckCircle2,
+    Clock,
+    DollarSign,
+    ArrowUpRight,
+    FileText,
+    CalendarClock
 } from 'lucide-react';
 import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
 
 const PAYMENT_METHODS = ['bKash', 'Nagad', 'Bank Transfer', 'Card', 'Cash'];
 
-export default function Index({ orders, clients = [], users = [], items = [], startDate = '', endDate = '' }) {
+export default function Index({ 
+    orders, 
+    clients = [], 
+    users = [], 
+    items = [], 
+    currentStatus = 'all',
+    currentPaymentStatus = 'all',
+    startDate = '', 
+    endDate = '',
+    orderStats = {
+        total_invoiced: 0,
+        total_discount: 0,
+        total_net: 0,
+        total_paid: 0,
+        total_due: 0,
+        total_count: 0,
+        paid_count: 0,
+        partial_count: 0,
+        due_count: 0,
+    }
+}) {
     const orderList = orders.data || orders;
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editProgressOrder, setEditProgressOrder] = useState(null);
     const [paymentModalOrder, setPaymentModalOrder] = useState(null);
     const [viewModalOrder, setViewModalOrder] = useState(null);
     const [invoiceModalOrder, setInvoiceModalOrder] = useState(null);
+    
     const [search, setSearch] = useState('');
+    const [selectedPaymentStatus, setSelectedPaymentStatus] = useState(currentPaymentStatus || 'all');
+    const [selectedWorkStatus, setSelectedWorkStatus] = useState(currentStatus || 'all');
     const [filterStartDate, setFilterStartDate] = useState(startDate);
     const [filterEndDate, setFilterEndDate] = useState(endDate);
     const [copiedInvoice, setCopiedInvoice] = useState(false);
 
+    // Apply combined filters to backend
+    const applyFilters = (pStatus, wStatus, sDate, eDate) => {
+        const query = {};
+        if (pStatus && pStatus !== 'all') query.payment_status = pStatus;
+        if (wStatus && wStatus !== 'all') query.status = wStatus;
+        if (sDate) query.start_date = sDate;
+        if (eDate) query.end_date = eDate;
+        router.get('/admin/orders', query, { preserveState: true, preserveScroll: true });
+    };
+
+    const handlePaymentStatusTab = (status) => {
+        setSelectedPaymentStatus(status);
+        applyFilters(status, selectedWorkStatus, filterStartDate, filterEndDate);
+    };
+
+    const handleWorkStatusChange = (status) => {
+        setSelectedWorkStatus(status);
+        applyFilters(selectedPaymentStatus, status, filterStartDate, filterEndDate);
+    };
+
     const handleDateFilter = (start, end) => {
         setFilterStartDate(start);
         setFilterEndDate(end);
-        const query = {};
-        if (start) query.start_date = start;
-        if (end) query.end_date = end;
-        router.get('/admin/orders', query, { preserveState: true });
+        applyFilters(selectedPaymentStatus, selectedWorkStatus, start, end);
     };
 
-    const handleClearDateFilter = () => {
+    const handleClearFilters = () => {
+        setSelectedPaymentStatus('all');
+        setSelectedWorkStatus('all');
         setFilterStartDate('');
         setFilterEndDate('');
+        setSearch('');
         router.get('/admin/orders', {}, { preserveState: true });
     };
 
@@ -59,43 +108,61 @@ export default function Index({ orders, clients = [], users = [], items = [], st
 
     const generateInvoiceRef = () => 'INV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    // 1. Create Order Form
-    const { data: createData, setData: setCreateData, post: postCreateOrder, processing: createProcessing, reset: resetCreate } = useForm({
+    // 1. Create Order Form (with full billing & partial payment advance support)
+    const { 
+        data: createData, 
+        setData: setCreateData, 
+        post: postCreateOrder, 
+        processing: createProcessing, 
+        reset: resetCreate 
+    } = useForm({
         client_id: clients[0]?.id || '',
         item_id: items[0]?.id || '',
         project_name: '',
         amount: '',
+        discount: '0',
+        paid_amount: '0',
+        due_date: '',
+        delivery_date: '',
         status: 'pending',
         progress: 0,
         payment_method: 'bKash',
         transaction_id: generateInvoiceRef(),
-        delivery_date: '',
+        notes: '',
     });
 
-    // 2. Edit Progress Form (ONLY PROGRESS EDIT)
+    // 2. Edit Progress Form
     const progressForm = useForm({
         progress: 0,
+        status: 'pending',
     });
 
-    // 3. Payment Update Form
+    // 3. Payment Collection Form
     const paymentForm = useForm({
-        status: 'paid',
-        payment_method: 'bKash',
         amount: '',
+        payment_method: 'bKash',
+        transaction_id: '',
+        payment_date: new Date().toISOString().split('T')[0],
+        notes: '',
     });
 
     const openCreateModal = () => {
         resetCreate();
+        const initialItem = items[0];
         setCreateData({
             client_id: clients[0]?.id || '',
-            item_id: items[0]?.id || '',
-            project_name: '',
-            amount: '',
+            item_id: initialItem?.id || '',
+            project_name: initialItem ? initialItem.name : '',
+            amount: initialItem?.price ? String(initialItem.price) : '',
+            discount: '0',
+            paid_amount: '0',
+            due_date: '',
+            delivery_date: '',
             status: 'pending',
             progress: 0,
             payment_method: 'bKash',
             transaction_id: generateInvoiceRef(),
-            delivery_date: '',
+            notes: '',
         });
         setIsCreateModalOpen(true);
     };
@@ -104,15 +171,21 @@ export default function Index({ orders, clients = [], users = [], items = [], st
         setEditProgressOrder(order);
         progressForm.setData({
             progress: order.progress ?? 0,
+            status: order.status || 'pending',
         });
     };
 
     const openPaymentModal = (order) => {
         setPaymentModalOrder(order);
+        const net = parseFloat(order.net_amount ?? (order.amount - (order.discount || 0)));
+        const paid = parseFloat(order.paid_amount || 0);
+        const due = Math.max(0, net - paid);
         paymentForm.setData({
-            status: order.status === 'paid' ? 'paid' : 'paid',
+            amount: due > 0 ? due : '',
             payment_method: order.payment_method || 'bKash',
-            amount: order.amount || '',
+            transaction_id: '',
+            payment_date: new Date().toISOString().split('T')[0],
+            notes: '',
         });
     };
 
@@ -143,15 +216,23 @@ export default function Index({ orders, clients = [], users = [], items = [], st
         e.preventDefault();
         if (!paymentModalOrder) return;
 
-        paymentForm.patch(`/admin/orders/${paymentModalOrder.id}`, {
+        paymentForm.post(`/admin/orders/${paymentModalOrder.id}/payment`, {
             preserveScroll: true,
             onSuccess: () => {
                 setPaymentModalOrder(null);
+                paymentForm.reset();
             }
         });
     };
 
-    // Dedicated Fail-Safe Print & Save Function
+    // Calculate live numbers for Create Order Modal
+    const createGross = parseFloat(createData.amount) || 0;
+    const createDisc = parseFloat(createData.discount) || 0;
+    const createNet = Math.max(0, createGross - createDisc);
+    const createPaid = parseFloat(createData.paid_amount) || 0;
+    const createDue = Math.max(0, createNet - createPaid);
+
+    // Fail-Safe Print & Save Function
     const handlePrintInvoice = (order) => {
         if (!order) return;
         const printWindow = window.open('', '_blank', 'width=900,height=1000');
@@ -165,10 +246,16 @@ export default function Index({ orders, clients = [], users = [], items = [], st
         const clientPhone = order.client?.phone || order.user?.phone || '—';
         const projectName = order.project_name || order.item?.name || 'Software Development';
         const serviceName = order.item?.name || 'Custom Tech Solution';
-        const amount = parseFloat(order.amount).toLocaleString(undefined, { minimumFractionDigits: 2 });
+        const grossAmount = parseFloat(order.amount || 0);
+        const discount = parseFloat(order.discount || 0);
+        const netAmount = Math.max(0, grossAmount - discount);
+        const paidAmount = parseFloat(order.paid_amount || 0);
+        const dueAmount = Math.max(0, netAmount - paidAmount);
         const invoiceId = order.transaction_id || `INV-${order.id.toString().padStart(6, '0')}`;
         const date = new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        const isPaid = order.status === 'paid';
+        const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+        const isPaid = order.payment_status === 'paid' || dueAmount <= 0;
+        const isPartial = order.payment_status === 'partial' || (paidAmount > 0 && dueAmount > 0);
 
         printWindow.document.write(`
             <!DOCTYPE html>
@@ -229,9 +316,9 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                         text-transform: uppercase;
                         letter-spacing: 1px;
                         margin-bottom: 8px;
-                        border: 1px solid ${isPaid ? '#10b981' : '#f59e0b'};
-                        background: ${isPaid ? '#ecfdf5' : '#fffbeb'};
-                        color: ${isPaid ? '#047857' : '#b45309'};
+                        border: 1px solid ${isPaid ? '#10b981' : isPartial ? '#f59e0b' : '#ef4444'};
+                        background: ${isPaid ? '#ecfdf5' : isPartial ? '#fffbeb' : '#fef2f2'};
+                        color: ${isPaid ? '#047857' : isPartial ? '#b45309' : '#b91c1c'};
                     }
                     .invoice-title {
                         font-size: 26px;
@@ -319,7 +406,7 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                         margin-bottom: 36px;
                     }
                     .totals-box {
-                        width: 280px;
+                        width: 320px;
                         font-size: 12px;
                     }
                     .totals-row {
@@ -332,14 +419,38 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                     .grand-total {
                         display: flex;
                         justify-content: space-between;
-                        padding: 14px 16px;
-                        background: #eff6ff;
-                        border: 1px solid #bfdbfe;
+                        padding: 10px 14px;
+                        background: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 800;
+                        color: #0f172a;
+                        margin-top: 6px;
+                    }
+                    .paid-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 8px 14px;
+                        background: #ecfdf5;
+                        border: 1px solid #a7f3d0;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 800;
+                        color: #065f46;
+                        margin-top: 6px;
+                    }
+                    .due-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 12px 14px;
+                        background: ${dueAmount > 0 ? '#fef2f2' : '#f0fdf4'};
+                        border: 1px solid ${dueAmount > 0 ? '#fecaca' : '#bbf7d0'};
                         border-radius: 10px;
                         font-size: 15px;
                         font-weight: 900;
-                        color: #1e40af;
-                        margin-top: 10px;
+                        color: ${dueAmount > 0 ? '#b91c1c' : '#15803d'};
+                        margin-top: 8px;
                     }
                     .footer {
                         text-align: center;
@@ -367,7 +478,7 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                             </div>
                         </div>
                         <div class="invoice-tag-box">
-                            <div class="badge-stamp">${isPaid ? '✓ PAID & SETTLED' : '⏳ PENDING INVOICE'}</div>
+                            <div class="badge-stamp">${isPaid ? '✓ PAID & SETTLED' : isPartial ? '⏳ PARTIAL PAYMENT' : '⚠️ UNPAID / DUE'}</div>
                             <div class="invoice-title">INVOICE</div>
                             <div class="invoice-num">#${invoiceId}</div>
                         </div>
@@ -383,6 +494,7 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                         <div style="text-align: right;">
                             <div class="meta-label">Invoice Details</div>
                             <div class="meta-row">Issue Date: <strong>${date}</strong></div>
+                            ${dueDate ? `<div class="meta-row">Due Date: <strong style="color: #b91c1c;">${dueDate}</strong></div>` : ''}
                             <div class="meta-row">Payment Method: <strong>${order.payment_method || 'Online'}</strong></div>
                             <div class="meta-row">Added By: <strong>${order.added_by || 'Admin'}</strong></div>
                         </div>
@@ -403,11 +515,11 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                                 <td style="text-align: center; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">01</td>
                                 <td>
                                     <div class="item-title">${projectName}</div>
-                                    <div class="item-desc">${serviceName} &bull; Custom Tech Deliverable</div>
+                                    <div class="item-desc">${serviceName} &bull; Enterprise Deliverable</div>
                                 </td>
                                 <td style="text-align: center; font-weight: 700; font-family: 'JetBrains Mono', monospace;">1</td>
-                                <td style="text-align: right; font-weight: 700; font-family: 'JetBrains Mono', monospace;">৳${amount}</td>
-                                <td style="text-align: right; font-weight: 800; font-family: 'JetBrains Mono', monospace;">৳${amount}</td>
+                                <td style="text-align: right; font-weight: 700; font-family: 'JetBrains Mono', monospace;">৳${grossAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; font-weight: 800; font-family: 'JetBrains Mono', monospace;">৳${grossAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -415,16 +527,26 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                     <div class="totals-container">
                         <div class="totals-box">
                             <div class="totals-row">
-                                <span>Subtotal:</span>
-                                <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace;">৳${amount} BDT</span>
+                                <span>Gross Subtotal:</span>
+                                <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace;">৳${grossAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div class="totals-row">
-                                <span>VAT / Tax (0%):</span>
-                                <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace;">৳0.00 BDT</span>
+                            ${discount > 0 ? `
+                            <div class="totals-row" style="color: #10b981;">
+                                <span>Discount / Rebate:</span>
+                                <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace;">-৳${discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
+                            ` : ''}
                             <div class="grand-total">
-                                <span>Grand Total:</span>
-                                <span style="font-family: 'JetBrains Mono', monospace;">৳${amount} BDT</span>
+                                <span>Net Payable:</span>
+                                <span style="font-family: 'JetBrains Mono', monospace;">৳${netAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT</span>
+                            </div>
+                            <div class="paid-row">
+                                <span>Amount Paid (প্রদান):</span>
+                                <span style="font-family: 'JetBrains Mono', monospace;">৳${paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT</span>
+                            </div>
+                            <div class="due-row">
+                                <span>Balance Due (বাকি):</span>
+                                <span style="font-family: 'JetBrains Mono', monospace;">৳${dueAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT</span>
                             </div>
                         </div>
                     </div>
@@ -447,12 +569,16 @@ export default function Index({ orders, clients = [], users = [], items = [], st
 
     const handleCopyInvoiceSummary = (order) => {
         if (!order) return;
-        const text = `Invoice Reference: ${order.transaction_id || order.id}\nClient: ${order.client?.name || order.user?.name}\nProject: ${order.project_name || order.item?.name}\nTotal: ৳${parseFloat(order.amount).toLocaleString()} BDT\nStatus: ${order.status.toUpperCase()}`;
+        const net = parseFloat(order.net_amount ?? (order.amount - (order.discount || 0)));
+        const paid = parseFloat(order.paid_amount || 0);
+        const due = Math.max(0, net - paid);
+        const text = `Invoice Reference: ${order.transaction_id || order.id}\nClient: ${order.client?.name || order.user?.name}\nProject: ${order.project_name || order.item?.name}\nTotal Bill: ৳${net.toLocaleString()} BDT\nPaid (প্রদান): ৳${paid.toLocaleString()} BDT\nDue (বাকি): ৳${due.toLocaleString()} BDT\nPayment Status: ${order.payment_status?.toUpperCase() || 'DUE'}`;
         navigator.clipboard.writeText(text);
         setCopiedInvoice(true);
         setTimeout(() => setCopiedInvoice(false), 2000);
     };
 
+    // Filter list client-side by search query
     const filteredOrders = orderList.filter(o => {
         if (!search) return true;
         const q = search.toLowerCase();
@@ -460,51 +586,187 @@ export default function Index({ orders, clients = [], users = [], items = [], st
         const clientPhone = o.client?.phone || o.user?.phone || '';
         const projectName = o.project_name || '';
         const addedBy = o.added_by || '';
+        const trxId = o.transaction_id || '';
         return (
             clientName.toLowerCase().includes(q) ||
             clientPhone.toLowerCase().includes(q) ||
             projectName.toLowerCase().includes(q) ||
             addedBy.toLowerCase().includes(q) ||
+            trxId.toLowerCase().includes(q) ||
             (o.item?.name || '').toLowerCase().includes(q)
         );
     });
 
     return (
-        <AdminLayout title="Orders">
-            <div className="space-y-4 max-w-7xl mx-auto pb-8">
+        <AdminLayout title="Orders & Billing">
+            <div className="space-y-4 max-w-7xl mx-auto pb-10">
                 
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <h1 className="font-black text-2xl sm:text-3xl text-slate-900 tracking-tight">
-                        Orders
-                    </h1>
+                {/* 1. Header & Quick Action */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h1 className="font-black text-2xl sm:text-3xl text-slate-900 tracking-tight">
+                            Orders &amp; Billing
+                        </h1>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Track client projects, billing breakdown, paid installments &amp; outstanding dues.
+                        </p>
+                    </div>
 
                     <button
                         onClick={openCreateModal}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs active:scale-95"
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer self-start sm:self-auto"
                     >
                         <Plus className="w-4 h-4" />
-                        <span>Add Order</span>
+                        <span>Add Order / Bill</span>
                     </button>
                 </div>
 
-                {/* Search & Date Filter Bar */}
-                <div className="p-3 rounded-2xl bg-white border border-blue-100 flex flex-col md:flex-row gap-3 items-center justify-between shadow-xs">
+                {/* 2. Top Billing Financial Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Card 1: Total Net Invoiced */}
+                    <div className="bg-white p-4 rounded-2xl border border-blue-100 shadow-2xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">মোট বিল (Net Invoiced)</span>
+                            <span className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+                                <Receipt className="w-4 h-4" />
+                            </span>
+                        </div>
+                        <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">
+                            ৳{Math.round(orderStats.total_net).toLocaleString()}
+                        </p>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                            <span>মোট {orderStats.total_count} টি অর্ডার</span>
+                            {orderStats.total_discount > 0 && (
+                                <span className="text-emerald-600 font-medium font-mono">ছাড়: ৳{Math.round(orderStats.total_discount).toLocaleString()}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Card 2: Total Paid / Collected */}
+                    <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-2xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">মোট আদায় / পরিশোধ (Paid)</span>
+                            <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                                <CheckCircle2 className="w-4 h-4" />
+                            </span>
+                        </div>
+                        <p className="text-xl sm:text-2xl font-black text-emerald-600 font-mono tracking-tight">
+                            ৳{Math.round(orderStats.total_paid).toLocaleString()}
+                        </p>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                            <span>{orderStats.paid_count} টি সম্পূর্ণ পেইড</span>
+                            <span className="font-mono text-emerald-600 font-bold">
+                                {orderStats.total_net > 0 ? Math.round((orderStats.total_paid / orderStats.total_net) * 100) : 0}% সংগৃহীত
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Card 3: Total Due Balance */}
+                    <div className="bg-white p-4 rounded-2xl border border-red-100 shadow-2xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-red-700 uppercase tracking-wider">মোট বাকি (Outstanding Due)</span>
+                            <span className="p-1.5 rounded-lg bg-red-50 text-red-600">
+                                <AlertCircle className="w-4 h-4" />
+                            </span>
+                        </div>
+                        <p className="text-xl sm:text-2xl font-black text-red-600 font-mono tracking-tight">
+                            ৳{Math.round(orderStats.total_due).toLocaleString()}
+                        </p>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                            <span>{orderStats.due_count} টি বাকি &bull; {orderStats.partial_count} টি আংশিক</span>
+                            <span className="font-bold text-red-600 font-mono">
+                                {orderStats.total_net > 0 ? Math.round((orderStats.total_due / orderStats.total_net) * 100) : 0}% বাকি
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Card 4: Quick Payment Status Filter Pills */}
+                    <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">পেমেন্ট ফিল্টার (Payment Status)</span>
+                        <div className="grid grid-cols-2 gap-1.5 text-xs font-bold">
+                            <button
+                                type="button"
+                                onClick={() => handlePaymentStatusTab('all')}
+                                className={`py-1.5 px-2 rounded-xl text-center transition-all ${
+                                    selectedPaymentStatus === 'all'
+                                        ? 'bg-blue-600 text-white shadow-2xs'
+                                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                                }`}
+                            >
+                                All ({orderStats.total_count})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handlePaymentStatusTab('paid')}
+                                className={`py-1.5 px-2 rounded-xl text-center transition-all ${
+                                    selectedPaymentStatus === 'paid'
+                                        ? 'bg-emerald-600 text-white shadow-2xs'
+                                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                }`}
+                            >
+                                Paid ({orderStats.paid_count})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handlePaymentStatusTab('partial')}
+                                className={`py-1.5 px-2 rounded-xl text-center transition-all ${
+                                    selectedPaymentStatus === 'partial'
+                                        ? 'bg-amber-600 text-white shadow-2xs'
+                                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                                }`}
+                            >
+                                Partial ({orderStats.partial_count})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handlePaymentStatusTab('due')}
+                                className={`py-1.5 px-2 rounded-xl text-center transition-all ${
+                                    selectedPaymentStatus === 'due'
+                                        ? 'bg-red-600 text-white shadow-2xs'
+                                        : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                                }`}
+                            >
+                                Due ({orderStats.due_count})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. Search & Date Filter Bar */}
+                <div className="p-3 rounded-2xl bg-white border border-blue-100 flex flex-col lg:flex-row gap-3 items-center justify-between shadow-2xs">
                     
                     {/* Search Input */}
-                    <div className="relative w-full md:w-80">
+                    <div className="relative w-full lg:w-72">
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search client, project, phone, added by..."
+                            placeholder="Search client, project, phone, invoice..."
                             className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500"
                         />
                     </div>
 
-                    {/* Date Filter Range */}
-                    <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-start md:justify-end">
+                    {/* Status & Date Filter Controls */}
+                    <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-start lg:justify-end">
+                        
+                        {/* Work Status Filter */}
+                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
+                            <span className="text-[11px] text-slate-500 font-semibold">Work:</span>
+                            <select
+                                value={selectedWorkStatus}
+                                onChange={(e) => handleWorkStatusChange(e.target.value)}
+                                className="bg-transparent border-0 p-0 text-xs text-slate-800 font-semibold focus:ring-0 cursor-pointer"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+
+                        {/* Date From */}
                         <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
                             <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                             <span className="text-[11px] text-slate-500 font-medium">From:</span>
@@ -516,6 +778,7 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                             />
                         </div>
 
+                        {/* Date To */}
                         <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
                             <span className="text-[11px] text-slate-500 font-medium">To:</span>
                             <input
@@ -526,113 +789,161 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                             />
                         </div>
 
-                        {(filterStartDate || filterEndDate) && (
+                        {(filterStartDate || filterEndDate || selectedPaymentStatus !== 'all' || selectedWorkStatus !== 'all' || search) && (
                             <button
-                                onClick={handleClearDateFilter}
+                                onClick={handleClearFilters}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                                title="Reset Date Filter"
+                                title="Reset All Filters"
                             >
-                                <RotateCcw className="w-3.5 h-3.5" />
+                                <RotateCcw className="w-4 h-4" />
                             </button>
                         )}
                     </div>
                 </div>
 
-                {/* Table View */}
-                <div className="bg-white rounded-2xl border border-blue-100 overflow-hidden shadow-xs">
+                {/* 4. Complete Orders Table */}
+                <div className="bg-white rounded-2xl border border-blue-100 overflow-hidden shadow-2xs">
                     <div className="overflow-x-auto w-full">
-                        <table className="w-full min-w-[920px] text-left text-xs">
+                        <table className="w-full min-w-[1050px] text-left text-xs">
                             <thead className="text-slate-500 uppercase border-b border-blue-100 bg-slate-50 text-[10px] font-mono">
                                 <tr>
-                                    <th className="py-3 pl-5 pr-3 whitespace-nowrap">Date</th>
+                                    <th className="py-3 pl-4 pr-2 whitespace-nowrap">Date &amp; Ref</th>
                                     <th className="py-3 px-3">Client</th>
-                                    <th className="py-3 px-3 whitespace-nowrap">Contact</th>
-                                    <th className="py-3 px-3">Project</th>
-                                    <th className="py-3 px-3 whitespace-nowrap">Amount</th>
-                                    <th className="py-3 px-3 w-36">Status & Progress</th>
-                                    <th className="py-3 px-3 whitespace-nowrap">Added By</th>
-                                    <th className="py-3 pl-3 pr-6 text-right whitespace-nowrap">Actions</th>
+                                    <th className="py-3 px-3">Project / Service</th>
+                                    <th className="py-3 px-3 text-right whitespace-nowrap">মোট বিল (Net)</th>
+                                    <th className="py-3 px-3 text-right whitespace-nowrap">প্রদান (Paid)</th>
+                                    <th className="py-3 px-3 text-right whitespace-nowrap">বাকি (Due)</th>
+                                    <th className="py-3 px-3 text-center whitespace-nowrap">পেমেন্ট স্ট্যাটাস</th>
+                                    <th className="py-3 px-3 w-32">কাজের অগ্রগতি</th>
+                                    <th className="py-3 pl-2 pr-4 text-right whitespace-nowrap">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-blue-50 text-slate-700">
                                 {filteredOrders.length === 0 ? (
                                     <tr>
-                                        <td colSpan="8" className="p-8 text-center text-slate-400">
-                                            No orders found for the selected date range. Click "Add Order" to create one.
+                                        <td colSpan="9" className="p-10 text-center text-slate-400">
+                                            No matching orders found. Try adjusting filters or click "Add Order / Bill" to create one.
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredOrders.map((o) => {
                                         const customerName = o.client?.name || o.user?.name || 'Customer';
                                         const customerPhone = o.client?.phone || o.user?.phone || '';
-                                        const progress = o.progress ?? (o.status === 'completed' ? 100 : o.status === 'processing' ? 50 : o.status === 'paid' ? 25 : 0);
+                                        const progress = o.progress ?? (o.status === 'completed' ? 100 : o.status === 'processing' ? 50 : 0);
+                                        
+                                        const gross = parseFloat(o.amount || 0);
+                                        const discount = parseFloat(o.discount || 0);
+                                        const net = parseFloat(o.net_amount ?? (gross - discount));
+                                        const paid = parseFloat(o.paid_amount || 0);
+                                        const due = parseFloat(o.due_amount ?? Math.max(0, net - paid));
+                                        
+                                        const paymentStatus = o.payment_status || (due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'due');
 
                                         return (
                                             <tr key={o.id} className="hover:bg-blue-50/40 transition-colors">
                                                 
-                                                {/* 1. Date */}
-                                                <td className="py-3 pl-5 pr-3 whitespace-nowrap">
+                                                {/* 1. Date & Invoice Reference */}
+                                                <td className="py-3 pl-4 pr-2 whitespace-nowrap">
                                                     <p className="font-mono text-slate-900 font-bold text-xs">
                                                         {new Date(o.created_at).toLocaleDateString()}
                                                     </p>
-                                                    <p className="text-[10px] text-slate-400 font-mono">
-                                                        {new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    <p className="text-[10px] text-blue-600 font-mono font-semibold">
+                                                        #{o.transaction_id || `ORD-${o.id}`}
                                                     </p>
                                                 </td>
 
-                                                {/* 2. Client */}
+                                                {/* 2. Client & Contact */}
                                                 <td className="py-3 px-3">
                                                     <p className="font-bold text-slate-900 text-xs">
                                                         {customerName}
                                                     </p>
-                                                </td>
-
-                                                {/* 3. Contact */}
-                                                <td className="py-3 px-3 whitespace-nowrap">
-                                                    {customerPhone ? (
-                                                        <span className="font-mono text-slate-700 font-medium text-xs">
+                                                    {customerPhone && (
+                                                        <p className="text-[11px] text-slate-500 font-mono">
                                                             {customerPhone}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-slate-400 text-xs">—</span>
-                                                    )}
-                                                </td>
-
-                                                {/* 4. Project */}
-                                                <td className="py-3 px-3">
-                                                    <p className="font-bold text-slate-900 text-xs">
-                                                        {o.project_name || o.item?.name || 'Project'}
-                                                    </p>
-                                                    {o.item?.name && (
-                                                        <p className="text-[10px] text-slate-400">
-                                                            {o.item.name}
                                                         </p>
                                                     )}
                                                 </td>
 
-                                                {/* 5. Amount */}
-                                                <td className="py-3 px-3 whitespace-nowrap">
+                                                {/* 3. Project / Service */}
+                                                <td className="py-3 px-3">
+                                                    <p className="font-bold text-slate-900 text-xs">
+                                                        {o.project_name || o.item?.name || 'Custom Project'}
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                                                        {o.item?.name && <span>{o.item.name}</span>}
+                                                        <span>&bull;</span>
+                                                        <span>{o.payment_method || 'Online'}</span>
+                                                    </div>
+                                                </td>
+
+                                                {/* 4. Net Bill (মোট বিল) */}
+                                                <td className="py-3 px-3 text-right whitespace-nowrap">
+                                                    <p className="font-mono font-bold text-slate-900 text-xs">
+                                                        ৳{Math.round(net).toLocaleString()}
+                                                    </p>
+                                                    {discount > 0 && (
+                                                        <span className="text-[10px] text-emerald-600 font-mono">
+                                                            (ছাড়: ৳{Math.round(discount).toLocaleString()})
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                {/* 5. Paid Amount (প্রদান) */}
+                                                <td className="py-3 px-3 text-right whitespace-nowrap">
                                                     <p className="font-mono font-bold text-emerald-600 text-xs">
-                                                        ৳{parseFloat(o.amount).toLocaleString()}
+                                                        ৳{Math.round(paid).toLocaleString()}
                                                     </p>
                                                     <span className="text-[10px] text-slate-400">
-                                                        {o.payment_method || 'Online'}
+                                                        {net > 0 ? `${Math.round((paid / net) * 100)}% পরিশোধ` : '—'}
                                                     </span>
                                                 </td>
 
-                                                {/* 6. Status & Progress */}
+                                                {/* 6. Due Amount (বাকি) */}
+                                                <td className="py-3 px-3 text-right whitespace-nowrap">
+                                                    {due > 0 ? (
+                                                        <div>
+                                                            <span className="inline-block px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-red-50 text-red-700 border border-red-200">
+                                                                ৳{Math.round(due).toLocaleString()}
+                                                            </span>
+                                                            {o.due_date && (
+                                                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                                                    তাগিদ: {new Date(o.due_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="inline-block px-2 py-0.5 rounded-md font-mono text-[11px] text-slate-400 bg-slate-100">
+                                                            ৳0 (Settled)
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                {/* 7. Payment Status Badge */}
+                                                <td className="py-3 px-3 text-center whitespace-nowrap">
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wide border ${
+                                                        paymentStatus === 'paid'
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                                            : paymentStatus === 'partial'
+                                                            ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                                            : 'bg-red-50 text-red-700 border-red-300'
+                                                    }`}>
+                                                        {paymentStatus === 'paid' ? '✓ Paid' : paymentStatus === 'partial' ? '⏳ Partial' : '⚠️ Due'}
+                                                    </span>
+                                                </td>
+
+                                                {/* 8. Progress & Work Status */}
                                                 <td className="py-3 px-3">
                                                     <div className="space-y-1">
                                                         <div className="flex items-center justify-between text-[10px]">
-                                                            <span className={`px-2 py-0.2 rounded-full font-bold capitalize ${
-                                                                o.status === 'completed' || o.status === 'paid' ? 'bg-emerald-50 text-emerald-700' :
+                                                            <span className={`px-1.5 py-0.2 rounded-md font-bold capitalize ${
+                                                                o.status === 'completed' ? 'bg-emerald-50 text-emerald-700' :
                                                                 o.status === 'processing' ? 'bg-blue-50 text-blue-700' :
                                                                 o.status === 'cancelled' ? 'bg-red-50 text-red-700' :
-                                                                'bg-amber-50 text-amber-700'
+                                                                'bg-slate-100 text-slate-700'
                                                             }`}>
                                                                 {o.status}
                                                             </span>
-                                                            <span className="font-mono font-bold text-slate-700">{progress}%</span>
+                                                            <span className="font-mono font-bold text-slate-600">{progress}%</span>
                                                         </div>
                                                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                                             <div 
@@ -647,32 +958,24 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                                                     </div>
                                                 </td>
 
-                                                {/* 7. Added By */}
-                                                <td className="py-3 px-3 whitespace-nowrap">
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
-                                                        <UserCheck className="w-3 h-3 text-slate-500 flex-shrink-0" />
-                                                        <span>{o.added_by || 'Admin'}</span>
-                                                    </span>
-                                                </td>
-
-                                                {/* 8. Actions */}
-                                                <td className="py-3 pl-3 pr-6 text-right whitespace-nowrap">
+                                                {/* 9. Actions Dropdown */}
+                                                <td className="py-3 pl-2 pr-4 text-right whitespace-nowrap">
                                                     <ActionDropdown label="Actions">
                                                         <div className="py-1">
                                                             <ActionItem onClick={() => openPaymentModal(o)} icon={CreditCard} className="text-emerald-700 hover:text-emerald-800">
-                                                                Payment
+                                                                Collect Payment
                                                             </ActionItem>
                                                             <ActionItem onClick={() => openEditProgressModal(o)} icon={Sliders} className="text-blue-700 hover:text-blue-800">
-                                                                Progress
+                                                                Edit Progress
                                                             </ActionItem>
                                                             <ActionItem onClick={() => setViewModalOrder(o)} icon={Eye} className="text-slate-700 hover:text-slate-900">
-                                                                View
+                                                                View Details
                                                             </ActionItem>
                                                             <ActionItem onClick={() => setInvoiceModalOrder(o)} icon={Receipt} className="text-indigo-700 hover:text-indigo-800">
-                                                                Invoice
+                                                                Invoice &amp; Print
                                                             </ActionItem>
                                                             <ActionItem onClick={() => handleCancelOrder(o)} icon={Ban} danger>
-                                                                Cancel
+                                                                Cancel Order
                                                             </ActionItem>
                                                         </div>
                                                     </ActionDropdown>
@@ -687,15 +990,19 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                 </div>
             </div>
 
-            {/* 1. Add Order Modal */}
-            <Modal show={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} maxWidth="md">
-                <div className="bg-white p-5 space-y-4 rounded-2xl text-slate-800">
+            {/* ============================================================== */}
+            {/* 1. ADD ORDER & BILL MODAL (With Advance & Discount Support)   */}
+            {/* ============================================================== */}
+            <Modal show={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} maxWidth="lg">
+                <div className="bg-white p-5 sm:p-6 space-y-4 rounded-2xl text-slate-800">
                     
-                    {/* Header */}
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <h2 className="font-bold text-base text-slate-900">
-                            Add Order
-                        </h2>
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                            <h2 className="font-bold text-base text-slate-900">
+                                Create Order &amp; Billing (নতুন অর্ডার ও ইনভয়েস)
+                            </h2>
+                            <p className="text-xs text-slate-500">Record full order details, discount and advance/partial payment.</p>
+                        </div>
                         <button
                             type="button"
                             onClick={() => setIsCreateModalOpen(false)}
@@ -705,7 +1012,9 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                         </button>
                     </div>
 
-                    <form onSubmit={handleCreateSubmit} className="space-y-3 text-xs">
+                    <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
+                        
+                        {/* Client Selector */}
                         <div>
                             <label className="block text-slate-700 font-bold mb-1">Customer / Client *</label>
                             <select
@@ -723,18 +1032,8 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                             </select>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Project Name</label>
-                                <input
-                                    type="text"
-                                    value={createData.project_name}
-                                    onChange={(e) => setCreateData('project_name', e.target.value)}
-                                    placeholder="Project Name"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                                />
-                            </div>
-
+                        {/* Project Name & Service */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-slate-700 font-bold mb-1">Service Offering *</label>
                                 <select
@@ -744,7 +1043,8 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                                         setCreateData(prev => ({
                                             ...prev,
                                             item_id: e.target.value,
-                                            project_name: prev.project_name || (selectedItem ? selectedItem.name : '')
+                                            project_name: prev.project_name || (selectedItem ? selectedItem.name : ''),
+                                            amount: selectedItem?.price ? String(selectedItem.price) : prev.amount
                                         }));
                                     }}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
@@ -752,28 +1052,85 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                                 >
                                     <option value="">-- Select Service --</option>
                                     {items.map(i => (
-                                        <option key={i.id} value={i.id}>{i.name}</option>
+                                        <option key={i.id} value={i.id}>{i.name} {i.price ? `(৳${i.price})` : ''}</option>
                                     ))}
                                 </select>
                             </div>
+
+                            <div>
+                                <label className="block text-slate-700 font-bold mb-1">Project / Contract Title</label>
+                                <input
+                                    type="text"
+                                    value={createData.project_name}
+                                    onChange={(e) => setCreateData('project_name', e.target.value)}
+                                    placeholder="e.g. ERP Development for..."
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
+                                />
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {/* Financial Inputs: Amount, Discount, Advance */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
                             <div>
-                                <label className="block text-slate-700 font-bold mb-1">Amount (৳ BDT) *</label>
+                                <label className="block text-slate-700 font-bold mb-1">মোট বিল / Amount (৳) *</label>
                                 <input
                                     type="number"
                                     step="0.01"
                                     value={createData.amount}
                                     onChange={(e) => setCreateData('amount', e.target.value)}
                                     placeholder="Amount"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-mono font-bold"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-slate-700 font-bold mb-1">Payment Method</label>
+                                <label className="block text-slate-700 font-bold mb-1">ছাড় / Discount (৳)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={createData.discount}
+                                    onChange={(e) => setCreateData('discount', e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-mono"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-emerald-700 font-bold mb-1">অগ্রিম প্রদান / Paid (৳)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={createData.paid_amount}
+                                    onChange={(e) => setCreateData('paid_amount', e.target.value)}
+                                    placeholder="0 (যদি এডভান্স নেয়)"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-emerald-300 text-emerald-700 font-mono font-bold"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Live Calculation Preview Banner */}
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/70 border border-blue-200 text-xs">
+                            <div>
+                                <span className="text-[10px] text-slate-500 font-semibold uppercase">সর্বমোট প্রদেয় (Net):</span>
+                                <p className="font-mono font-bold text-slate-900 text-sm">৳{createNet.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-emerald-700 font-semibold uppercase">আদায় (Paid):</span>
+                                <p className="font-mono font-bold text-emerald-700 text-sm">৳{createPaid.toLocaleString()}</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[10px] text-red-700 font-bold uppercase">অবশিষ্ট বাকি (Due):</span>
+                                <p className={`font-mono font-black text-sm ${createDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                    ৳{createDue.toLocaleString()} {createDue === 0 ? '(পেইড)' : ''}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Payment Method & Due Date */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-slate-700 font-bold mb-1">পেমেন্ট মেথড (Payment Method)</label>
                                 <select
                                     value={createData.payment_method}
                                     onChange={(e) => setCreateData('payment_method', e.target.value)}
@@ -784,11 +1141,22 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                                     ))}
                                 </select>
                             </div>
+
+                            <div>
+                                <label className="block text-slate-700 font-bold mb-1">বাকি পরিশোধের তারিখ (Due Date)</label>
+                                <input
+                                    type="date"
+                                    value={createData.due_date}
+                                    onChange={(e) => setCreateData('due_date', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
+                                />
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {/* Work Status & Progress */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-slate-700 font-bold mb-1">Status</label>
+                                <label className="block text-slate-700 font-bold mb-1">কাজের অবস্থা (Work Status)</label>
                                 <select
                                     value={createData.status}
                                     onChange={(e) => {
@@ -796,21 +1164,20 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                                         setCreateData(prev => ({
                                             ...prev,
                                             status: newStatus,
-                                            progress: newStatus === 'completed' ? 100 : newStatus === 'processing' ? 50 : newStatus === 'paid' ? 25 : 0
+                                            progress: newStatus === 'completed' ? 100 : newStatus === 'processing' ? 50 : 0
                                         }));
                                     }}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
                                 >
                                     <option value="pending">Pending</option>
                                     <option value="processing">Processing</option>
-                                    <option value="paid">Paid</option>
                                     <option value="completed">Completed</option>
                                 </select>
                             </div>
 
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="block text-slate-700 font-bold">Progress</label>
+                                    <label className="block text-slate-700 font-bold">অগ্রগতি (Progress)</label>
                                     <span className="font-mono font-bold text-blue-600">{createData.progress}%</span>
                                 </div>
                                 <input
@@ -825,7 +1192,19 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-slate-100">
+                        {/* Notes */}
+                        <div>
+                            <label className="block text-slate-700 font-bold mb-1">মন্তব্য / Notes (Optional)</label>
+                            <input
+                                type="text"
+                                value={createData.notes}
+                                onChange={(e) => setCreateData('notes', e.target.value)}
+                                placeholder="Any billing terms or project notes..."
+                                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                             <button
                                 type="button"
                                 onClick={() => setIsCreateModalOpen(false)}
@@ -836,16 +1215,165 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                             <button
                                 type="submit"
                                 disabled={createProcessing}
-                                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+                                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
                             >
-                                Save
+                                Create Order &amp; Invoice
                             </button>
                         </div>
                     </form>
                 </div>
             </Modal>
 
-            {/* 2. ONLY PROGRESS EDIT MODAL */}
+            {/* ============================================================== */}
+            {/* 2. RECORD PAYMENT / COLLECT DUE MODAL                          */}
+            {/* ============================================================== */}
+            <Modal show={Boolean(paymentModalOrder)} onClose={() => setPaymentModalOrder(null)} maxWidth="md">
+                {paymentModalOrder && (() => {
+                    const net = parseFloat(paymentModalOrder.net_amount ?? (paymentModalOrder.amount - (paymentModalOrder.discount || 0)));
+                    const paid = parseFloat(paymentModalOrder.paid_amount || 0);
+                    const due = Math.max(0, net - paid);
+
+                    return (
+                        <div className="bg-white p-5 space-y-4 rounded-2xl text-slate-800">
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                                        <CreditCard className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h2 className="font-bold text-base text-slate-900">
+                                            পেমেন্ট গ্রহণ / Collect Payment
+                                        </h2>
+                                        <p className="text-[11px] text-slate-500">Record cash/bKash installment against this order.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setPaymentModalOrder(null)}
+                                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Current Billing Snapshot */}
+                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-3 gap-2 text-center text-xs">
+                                <div>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase block">মোট বিল (Net)</span>
+                                    <span className="font-mono font-black text-slate-900 text-sm">৳{Math.round(net).toLocaleString()}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-emerald-600 font-bold uppercase block">আদায়কৃত (Paid)</span>
+                                    <span className="font-mono font-black text-emerald-600 text-sm">৳{Math.round(paid).toLocaleString()}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-red-600 font-bold uppercase block">বর্তমান বাকি (Due)</span>
+                                    <span className="font-mono font-black text-red-600 text-sm">৳{Math.round(due).toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            {/* Quick Pay Full Due Button */}
+                            {due > 0 && (
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => paymentForm.setData('amount', due)}
+                                        className="text-[11px] font-bold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                                    >
+                                        সম্পূর্ণ বাকি পরিশোধ করুন (৳{Math.round(due).toLocaleString()})
+                                    </button>
+                                </div>
+                            )}
+
+                            <form onSubmit={handlePaymentSubmit} className="space-y-3.5 text-xs">
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1">
+                                        জমা / পেমেন্ট এর পরিমাণ (৳ BDT) *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        max={due > 0 ? due : undefined}
+                                        value={paymentForm.data.amount}
+                                        onChange={(e) => paymentForm.setData('amount', e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold text-sm focus:bg-white focus:border-emerald-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-slate-700 font-bold mb-1">পেমেন্ট মেথড *</label>
+                                        <select
+                                            value={paymentForm.data.payment_method}
+                                            onChange={(e) => paymentForm.setData('payment_method', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
+                                        >
+                                            {PAYMENT_METHODS.map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-slate-700 font-bold mb-1">তারিখ (Date) *</label>
+                                        <input
+                                            type="date"
+                                            value={paymentForm.data.payment_date}
+                                            onChange={(e) => paymentForm.setData('payment_date', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1">TrxID / Reference (ঐচ্ছিক)</label>
+                                    <input
+                                        type="text"
+                                        value={paymentForm.data.transaction_id}
+                                        onChange={(e) => paymentForm.setData('transaction_id', e.target.value)}
+                                        placeholder="e.g. BKASH-9X1234 or Bank slip"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1">মন্তব্য / Notes</label>
+                                    <input
+                                        type="text"
+                                        value={paymentForm.data.notes}
+                                        onChange={(e) => paymentForm.setData('notes', e.target.value)}
+                                        placeholder="e.g. 2nd milestone installment received"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentModalOrder(null)}
+                                        className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={paymentForm.processing || !paymentForm.data.amount}
+                                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
+                                    >
+                                        Record Payment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    );
+                })()}
+            </Modal>
+
+            {/* ============================================================== */}
+            {/* 3. EDIT PROGRESS MODAL                                         */}
+            {/* ============================================================== */}
             <Modal show={Boolean(editProgressOrder)} onClose={() => setEditProgressOrder(null)} maxWidth="sm">
                 {editProgressOrder && (
                     <div className="bg-white p-5 space-y-4 rounded-2xl text-slate-800">
@@ -853,7 +1381,7 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                             <div className="flex items-center gap-2">
                                 <Sliders className="w-5 h-5 text-blue-600" />
                                 <h2 className="font-bold text-base text-slate-900">
-                                    Edit Progress
+                                    Edit Progress &amp; Status
                                 </h2>
                             </div>
                             <button
@@ -867,11 +1395,32 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                         <div className="text-xs font-semibold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                             <p className="truncate">{editProgressOrder.project_name || editProgressOrder.item?.name}</p>
                             <p className="text-[11px] text-slate-500 font-normal mt-0.5 truncate">
-                                {editProgressOrder.client?.name || editProgressOrder.user?.name}
+                                Client: {editProgressOrder.client?.name || editProgressOrder.user?.name}
                             </p>
                         </div>
 
                         <form onSubmit={handleProgressSubmit} className="space-y-4 text-xs">
+                            <div>
+                                <label className="block text-slate-700 font-bold mb-1">Work Status</label>
+                                <select
+                                    value={progressForm.data.status}
+                                    onChange={(e) => {
+                                        const newStatus = e.target.value;
+                                        progressForm.setData(prev => ({
+                                            ...prev,
+                                            status: newStatus,
+                                            progress: newStatus === 'completed' ? 100 : newStatus === 'processing' && prev.progress < 50 ? 50 : prev.progress
+                                        }));
+                                    }}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold"
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+
                             <div>
                                 <div className="flex items-center justify-between mb-2">
                                     <label className="block text-slate-700 font-bold">Progress Percentage</label>
@@ -916,7 +1465,7 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                                 <button
                                     type="submit"
                                     disabled={progressForm.processing}
-                                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-xs active:scale-95 transition-all"
+                                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
                                 >
                                     Save
                                 </button>
@@ -926,330 +1475,394 @@ export default function Index({ orders, clients = [], users = [], items = [], st
                 )}
             </Modal>
 
-            {/* 3. PAYMENT METHOD MODAL */}
-            <Modal show={Boolean(paymentModalOrder)} onClose={() => setPaymentModalOrder(null)} maxWidth="sm">
-                {paymentModalOrder && (
-                    <div className="bg-white p-5 space-y-4 rounded-2xl text-slate-800">
-                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <CreditCard className="w-5 h-5 text-emerald-600" />
-                                <h2 className="font-bold text-base text-slate-900">
-                                    Payment Details
-                                </h2>
-                            </div>
-                            <button
-                                onClick={() => setPaymentModalOrder(null)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
+            {/* ============================================================== */}
+            {/* 4. VIEW ORDER DETAILS MODAL (Full Billing & Payments Breakdown)*/}
+            {/* ============================================================== */}
+            <Modal show={Boolean(viewModalOrder)} onClose={() => setViewModalOrder(null)} maxWidth="lg">
+                {viewModalOrder && (() => {
+                    const gross = parseFloat(viewModalOrder.amount || 0);
+                    const discount = parseFloat(viewModalOrder.discount || 0);
+                    const net = parseFloat(viewModalOrder.net_amount ?? (gross - discount));
+                    const paid = parseFloat(viewModalOrder.paid_amount || 0);
+                    const due = parseFloat(viewModalOrder.due_amount ?? Math.max(0, net - paid));
+                    const payments = viewModalOrder.payments || [];
 
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-                            <div>
-                                <p className="font-bold text-slate-900">{paymentModalOrder.client?.name || 'Customer'}</p>
-                                <p className="text-[11px] text-slate-500 font-mono">{paymentModalOrder.project_name || paymentModalOrder.item?.name}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="font-mono font-black text-sm text-emerald-600">৳{parseFloat(paymentModalOrder.amount).toLocaleString()}</p>
-                                <span className={`px-2 py-0.2 rounded-full text-[10px] font-bold capitalize ${
-                                    paymentModalOrder.status === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                                }`}>
-                                    {paymentModalOrder.status}
-                                </span>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handlePaymentSubmit} className="space-y-3.5 text-xs">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Payment Status</label>
-                                <select
-                                    value={paymentForm.data.status}
-                                    onChange={(e) => paymentForm.setData('status', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold"
-                                >
-                                    <option value="paid">Paid (Mark Settled)</option>
-                                    <option value="pending">Pending (Unpaid)</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Payment Gateway / Method</label>
-                                <select
-                                    value={paymentForm.data.payment_method}
-                                    onChange={(e) => paymentForm.setData('payment_method', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
-                                >
-                                    {PAYMENT_METHODS.map(m => (
-                                        <option key={m} value={m}>{m}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setPaymentModalOrder(null)}
-                                    className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={paymentForm.processing}
-                                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-xs active:scale-95 transition-all"
-                                >
-                                    Update Payment
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                )}
-            </Modal>
-
-            {/* 4. VIEW ORDER MODAL */}
-            <Modal show={Boolean(viewModalOrder)} onClose={() => setViewModalOrder(null)} maxWidth="md">
-                {viewModalOrder && (
-                    <div className="bg-white p-5 space-y-4 rounded-2xl text-slate-800">
-                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <Eye className="w-5 h-5 text-blue-600" />
-                                <h2 className="font-bold text-base text-slate-900">
-                                    Order Details
-                                </h2>
-                            </div>
-                            <button
-                                onClick={() => setViewModalOrder(null)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Customer</span>
-                                <p className="font-bold text-slate-900">{viewModalOrder.client?.name || viewModalOrder.user?.name}</p>
-                                <p className="text-slate-500 font-mono text-[11px]">{viewModalOrder.client?.phone || viewModalOrder.user?.phone || '—'}</p>
-                            </div>
-
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Amount & Status</span>
-                                <p className="font-bold font-mono text-emerald-600">৳{parseFloat(viewModalOrder.amount).toLocaleString()}</p>
-                                <p className="text-slate-500 text-[11px] capitalize">{viewModalOrder.status} &bull; {viewModalOrder.payment_method}</p>
-                            </div>
-
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1 col-span-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Project / Deliverable</span>
-                                <p className="font-bold text-slate-900">{viewModalOrder.project_name || viewModalOrder.item?.name}</p>
-                                <p className="text-slate-500 text-[11px]">{viewModalOrder.item?.name}</p>
-                            </div>
-
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Progress</span>
-                                <p className="font-bold font-mono text-blue-600">{viewModalOrder.progress ?? 0}%</p>
-                            </div>
-
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Created Timeline</span>
-                                <p className="font-mono text-slate-700">{new Date(viewModalOrder.created_at).toLocaleDateString()}</p>
-                                <p className="text-slate-400 text-[10px]">By {viewModalOrder.added_by || 'Admin'}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-2 border-t border-slate-100">
-                            <button
-                                onClick={() => setViewModalOrder(null)}
-                                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 text-xs"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
-
-            {/* 5. PROFESSIONAL INVOICE RECEIPT MODAL (Print-Ready & Saveable) */}
-            <Modal show={Boolean(invoiceModalOrder)} onClose={() => setInvoiceModalOrder(null)} maxWidth="lg">
-                {invoiceModalOrder && (
-                    <div className="bg-white p-6 sm:p-8 space-y-6 rounded-2xl text-slate-800">
-                        
-                        {/* Printable Invoice Container */}
-                        <div className="space-y-6 bg-white">
+                    return (
+                        <div className="bg-white p-6 space-y-5 rounded-2xl text-slate-800">
                             
-                            {/* Top Header & Stamp */}
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-slate-200">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                                 <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-sm flex items-center justify-center">
-                                            IT
-                                        </div>
-                                        <h3 className="font-black text-xl text-slate-900 tracking-tight">IT SOLUTIONS</h3>
-                                    </div>
-                                    <p className="text-xs text-slate-500 font-medium">Digital Agency & Software Engineering</p>
-                                    <div className="text-[11px] text-slate-400 font-mono mt-2 space-y-0.5">
-                                        <p>Dhaka, Bangladesh &bull; Hotline: +880 1800-000000</p>
-                                        <p>support@itsolutions.com &bull; www.itsolutions.com</p>
-                                    </div>
-                                </div>
-
-                                <div className="sm:text-right space-y-2">
-                                    <div className={`inline-block px-3 py-1 rounded-lg font-mono font-black text-xs uppercase tracking-wider border ${
-                                        invoiceModalOrder.status === 'paid'
-                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                            : 'bg-amber-50 text-amber-700 border-amber-300'
-                                    }`}>
-                                        {invoiceModalOrder.status === 'paid' ? '✓ PAID & SETTLED' : '⏳ PENDING INVOICE'}
-                                    </div>
-                                    <h2 className="font-black text-2xl text-slate-900 tracking-tight">
-                                        INVOICE
-                                    </h2>
-                                    <p className="font-mono font-bold text-xs text-blue-600">
-                                        #{invoiceModalOrder.transaction_id || `INV-${invoiceModalOrder.id.toString().padStart(6, '0')}`}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Client & Metadata Details */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                                        Billed To
-                                    </span>
-                                    <h4 className="font-bold text-sm text-slate-900">{invoiceModalOrder.client?.name || invoiceModalOrder.user?.name}</h4>
-                                    {invoiceModalOrder.client?.contact_person && (
-                                        <p className="text-slate-600 font-medium">{invoiceModalOrder.client.contact_person}</p>
-                                    )}
-                                    <p className="text-slate-500 font-mono">{invoiceModalOrder.client?.phone || invoiceModalOrder.user?.phone || '—'}</p>
-                                </div>
-
-                                <div className="space-y-1 sm:text-right">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                                        Invoice Details
-                                    </span>
-                                    <p className="text-slate-700">
-                                        <span className="text-slate-400">Issue Date:</span> <span className="font-mono font-bold">{new Date(invoiceModalOrder.created_at).toLocaleDateString()}</span>
-                                    </p>
-                                    <p className="text-slate-700">
-                                        <span className="text-slate-400">Payment Method:</span> <span className="font-bold text-slate-900">{invoiceModalOrder.payment_method || 'Online'}</span>
-                                    </p>
-                                    <p className="text-slate-700">
-                                        <span className="text-slate-400">Added By:</span> <span className="font-semibold text-slate-700">{invoiceModalOrder.added_by || 'Admin'}</span>
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Itemized Table */}
-                            <div className="overflow-hidden rounded-xl border border-slate-200">
-                                <table className="w-full text-left text-xs">
-                                    <thead className="bg-slate-100/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                                        <tr>
-                                            <th className="p-3">#</th>
-                                            <th className="p-3">Project / Deliverable</th>
-                                            <th className="p-3 text-center">Qty</th>
-                                            <th className="p-3 text-right">Price</th>
-                                            <th className="p-3 text-right">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        <tr>
-                                            <td className="p-3 font-mono text-slate-400">01</td>
-                                            <td className="p-3">
-                                                <p className="font-bold text-slate-900 text-sm">
-                                                    {invoiceModalOrder.project_name || invoiceModalOrder.item?.name || 'Custom Software Development'}
-                                                </p>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">
-                                                    {invoiceModalOrder.item?.name} &bull; Enterprise Solution
-                                                </p>
-                                            </td>
-                                            <td className="p-3 text-center font-mono font-bold text-slate-700">1</td>
-                                            <td className="p-3 text-right font-mono font-bold text-slate-700">
-                                                ৳{parseFloat(invoiceModalOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </td>
-                                            <td className="p-3 text-right font-mono font-bold text-slate-900">
-                                                ৳{parseFloat(invoiceModalOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Summary Calculation */}
-                            <div className="flex justify-end">
-                                <div className="w-full sm:w-64 space-y-2 text-xs">
-                                    <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                                        <span>Subtotal:</span>
-                                        <span className="font-mono font-bold text-slate-900">
-                                            ৳{parseFloat(invoiceModalOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-bold text-lg text-slate-900">
+                                            Order &amp; Billing Details
+                                        </h2>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                            due <= 0 ? 'bg-emerald-50 text-emerald-700' : paid > 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                                        }`}>
+                                            {due <= 0 ? '✓ Paid' : paid > 0 ? '⏳ Partial' : '⚠️ Due'}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                                        <span>VAT / Tax (0%):</span>
-                                        <span className="font-mono font-bold text-slate-900">৳0.00 BDT</span>
+                                    <p className="text-xs text-blue-600 font-mono font-bold mt-0.5">
+                                        #{viewModalOrder.transaction_id || `ORD-${viewModalOrder.id}`}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setViewModalOrder(null)}
+                                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Client & Project Overview */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client Info</span>
+                                    <p className="font-bold text-slate-900 text-sm">{viewModalOrder.client?.name || viewModalOrder.user?.name}</p>
+                                    <p className="text-slate-600 font-mono">{viewModalOrder.client?.phone || viewModalOrder.user?.phone || '—'}</p>
+                                    <p className="text-slate-500">{viewModalOrder.client?.email || viewModalOrder.user?.email || ''}</p>
+                                </div>
+
+                                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Project / Service</span>
+                                    <p className="font-bold text-slate-900 text-sm">{viewModalOrder.project_name || viewModalOrder.item?.name}</p>
+                                    <p className="text-slate-500">{viewModalOrder.item?.name}</p>
+                                    <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500">
+                                        <span>Status: <strong className="capitalize text-slate-700">{viewModalOrder.status}</strong></span>
+                                        <span>&bull;</span>
+                                        <span>Progress: <strong className="text-blue-600 font-mono">{viewModalOrder.progress ?? 0}%</strong></span>
                                     </div>
-                                    <div className="flex justify-between p-3 rounded-xl bg-blue-50/70 border border-blue-200 text-sm">
-                                        <span className="font-bold text-slate-900">Grand Total:</span>
-                                        <span className="font-mono font-black text-blue-600">
-                                            ৳{parseFloat(invoiceModalOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                </div>
+                            </div>
+
+                            {/* Financial Summary Card */}
+                            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Financial Breakdown (হিসাব বিবরণী)</span>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                                        <span className="text-[10px] text-slate-500 uppercase block">মূল বিল (Gross)</span>
+                                        <span className="font-mono font-bold text-slate-800 text-sm">৳{gross.toLocaleString()}</span>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                                        <span className="text-[10px] text-emerald-600 uppercase block">ছাড় (Discount)</span>
+                                        <span className="font-mono font-bold text-emerald-600 text-sm">৳{discount.toLocaleString()}</span>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/30">
+                                        <span className="text-[10px] text-emerald-700 font-bold uppercase block">প্রদান (Paid)</span>
+                                        <span className="font-mono font-black text-emerald-700 text-sm">৳{paid.toLocaleString()}</span>
+                                    </div>
+                                    <div className={`p-2.5 rounded-lg border ${due > 0 ? 'border-red-200 bg-red-50/50' : 'border-slate-200 bg-white'}`}>
+                                        <span className={`text-[10px] font-bold uppercase block ${due > 0 ? 'text-red-600' : 'text-slate-400'}`}>বাকি (Due)</span>
+                                        <span className={`font-mono font-black text-sm ${due > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                                            ৳{due.toLocaleString()}
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Invoice Modal Action Controls */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-200">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                {/* 1. Print & Save as PDF */}
-                                <button
-                                    type="button"
-                                    onClick={() => handlePrintInvoice(invoiceModalOrder)}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 text-xs transition-colors shadow-xs active:scale-95 cursor-pointer"
-                                >
-                                    <Printer className="w-4 h-4" />
-                                    <span>Print & Save PDF</span>
-                                </button>
-
-                                {/* 2. Copy Summary */}
-                                <button
-                                    type="button"
-                                    onClick={() => handleCopyInvoiceSummary(invoiceModalOrder)}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 text-xs transition-colors shadow-2xs cursor-pointer"
-                                >
-                                    {copiedInvoice ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
-                                    <span>{copiedInvoice ? 'Copied!' : 'Copy Summary'}</span>
-                                </button>
-
-                                {/* 3. WhatsApp Direct Send */}
-                                {(invoiceModalOrder.client?.phone || invoiceModalOrder.user?.phone) && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const phone = invoiceModalOrder.client?.phone || invoiceModalOrder.user?.phone;
-                                            let clean = phone.replace(/[^0-9+]/g, '');
-                                            if (clean.startsWith('01')) clean = '880' + clean.substring(1);
-                                            if (clean.startsWith('+')) clean = clean.replace('+', '');
-                                            const message = encodeURIComponent(`Hello ${invoiceModalOrder.client?.name || 'Customer'},\n\nHere is your Invoice #${invoiceModalOrder.transaction_id || invoiceModalOrder.id} for "${invoiceModalOrder.project_name || invoiceModalOrder.item?.name}".\n\nTotal Amount: ৳${parseFloat(invoiceModalOrder.amount).toLocaleString()} BDT\nStatus: ${invoiceModalOrder.status.toUpperCase()}\n\nThank you for choosing IT SOLUTIONS!`);
-                                            window.open(`https://wa.me/${clean}?text=${message}`, '_blank');
-                                        }}
-                                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold hover:bg-emerald-100 text-xs transition-colors shadow-2xs cursor-pointer"
-                                    >
-                                        <Send className="w-4 h-4 text-emerald-600" />
-                                        <span>Send WhatsApp</span>
-                                    </button>
+                                {viewModalOrder.due_date && (
+                                    <p className="text-[11px] text-slate-500 text-right pt-1">
+                                        বাকি পরিশোধের শেষ তারিখ: <strong className="font-mono text-slate-800">{new Date(viewModalOrder.due_date).toLocaleDateString()}</strong>
+                                    </p>
                                 )}
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={() => setInvoiceModalOrder(null)}
-                                className="px-5 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 text-xs transition-colors cursor-pointer"
-                            >
-                                Close
-                            </button>
+                            {/* Payment Ledger / History */}
+                            <div className="space-y-2">
+                                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                                    Payment Transactions Ledger ({payments.length})
+                                </span>
+                                {payments.length === 0 ? (
+                                    <p className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-xl text-center">
+                                        No payment transactions logged yet for this order.
+                                    </p>
+                                ) : (
+                                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-slate-50 text-[10px] text-slate-400 font-bold uppercase border-b border-slate-200">
+                                                <tr>
+                                                    <th className="p-2.5 pl-3">Date</th>
+                                                    <th className="p-2.5">Method</th>
+                                                    <th className="p-2.5">TrxID</th>
+                                                    <th className="p-2.5 text-right">Amount</th>
+                                                    <th className="p-2.5 pr-3">Notes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {payments.map(p => (
+                                                    <tr key={p.id}>
+                                                        <td className="p-2.5 pl-3 font-mono text-slate-600">{new Date(p.payment_date).toLocaleDateString()}</td>
+                                                        <td className="p-2.5 font-semibold text-slate-800">{p.payment_method}</td>
+                                                        <td className="p-2.5 font-mono text-slate-500">{p.transaction_id || '—'}</td>
+                                                        <td className="p-2.5 text-right font-mono font-bold text-emerald-600">৳{parseFloat(p.amount).toLocaleString()}</td>
+                                                        <td className="p-2.5 pr-3 text-slate-500 text-[11px]">{p.notes || '—'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer Actions */}
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                {due > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const ord = viewModalOrder;
+                                            setViewModalOrder(null);
+                                            openPaymentModal(ord);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-500 text-xs shadow-xs"
+                                    >
+                                        <CreditCard className="w-3.5 h-3.5" />
+                                        <span>Collect Payment (৳{due.toLocaleString()})</span>
+                                    </button>
+                                )}
+                                <div className="ml-auto flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const ord = viewModalOrder;
+                                            setViewModalOrder(null);
+                                            setInvoiceModalOrder(ord);
+                                        }}
+                                        className="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold hover:bg-blue-100 text-xs"
+                                    >
+                                        View Invoice
+                                    </button>
+                                    <button
+                                        onClick={() => setViewModalOrder(null)}
+                                        className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 text-xs"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
+            </Modal>
+
+            {/* ============================================================== */}
+            {/* 5. PROFESSIONAL INVOICE RECEIPT MODAL (Print-Ready & Saveable) */}
+            {/* ============================================================== */}
+            <Modal show={Boolean(invoiceModalOrder)} onClose={() => setInvoiceModalOrder(null)} maxWidth="3xl">
+                {invoiceModalOrder && (() => {
+                    const gross = parseFloat(invoiceModalOrder.amount || 0);
+                    const discount = parseFloat(invoiceModalOrder.discount || 0);
+                    const net = parseFloat(invoiceModalOrder.net_amount ?? (gross - discount));
+                    const paid = parseFloat(invoiceModalOrder.paid_amount || 0);
+                    const due = parseFloat(invoiceModalOrder.due_amount ?? Math.max(0, net - paid));
+                    const isPaid = invoiceModalOrder.payment_status === 'paid' || due <= 0;
+                    const isPartial = invoiceModalOrder.payment_status === 'partial' || (paid > 0 && due > 0);
+
+                    return (
+                        <div className="bg-white p-6 sm:p-8 space-y-6 rounded-3xl text-slate-800">
+                            
+                            {/* Printable Invoice Container */}
+                            <div className="space-y-6 bg-white">
+                                
+                                {/* Top Header & Stamp */}
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-slate-200">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs">
+                                                IT
+                                            </div>
+                                            <h3 className="font-black text-2xl text-slate-900 tracking-tight">IT SOLUTIONS</h3>
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-semibold">Digital Agency &amp; Enterprise Software Engineering</p>
+                                        <div className="text-[11px] text-slate-400 font-medium mt-2 space-y-0.5">
+                                            <p>Dhaka, Bangladesh &bull; Hotline: +880 1800-000000</p>
+                                            <p>support@itsolutions.com &bull; www.itsolutions.com</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="sm:text-right space-y-2">
+                                        <div className={`inline-block px-3.5 py-1 rounded-xl font-bold text-xs uppercase tracking-wider border shadow-2xs ${
+                                            isPaid
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                                : isPartial
+                                                ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                                : 'bg-red-50 text-red-700 border-red-300'
+                                        }`}>
+                                            {isPaid ? '✓ PAID & SETTLED' : isPartial ? '⏳ PARTIAL PAYMENT' : '⚠️ UNPAID / DUE'}
+                                        </div>
+                                        <h2 className="font-black text-3xl text-slate-900 tracking-tight">
+                                            INVOICE
+                                        </h2>
+                                        <p className="font-mono font-bold text-xs text-blue-600">
+                                            #{invoiceModalOrder.transaction_id || `INV-${invoiceModalOrder.id.toString().padStart(6, '0')}`}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Client & Metadata Details */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl bg-slate-50/80 border border-slate-200 text-xs">
+                                    <div className="space-y-1.5">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                            Billed To (গ্রাহকের তথ্য)
+                                        </span>
+                                        <h4 className="font-black text-base text-slate-900">{invoiceModalOrder.client?.name || invoiceModalOrder.user?.name}</h4>
+                                        {invoiceModalOrder.client?.contact_person && (
+                                            <p className="text-slate-600 font-semibold">{invoiceModalOrder.client.contact_person}</p>
+                                        )}
+                                        <p className="text-slate-600 font-mono text-xs">{invoiceModalOrder.client?.phone || invoiceModalOrder.user?.phone || '—'}</p>
+                                        {invoiceModalOrder.client?.email && (
+                                            <p className="text-slate-400 text-[11px]">{invoiceModalOrder.client.email}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1.5 sm:text-right">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                            Invoice Details (ইনভয়েস বিবরণ)
+                                        </span>
+                                        <p className="text-slate-700">
+                                            <span className="text-slate-400">Issue Date:</span> <strong className="font-semibold text-slate-900 ml-1">{new Date(invoiceModalOrder.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</strong>
+                                        </p>
+                                        {invoiceModalOrder.due_date && (
+                                            <p className="text-slate-700">
+                                                <span className="text-slate-400">Due Date (বাকি পরিশোধ):</span> <strong className="font-bold text-red-600 ml-1">{new Date(invoiceModalOrder.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</strong>
+                                            </p>
+                                        )}
+                                        <p className="text-slate-700">
+                                            <span className="text-slate-400">Payment Gateway:</span> <strong className="font-bold text-slate-900 ml-1">{invoiceModalOrder.payment_method || 'Online'}</strong>
+                                        </p>
+                                        {invoiceModalOrder.added_by && (
+                                            <p className="text-slate-400 text-[11px]">
+                                                Created By: {invoiceModalOrder.added_by}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Itemized Table */}
+                                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                                    <table className="w-full text-left text-xs">
+                                        <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                                            <tr>
+                                                <th className="py-3 px-4 w-12 text-center">#</th>
+                                                <th className="py-3 px-4">Project / Deliverable Description</th>
+                                                <th className="py-3 px-4 text-center w-16">Qty</th>
+                                                <th className="py-3 px-4 text-right w-36">Rate</th>
+                                                <th className="py-3 px-4 text-right w-36">Total Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            <tr>
+                                                <td className="py-4 px-4 text-center font-mono text-slate-400">01</td>
+                                                <td className="py-4 px-4">
+                                                    <p className="font-bold text-slate-900 text-sm">
+                                                        {invoiceModalOrder.project_name || invoiceModalOrder.item?.name || 'Custom Software Development'}
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                                        {invoiceModalOrder.item?.name} &bull; Enterprise Tech Deliverable
+                                                    </p>
+                                                </td>
+                                                <td className="py-4 px-4 text-center font-bold text-slate-700">1</td>
+                                                <td className="py-4 px-4 text-right font-bold text-slate-800 tabular-nums">
+                                                    ৳{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="py-4 px-4 text-right font-extrabold text-slate-900 tabular-nums">
+                                                    ৳{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Summary Calculation with Paid & Due */}
+                                <div className="flex justify-end pt-2">
+                                    <div className="w-full sm:w-80 space-y-2 text-xs">
+                                        <div className="flex justify-between py-1.5 px-2 border-b border-slate-100 text-slate-600">
+                                            <span className="font-medium">Gross Subtotal:</span>
+                                            <span className="font-bold text-slate-900 tabular-nums">
+                                                ৳{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                            </span>
+                                        </div>
+                                        {discount > 0 && (
+                                            <div className="flex justify-between py-1.5 px-2 border-b border-slate-100 text-emerald-600">
+                                                <span className="font-medium">Discount / Rebate (ছাড়):</span>
+                                                <span className="font-bold tabular-nums">
+                                                    -৳{discount.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between py-2 px-3 rounded-xl bg-slate-50 border border-slate-200">
+                                            <span className="font-bold text-slate-700">Net Payable (মোট বিল):</span>
+                                            <span className="font-extrabold text-slate-900 tabular-nums text-sm">
+                                                ৳{net.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between py-2 px-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-emerald-800">
+                                            <span className="font-bold">Amount Paid (পরিশোধ / আদায়):</span>
+                                            <span className="font-black text-emerald-700 tabular-nums text-sm">
+                                                ৳{paid.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                            </span>
+                                        </div>
+                                        <div className={`flex justify-between py-3 px-3.5 rounded-xl border text-sm ${
+                                            due > 0 ? 'bg-red-50/90 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                        }`}>
+                                            <span className="font-black">Balance Due (বর্তমান বাকি):</span>
+                                            <span className="font-black tabular-nums text-base">
+                                                ৳{due.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Controls */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePrintInvoice(invoiceModalOrder)}
+                                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 text-xs transition-colors shadow-xs active:scale-95 cursor-pointer"
+                                    >
+                                        <Printer className="w-4 h-4" />
+                                        <span>Print &amp; Save PDF</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCopyInvoiceSummary(invoiceModalOrder)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 text-xs transition-colors shadow-2xs cursor-pointer"
+                                    >
+                                        {copiedInvoice ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
+                                        <span>{copiedInvoice ? 'Copied!' : 'Copy Summary'}</span>
+                                    </button>
+
+                                    {(invoiceModalOrder.client?.phone || invoiceModalOrder.user?.phone) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const phone = invoiceModalOrder.client?.phone || invoiceModalOrder.user?.phone;
+                                                let clean = phone.replace(/[^0-9+]/g, '');
+                                                if (clean.startsWith('01')) clean = '880' + clean.substring(1);
+                                                if (clean.startsWith('+')) clean = clean.replace('+', '');
+                                                const message = encodeURIComponent(`Hello ${invoiceModalOrder.client?.name || 'Customer'},\n\nHere is your Invoice #${invoiceModalOrder.transaction_id || invoiceModalOrder.id} for "${invoiceModalOrder.project_name || invoiceModalOrder.item?.name}".\n\nTotal Bill: ৳${net.toLocaleString()} BDT\nPaid: ৳${paid.toLocaleString()} BDT\nDue: ৳${due.toLocaleString()} BDT\nStatus: ${isPaid ? 'PAID & SETTLED' : isPartial ? 'PARTIALLY PAID' : 'DUE'}\n\nThank you for choosing IT SOLUTIONS!`);
+                                                window.open(`https://wa.me/${clean}?text=${message}`, '_blank');
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold hover:bg-emerald-100 text-xs transition-colors shadow-2xs cursor-pointer"
+                                        >
+                                            <Send className="w-4 h-4 text-emerald-600" />
+                                            <span>Send WhatsApp</span>
+                                        </button>
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setInvoiceModalOrder(null)}
+                                    className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 text-xs transition-colors cursor-pointer"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })()}
             </Modal>
         </AdminLayout>
     );

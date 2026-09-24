@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
+
+const ActionDropdownContext = createContext({ close: () => {} });
 
 export default function ActionDropdown({ label = 'Actions', align = 'right', children }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -68,7 +70,7 @@ export default function ActionDropdown({ label = 'Actions', align = 'right', chi
 
     return (
         <div className="inline-block text-left relative">
-            {/* Exact Pill Button matching screenshot */}
+            {/* Exact Pill Button */}
             <button
                 ref={buttonRef}
                 type="button"
@@ -81,21 +83,22 @@ export default function ActionDropdown({ label = 'Actions', align = 'right', chi
 
             {/* Portal Dropdown Menu attached to document.body so it NEVER clips */}
             {isOpen && typeof document !== 'undefined' && createPortal(
-                <div
-                    ref={menuRef}
-                    style={{
-                        position: 'fixed',
-                        top: coords.top,
-                        bottom: coords.bottom,
-                        right: coords.right,
-                        left: coords.left,
-                        zIndex: 99999,
-                    }}
-                    onClick={() => setIsOpen(false)}
-                    className="w-48 max-w-[calc(100vw-24px)] rounded-xl bg-white border border-blue-100 shadow-2xl shadow-slate-900/25 py-1 text-xs divide-y divide-slate-100 text-slate-800 animate-in fade-in zoom-in-95 duration-100"
-                >
-                    {children}
-                </div>,
+                <ActionDropdownContext.Provider value={{ close: () => setIsOpen(false) }}>
+                    <div
+                        ref={menuRef}
+                        style={{
+                            position: 'fixed',
+                            top: coords.top,
+                            bottom: coords.bottom,
+                            right: coords.right,
+                            left: coords.left,
+                            zIndex: 45,
+                        }}
+                        className="w-48 max-w-[calc(100vw-24px)] rounded-xl bg-white border border-blue-100 shadow-2xl shadow-slate-900/25 py-1 text-xs divide-y divide-slate-100 text-slate-800 animate-in fade-in zoom-in-95 duration-100"
+                    >
+                        {children}
+                    </div>
+                </ActionDropdownContext.Provider>,
                 document.body
             )}
         </div>
@@ -103,6 +106,7 @@ export default function ActionDropdown({ label = 'Actions', align = 'right', chi
 }
 
 export function ActionItem({ onClick, icon: Icon, children, label, danger = false, variant = '', className = '' }) {
+    const { close } = useContext(ActionDropdownContext);
     const isDanger = danger || variant === 'danger';
     const content = children || label;
 
@@ -110,7 +114,7 @@ export function ActionItem({ onClick, icon: Icon, children, label, danger = fals
         <button
             type="button"
             onClick={(e) => {
-                e.stopPropagation();
+                close();
                 if (onClick) onClick(e);
             }}
             className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer select-none ${

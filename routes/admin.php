@@ -87,6 +87,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/orders', [AdminOrderController::class, 'store'])->name('orders.store');
     Route::patch('/orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
     Route::put('/orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update.put');
+    Route::post('/orders/{order}/payment', [AdminOrderController::class, 'recordPayment'])->name('orders.payment');
     Route::delete('/orders/{order}', [AdminOrderController::class, 'destroy'])->name('orders.destroy');
 
     // Reorders (Subscriptions, Monthly/Yearly Packages & Renewal Reminders)

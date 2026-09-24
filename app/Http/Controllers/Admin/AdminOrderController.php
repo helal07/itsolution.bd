@@ -19,6 +19,7 @@ class AdminOrderController extends Controller
     public function index(Request $request): Response
     {
         $status = $request->query('status');
+        $paymentStatus = $request->query('payment_status');
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
 
@@ -26,6 +27,10 @@ class AdminOrderController extends Controller
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);
+        }
+
+        if ($paymentStatus && $paymentStatus !== 'all') {
+            $query->where('payment_status', $paymentStatus);
         }
 
         if ($startDate) {
@@ -38,6 +43,37 @@ class AdminOrderController extends Controller
 
         $orders = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
+        // Calculate aggregated financial stats for the order list
+        $statsBaseQuery = Order::query();
+        if ($startDate) {
+            $statsBaseQuery->whereDate('created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $statsBaseQuery->whereDate('created_at', '<=', $endDate);
+        }
+
+        $totalInvoiced = (float) (clone $statsBaseQuery)->sum('amount');
+        $totalDiscount = (float) (clone $statsBaseQuery)->sum('discount');
+        $totalPaid = (float) (clone $statsBaseQuery)->sum('paid_amount');
+        $totalNet = max(0, $totalInvoiced - $totalDiscount);
+        $totalDue = max(0, $totalNet - $totalPaid);
+        $totalCount = (clone $statsBaseQuery)->count();
+        $paidCount = (clone $statsBaseQuery)->where('payment_status', 'paid')->count();
+        $partialCount = (clone $statsBaseQuery)->where('payment_status', 'partial')->count();
+        $dueCount = (clone $statsBaseQuery)->where('payment_status', 'due')->count();
+
+        $orderStats = [
+            'total_invoiced' => $totalInvoiced,
+            'total_discount' => $totalDiscount,
+            'total_net' => $totalNet,
+            'total_paid' => $totalPaid,
+            'total_due' => $totalDue,
+            'total_count' => $totalCount,
+            'paid_count' => $paidCount,
+            'partial_count' => $partialCount,
+            'due_count' => $dueCount,
+        ];
+
         $clients = Client::select('id', 'name', 'phone', 'email', 'contact_person', 'logo')
             ->orderBy('name')
             ->get();
@@ -46,15 +82,17 @@ class AdminOrderController extends Controller
             ->orderBy('name')
             ->get();
 
-        $items = Item::select('id', 'name')
+        $items = Item::select('id', 'name', 'price')
             ->orderBy('name')
             ->get();
 
         return Inertia::render('Admin/Orders/Index', [
             'orders' => $orders,
             'currentStatus' => $status ?? 'all',
+            'currentPaymentStatus' => $paymentStatus ?? 'all',
             'startDate' => $startDate ?? '',
             'endDate' => $endDate ?? '',
+            'orderStats' => $orderStats,
             'clients' => $clients,
             'users' => $users,
             'items' => $items,
@@ -69,11 +107,14 @@ class AdminOrderController extends Controller
             'item_id' => ['required', 'exists:items,id'],
             'project_name' => ['nullable', 'string', 'max:180'],
             'amount' => ['required', 'numeric', 'min:0'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0'],
             'status' => ['required', 'in:pending,paid,processing,completed,cancelled,failed,refunded'],
             'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'transaction_id' => ['nullable', 'string', 'max:150', 'unique:orders,transaction_id'],
             'delivery_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -132,23 +173,47 @@ class AdminOrderController extends Controller
             else $validated['progress'] = 0;
         }
 
+        // Financial & Billing calculations
+        $amount = (float) $validated['amount'];
+        $discount = (float) ($validated['discount'] ?? 0);
+        $paidAmount = (float) ($validated['paid_amount'] ?? 0);
+        $net = max(0, $amount - $discount);
+
+        if ($validated['status'] === 'paid' && $paidAmount <= 0) {
+            $paidAmount = $net;
+        }
+
+        if ($paidAmount >= $net && $net > 0) {
+            $paymentStatus = 'paid';
+            $paidAmount = $net;
+        } elseif ($paidAmount > 0) {
+            $paymentStatus = 'partial';
+        } else {
+            $paymentStatus = 'due';
+        }
+
+        $validated['amount'] = $amount;
+        $validated['discount'] = $discount;
+        $validated['paid_amount'] = $paidAmount;
+        $validated['payment_status'] = $paymentStatus;
+
         $order = Order::create($validated);
 
-        // If order marked as paid immediately and has client_id, record in client payments ledger
-        if ($validated['status'] === 'paid' && !empty($validated['client_id'])) {
+        // If advance or full payment received, record in client payments ledger
+        if ($paidAmount > 0 && !empty($order->client_id)) {
             ClientPayment::create([
-                'client_id' => $validated['client_id'],
+                'client_id' => $order->client_id,
                 'order_id' => $order->id,
-                'amount' => $validated['amount'],
+                'amount' => $paidAmount,
                 'currency' => 'BDT',
                 'payment_method' => $validated['payment_method'] ?? 'bKash',
                 'transaction_id' => $order->transaction_id,
-                'notes' => 'Settled on invoice creation',
+                'notes' => $paymentStatus === 'paid' ? 'Full settlement on order creation' : 'Advance payment on order creation',
                 'payment_date' => now()->toDateString(),
             ]);
         }
 
-        return back()->with('success', 'Order and project created successfully.');
+        return back()->with('success', 'Order created successfully with billing recorded.');
     }
 
     public function update(Request $request, Order $order): RedirectResponse
@@ -158,8 +223,10 @@ class AdminOrderController extends Controller
             'progress' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'project_name' => ['sometimes', 'nullable', 'string', 'max:180'],
             'amount' => ['sometimes', 'numeric', 'min:0'],
+            'discount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'payment_method' => ['sometimes', 'nullable', 'string'],
             'delivery_date' => ['sometimes', 'nullable', 'date'],
+            'due_date' => ['sometimes', 'nullable', 'date'],
             'notes' => ['sometimes', 'nullable', 'string'],
         ]);
 
@@ -179,24 +246,48 @@ class AdminOrderController extends Controller
 
         $order->update($validated);
 
-        // If status changed to paid and order has client_id, record payment if not already logged
-        if (isset($validated['status']) && $validated['status'] === 'paid' && $order->client_id) {
-            $hasPayment = ClientPayment::where('order_id', $order->id)->exists();
-            if (!$hasPayment) {
-                ClientPayment::create([
-                    'client_id' => $order->client_id,
-                    'order_id' => $order->id,
-                    'amount' => $order->amount,
-                    'currency' => 'BDT',
-                    'payment_method' => $order->payment_method ?? 'bKash',
-                    'transaction_id' => $order->transaction_id,
-                    'notes' => 'Marked as paid by admin',
-                    'payment_date' => now()->toDateString(),
-                ]);
-            }
-        }
+        // Sync payment status based on current amount/discount/paid_amount
+        $order->refresh();
+        $order->syncPaymentStatus();
 
         return back()->with('success', 'Order updated successfully.');
+    }
+
+    /**
+     * Record a payment (due collection or installment) for this order.
+     */
+    public function recordPayment(Request $request, Order $order): RedirectResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:1'],
+            'payment_method' => ['required', 'string', 'max:50'],
+            'transaction_id' => ['nullable', 'string', 'max:150'],
+            'payment_date' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $collectedAmount = (float) $validated['amount'];
+        $order->paid_amount = (float) $order->paid_amount + $collectedAmount;
+        $order->save();
+        $order->syncPaymentStatus();
+
+        // Always log payment into client_payments ledger
+        ClientPayment::create([
+            'client_id' => $order->client_id ?? null,
+            'order_id' => $order->id,
+            'amount' => $collectedAmount,
+            'currency' => 'BDT',
+            'payment_method' => $validated['payment_method'],
+            'transaction_id' => $validated['transaction_id'] ?? ('PAY-' . strtoupper(Str::random(8))),
+            'notes' => $validated['notes'] ?? ('Payment of ৳' . number_format($collectedAmount) . ' collected for Order #' . ($order->transaction_id ?? $order->id)),
+            'payment_date' => $validated['payment_date'],
+        ]);
+
+        $statusMsg = $order->due_amount > 0 
+            ? ' Remaining due: ৳' . number_format($order->due_amount) . '.'
+            : ' Order is now FULLY PAID & SETTLED!';
+
+        return back()->with('success', 'Payment of ৳' . number_format($collectedAmount) . ' recorded successfully.' . $statusMsg);
     }
 
     public function destroy(Order $order): RedirectResponse
