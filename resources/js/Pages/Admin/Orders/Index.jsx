@@ -23,7 +23,8 @@ import {
     DollarSign,
     ArrowUpRight,
     FileText,
-    CalendarClock
+    CalendarClock,
+    Paperclip
 } from 'lucide-react';
 import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
@@ -874,6 +875,15 @@ export default function Index({
                                                         <span>&bull;</span>
                                                         <span>{o.payment_method || 'Online'}</span>
                                                     </div>
+                                                    {o.requirements && o.requirements.length > 0 && (
+                                                        <a
+                                                            href={route('orders.requirements.show', o.id)}
+                                                            className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200 hover:bg-purple-100 transition mt-1"
+                                                        >
+                                                            <Paperclip className="w-2.5 h-2.5" />
+                                                            <span>{o.requirements.length} Briefing Media</span>
+                                                        </a>
+                                                    )}
                                                 </td>
 
                                                 {/* 4. Net Bill (মোট বিল) */}
@@ -967,6 +977,9 @@ export default function Index({
                                                             </ActionItem>
                                                             <ActionItem onClick={() => openEditProgressModal(o)} icon={Sliders} className="text-blue-700 hover:text-blue-800">
                                                                 Edit Progress
+                                                            </ActionItem>
+                                                            <ActionItem onClick={() => window.location.href = route('orders.requirements.show', o.id)} icon={Paperclip} className="text-purple-700 hover:text-purple-800">
+                                                                Requirements &amp; Media ({o.requirements?.length || 0})
                                                             </ActionItem>
                                                             <ActionItem onClick={() => setViewModalOrder(o)} icon={Eye} className="text-slate-700 hover:text-slate-900">
                                                                 View Details

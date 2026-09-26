@@ -39,6 +39,16 @@ class AdminSettingController extends Controller
             'sms_notify_payment' => SiteSetting::get('sms_notify_payment', '1'),
             'sms_notify_progress' => SiteSetting::get('sms_notify_progress', '1'),
 
+            // SMTP Email Gateway
+            'mail_enabled' => SiteSetting::get('mail_enabled', '0'),
+            'mail_host' => SiteSetting::get('mail_host', 'smtp.gmail.com'),
+            'mail_port' => SiteSetting::get('mail_port', '587'),
+            'mail_username' => SiteSetting::get('mail_username', ''),
+            'mail_password' => SiteSetting::get('mail_password', ''),
+            'mail_encryption' => SiteSetting::get('mail_encryption', 'tls'),
+            'mail_from_address' => SiteSetting::get('mail_from_address', ''),
+            'mail_from_name' => SiteSetting::get('mail_from_name', ''),
+
             // Payment Gateways (bKash, EPS, SSLCommerz, Manual)
             'payment_default_gateway' => SiteSetting::get('payment_default_gateway', 'bkash'),
             
@@ -107,6 +117,16 @@ class AdminSettingController extends Controller
             'sms_notify_payment' => 'nullable|string|in:0,1',
             'sms_notify_progress' => 'nullable|string|in:0,1',
 
+            // SMTP Email Gateway
+            'mail_enabled' => 'nullable|string|in:0,1',
+            'mail_host' => 'nullable|string|max:150',
+            'mail_port' => 'nullable|string|max:10',
+            'mail_username' => 'nullable|string|max:150',
+            'mail_password' => 'nullable|string|max:255',
+            'mail_encryption' => 'nullable|string|in:tls,ssl,none',
+            'mail_from_address' => 'nullable|email|max:150',
+            'mail_from_name' => 'nullable|string|max:150',
+
             // Payment Gateways
             'payment_default_gateway' => 'nullable|string|max:50',
 
@@ -168,10 +188,62 @@ class AdminSettingController extends Controller
     {
         $request->validate([
             'test_phone' => 'required|string|max:30',
-            'test_message' => 'required|string|max:200',
+            'test_message' => 'required|string|max:300',
+            'sms_provider' => 'nullable|string|max:50',
+            'sms_api_key' => 'nullable|string|max:255',
+            'sms_api_secret' => 'nullable|string|max:255',
+            'sms_sender_id' => 'nullable|string|max:100',
+            'sms_api_url' => 'nullable|string|max:500',
         ]);
 
-        $result = SmsService::send($request->test_phone, $request->test_message);
+        $overrides = array_filter([
+            'provider' => $request->input('sms_provider'),
+            'api_key' => $request->input('sms_api_key'),
+            'api_secret' => $request->input('sms_api_secret'),
+            'sender_id' => $request->input('sms_sender_id'),
+            'api_url' => $request->input('sms_api_url'),
+            'enabled' => '1',
+        ], fn ($val) => !is_null($val) && $val !== '');
+
+        $result = SmsService::send(
+            to: $request->test_phone,
+            message: $request->test_message,
+            isTest: true,
+            overrides: $overrides
+        );
+
+        if ($result['success']) {
+            return back()->with('success', $result['message']);
+        }
+
+        return back()->with('error', $result['message']);
+    }
+
+    public function testEmail(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'test_email' => 'required|email|max:150',
+            'mail_host' => 'nullable|string|max:150',
+            'mail_port' => 'nullable|string|max:10',
+            'mail_username' => 'nullable|string|max:150',
+            'mail_password' => 'nullable|string|max:255',
+            'mail_encryption' => 'nullable|string|in:tls,ssl,none',
+            'mail_from_address' => 'nullable|email|max:150',
+            'mail_from_name' => 'nullable|string|max:150',
+        ]);
+
+        $overrides = array_filter([
+            'mail_host' => $request->input('mail_host'),
+            'mail_port' => $request->input('mail_port'),
+            'mail_username' => $request->input('mail_username'),
+            'mail_password' => $request->input('mail_password'),
+            'mail_encryption' => $request->input('mail_encryption'),
+            'mail_from_address' => $request->input('mail_from_address'),
+            'mail_from_name' => $request->input('mail_from_name'),
+            'mail_enabled' => '1',
+        ], fn ($val) => !is_null($val) && $val !== '');
+
+        $result = \App\Services\MailConfigService::sendTestEmail($request->test_email, $overrides);
 
         if ($result['success']) {
             return back()->with('success', $result['message']);

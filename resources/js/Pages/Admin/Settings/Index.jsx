@@ -13,7 +13,14 @@ import {
     Upload, 
     Shield,
     Sliders,
-    Landmark
+    Landmark,
+    Mail,
+    CheckCircle2,
+    AlertCircle,
+    Loader2,
+    XCircle,
+    Info,
+    X
 } from 'lucide-react';
 
 export default function SettingsIndex({ settings = {}, flash = {} }) {
@@ -32,6 +39,16 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
         company_address: settings.company_address || 'Dhaka, Bangladesh',
         currency_symbol: settings.currency_symbol || '৳',
         currency_code: settings.currency_code || 'BDT',
+
+        // SMTP Email Gateway
+        mail_enabled: settings.mail_enabled ?? '0',
+        mail_host: settings.mail_host || 'smtp.gmail.com',
+        mail_port: settings.mail_port || '587',
+        mail_username: settings.mail_username || '',
+        mail_password: settings.mail_password || '',
+        mail_encryption: settings.mail_encryption || 'tls',
+        mail_from_address: settings.mail_from_address || '',
+        mail_from_name: settings.mail_from_name || '',
 
         // SMS Gateway
         sms_enabled: settings.sms_enabled ?? '0',
@@ -79,7 +96,7 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
         manual_bank_details: settings.manual_bank_details || '',
     });
 
-    const validTabs = ['brand', 'sms', 'payment'];
+    const validTabs = ['brand', 'email', 'sms', 'payment'];
     const getTabFromUrl = () => {
         if (typeof window === 'undefined') return 'brand';
         const tabParam = new URLSearchParams(window.location.search).get('tab');
@@ -89,6 +106,7 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
     const [activeTab, setActiveTab] = useState(getTabFromUrl());
 
     // Password & Secret key visibility states
+    const [showMailPass, setShowMailPass] = useState(false);
     const [showSmsApiKey, setShowSmsApiKey] = useState(false);
     const [showBkashSecret, setShowBkashSecret] = useState(false);
     const [showBkashPass, setShowBkashPass] = useState(false);
@@ -122,6 +140,26 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
         test_message: 'IT SOLUTIONS: Test SMS gateway configuration verified successfully.',
     });
 
+    const testEmailForm = useForm({
+        test_email: '',
+    });
+
+    const [smsTestFeedback, setSmsTestFeedback] = useState(null);
+    const [emailTestFeedback, setEmailTestFeedback] = useState(null);
+    const [bannerDismissed, setBannerDismissed] = useState(false);
+
+    useEffect(() => {
+        if (flash?.error) {
+            setBannerDismissed(false);
+            if (activeTab === 'sms') setSmsTestFeedback({ type: 'error', message: flash.error });
+            if (activeTab === 'email') setEmailTestFeedback({ type: 'error', message: flash.error });
+        } else if (flash?.success) {
+            setBannerDismissed(false);
+            if (activeTab === 'sms') setSmsTestFeedback({ type: 'success', message: flash.success });
+            if (activeTab === 'email') setEmailTestFeedback({ type: 'success', message: flash.success });
+        }
+    }, [flash]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
         post('/admin/settings', { 
@@ -132,8 +170,65 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
 
     const handleSendTestSms = (e) => {
         e.preventDefault();
-        testSmsForm.post('/admin/settings/test-sms', {
+        setSmsTestFeedback({
+            type: 'loading',
+            message: `Sending test SMS to ${testSmsForm.data.test_phone} via ${data.sms_provider}...`
+        });
+
+        testSmsForm.transform((formData) => ({
+            ...formData,
+            sms_provider: data.sms_provider,
+            sms_api_key: data.sms_api_key,
+            sms_api_secret: data.sms_api_secret,
+            sms_sender_id: data.sms_sender_id,
+            sms_api_url: data.sms_api_url,
+        })).post('/admin/settings/test-sms', {
             preserveScroll: true,
+            onSuccess: (page) => {
+                const pageFlash = page?.props?.flash || {};
+                if (pageFlash.error) {
+                    setSmsTestFeedback({ type: 'error', message: pageFlash.error });
+                } else if (pageFlash.success) {
+                    setSmsTestFeedback({ type: 'success', message: pageFlash.success });
+                }
+            },
+            onError: (errs) => {
+                const firstErr = Object.values(errs)[0] || 'Failed to submit test SMS request.';
+                setSmsTestFeedback({ type: 'error', message: firstErr });
+            }
+        });
+    };
+
+    const handleSendTestEmail = (e) => {
+        e.preventDefault();
+        setEmailTestFeedback({
+            type: 'loading',
+            message: `Connecting to SMTP host (${data.mail_host}:${data.mail_port}) and sending test email...`
+        });
+
+        testEmailForm.transform((formData) => ({
+            ...formData,
+            mail_host: data.mail_host,
+            mail_port: data.mail_port,
+            mail_username: data.mail_username,
+            mail_password: data.mail_password,
+            mail_encryption: data.mail_encryption,
+            mail_from_address: data.mail_from_address,
+            mail_from_name: data.mail_from_name,
+        })).post('/admin/settings/test-email', {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const pageFlash = page?.props?.flash || {};
+                if (pageFlash.error) {
+                    setEmailTestFeedback({ type: 'error', message: pageFlash.error });
+                } else if (pageFlash.success) {
+                    setEmailTestFeedback({ type: 'success', message: pageFlash.success });
+                }
+            },
+            onError: (errs) => {
+                const firstErr = Object.values(errs)[0] || 'Failed to submit test email request.';
+                setEmailTestFeedback({ type: 'error', message: firstErr });
+            }
         });
     };
 
@@ -155,6 +250,7 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
 
     const tabs = [
         { id: 'brand', label: 'Brand & Logo', icon: Building2 },
+        { id: 'email', label: 'SMTP Email Gateway', icon: Mail },
         { id: 'sms', label: 'SMS Gateway', icon: Smartphone },
         { id: 'payment', label: 'Payment Gateway', icon: CreditCard },
     ];
@@ -197,6 +293,38 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
                         )}
                     </button>
                 </div>
+
+                {/* Prominent Page-Level Flash Feedback */}
+                {!bannerDismissed && (flash.success || flash.error) && (
+                    <div className={`p-4 rounded-2xl border flex items-start justify-between gap-3 shadow-2xs transition-all ${
+                        flash.error 
+                            ? 'bg-red-50/90 border-red-200 text-red-900' 
+                            : 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+                    }`}>
+                        <div className="flex items-start gap-3">
+                            {flash.error ? (
+                                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            ) : (
+                                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                            )}
+                            <div>
+                                <h4 className="font-extrabold text-xs uppercase tracking-wider mb-0.5">
+                                    {flash.error ? 'Configuration Alert / Error' : 'Success Notification'}
+                                </h4>
+                                <p className="text-xs font-medium leading-relaxed">
+                                    {flash.error || flash.success}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setBannerDismissed(true)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-black/5 transition-colors cursor-pointer"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
 
                 {/* Minimalist Tabs Bar */}
                 <div className="flex items-center gap-1.5 overflow-x-auto p-1 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
@@ -415,6 +543,194 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
                     </div>
                 )}
 
+                {/* TAB: SMTP EMAIL GATEWAY */}
+                {activeTab === 'email' && (
+                    <div className="space-y-5">
+                        
+                        {/* Gateway Configuration Card */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                                        SMTP Email Gateway Provider &amp; Authentication
+                                    </h2>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        Used to automatically email login credentials &amp; work order notifications to clients.
+                                    </p>
+                                </div>
+
+                                <label className="inline-flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.mail_enabled === '1'}
+                                        onChange={(e) => setData('mail_enabled', e.target.checked ? '1' : '0')}
+                                        className="rounded text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="text-xs font-bold text-slate-900">Enable SMTP Email Dispatch</span>
+                                </label>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">SMTP Host (সার্ভার হোস্ট)</label>
+                                    <input
+                                        type="text"
+                                        value={data.mail_host}
+                                        onChange={(e) => setData('mail_host', e.target.value)}
+                                        placeholder="e.g. smtp.gmail.com or mail.itsolution.bd"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 mb-1">Port (পোর্ট)</label>
+                                        <input
+                                            type="text"
+                                            value={data.mail_port}
+                                            onChange={(e) => setData('mail_port', e.target.value)}
+                                            placeholder="587 / 465 / 25"
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 mb-1">Encryption</label>
+                                        <select
+                                            value={data.mail_encryption}
+                                            onChange={(e) => setData('mail_encryption', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                        >
+                                            <option value="tls">TLS (STARTTLS - 587)</option>
+                                            <option value="ssl">SSL (SMTPS - 465)</option>
+                                            <option value="none">None (Plain - 25)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">SMTP Username / Email</label>
+                                    <input
+                                        type="text"
+                                        value={data.mail_username}
+                                        onChange={(e) => setData('mail_username', e.target.value)}
+                                        placeholder="e.g. billing@itsolution.bd or your-name@gmail.com"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">SMTP Password / App Password</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showMailPass ? 'text' : 'password'}
+                                            value={data.mail_password}
+                                            onChange={(e) => setData('mail_password', e.target.value)}
+                                            placeholder="Email password or Google App Password"
+                                            className="w-full px-3 py-2 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMailPass(!showMailPass)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                        >
+                                            {showMailPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">Sender 'From' Email Address</label>
+                                    <input
+                                        type="email"
+                                        value={data.mail_from_address}
+                                        onChange={(e) => setData('mail_from_address', e.target.value)}
+                                        placeholder="noreply@itsolution.bd"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 mb-1">Sender 'From' Display Name</label>
+                                    <input
+                                        type="text"
+                                        value={data.mail_from_name}
+                                        onChange={(e) => setData('mail_from_name', e.target.value)}
+                                        placeholder="IT SOLUTIONS BD"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Quick Helper Tips */}
+                            <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-100 text-slate-600 text-xs leading-relaxed space-y-1">
+                                <span className="font-bold text-blue-900 flex items-center gap-1.5">
+                                    💡 Gmail / Google Workspace Setup Tip:
+                                </span>
+                                <p>
+                                    For Gmail, use <strong>smtp.gmail.com</strong>, Port <strong>587</strong> (TLS). In your Google Account, enable 2-Step Verification and generate a 16-character <strong>"App Password"</strong> to paste in the password field.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Test Email Card */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                            <div>
+                                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                                    Send Test Verification Email (টেস্ট ইমেইল যাচাই)
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Verify that your SMTP credentials connect and deliver messages successfully.
+                                </p>
+                            </div>
+
+                            <form onSubmit={handleSendTestEmail} className="flex flex-col sm:flex-row gap-3 text-xs">
+                                <input
+                                    type="email"
+                                    value={testEmailForm.data.test_email}
+                                    onChange={(e) => testEmailForm.setData('test_email', e.target.value)}
+                                    placeholder="Enter recipient email address (e.g. your-email@gmail.com)"
+                                    className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 flex-1 focus:bg-white focus:border-blue-500"
+                                    required
+                                />
+
+                                <button
+                                    type="submit"
+                                    disabled={testEmailForm.processing}
+                                    className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-xs active:scale-95 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50"
+                                >
+                                    {testEmailForm.processing ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Send className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>{testEmailForm.processing ? 'Connecting & Sending...' : 'Send Test Email'}</span>
+                                </button>
+                            </form>
+
+                            {/* Email Test Live Feedback Box */}
+                            {emailTestFeedback && (
+                                <div className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs transition-all ${
+                                    emailTestFeedback.type === 'error'
+                                        ? 'bg-red-50 border-red-200 text-red-800'
+                                        : emailTestFeedback.type === 'success'
+                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                            : 'bg-blue-50 border-blue-200 text-blue-800'
+                                }`}>
+                                    {emailTestFeedback.type === 'error' && <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />}
+                                    {emailTestFeedback.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />}
+                                    {emailTestFeedback.type === 'loading' && <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0 mt-0.5" />}
+                                    <div className="flex-1">
+                                        <p className="font-bold">
+                                            {emailTestFeedback.type === 'error' ? 'SMTP Test Failed' : emailTestFeedback.type === 'success' ? 'SMTP Test Succeeded' : 'Connecting to Mail Server'}
+                                        </p>
+                                        <p className="mt-0.5 leading-relaxed">{emailTestFeedback.message}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* TAB 2: SMS GATEWAY */}
                 {activeTab === 'sms' && (
                     <div className="space-y-5">
@@ -549,38 +865,96 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
 
                         {/* Test SMS Card */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                                Send Test SMS
-                            </h3>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <div>
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                                        Send Test SMS (এসএমএস গেটওয়ে টেস্ট)
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        Test your live SMS credentials immediately. Works with both 11-digit (<code>017...</code>) and 13-digit (<code>8801...</code>) numbers.
+                                    </p>
+                                </div>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-[11px] font-bold text-blue-700 w-fit">
+                                    <Info className="w-3.5 h-3.5" />
+                                    Active: {data.sms_provider.toUpperCase()}
+                                </span>
+                            </div>
 
-                            <form onSubmit={handleSendTestSms} className="flex flex-col sm:flex-row gap-3 text-xs">
-                                <input
-                                    type="text"
-                                    value={testSmsForm.data.test_phone}
-                                    onChange={(e) => testSmsForm.setData('test_phone', e.target.value)}
-                                    placeholder="Mobile Number (e.g. 017XXXXXXXX)"
-                                    className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono font-bold text-slate-900 flex-1"
-                                    required
-                                />
+                            <form onSubmit={handleSendTestSms} className="space-y-3">
+                                <div className="flex flex-col sm:flex-row gap-3 text-xs">
+                                    <div className="flex-1">
+                                        <input
+                                            type="text"
+                                            value={testSmsForm.data.test_phone}
+                                            onChange={(e) => testSmsForm.setData('test_phone', e.target.value)}
+                                            placeholder="Mobile Number (e.g. 017XXXXXXXX or 88017XXXXXXXX)"
+                                            className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-500"
+                                            required
+                                        />
+                                        {testSmsForm.errors.test_phone && (
+                                            <p className="text-red-600 text-[11px] font-semibold mt-1">{testSmsForm.errors.test_phone}</p>
+                                        )}
+                                    </div>
 
-                                <input
-                                    type="text"
-                                    value={testSmsForm.data.test_message}
-                                    onChange={(e) => testSmsForm.setData('test_message', e.target.value)}
-                                    placeholder="Test message..."
-                                    className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 flex-2"
-                                    required
-                                />
+                                    <div className="flex-2">
+                                        <input
+                                            type="text"
+                                            value={testSmsForm.data.test_message}
+                                            onChange={(e) => testSmsForm.setData('test_message', e.target.value)}
+                                            placeholder="Test message..."
+                                            className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
+                                            required
+                                        />
+                                        {testSmsForm.errors.test_message && (
+                                            <p className="text-red-600 text-[11px] font-semibold mt-1">{testSmsForm.errors.test_message}</p>
+                                        )}
+                                    </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={testSmsForm.processing}
-                                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-                                >
-                                    <Send className="w-3.5 h-3.5" />
-                                    <span>{testSmsForm.processing ? 'Sending...' : 'Test Send'}</span>
-                                </button>
+                                    <button
+                                        type="submit"
+                                        disabled={testSmsForm.processing}
+                                        className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50"
+                                    >
+                                        {testSmsForm.processing ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                            <Send className="w-3.5 h-3.5" />
+                                        )}
+                                        <span>{testSmsForm.processing ? 'Dispatching...' : 'Test Send'}</span>
+                                    </button>
+                                </div>
                             </form>
+
+                            {/* SMS Test Live Feedback Box */}
+                            {smsTestFeedback && (
+                                <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs transition-all ${
+                                    smsTestFeedback.type === 'error'
+                                        ? 'bg-red-50/90 border-red-200 text-red-900'
+                                        : smsTestFeedback.type === 'success'
+                                            ? 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+                                            : 'bg-blue-50/90 border-blue-200 text-blue-900'
+                                }`}>
+                                    {smsTestFeedback.type === 'error' && <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />}
+                                    {smsTestFeedback.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />}
+                                    {smsTestFeedback.type === 'loading' && <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0 mt-0.5" />}
+                                    <div className="flex-1 space-y-1">
+                                        <p className="font-extrabold uppercase tracking-wide text-[11px]">
+                                            {smsTestFeedback.type === 'error' ? 'SMS Gateway Error' : smsTestFeedback.type === 'success' ? 'SMS Gateway Success' : 'Communicating with Gateway'}
+                                        </p>
+                                        <p className="font-medium leading-relaxed">{smsTestFeedback.message}</p>
+                                        {smsTestFeedback.type === 'error' && (
+                                            <div className="text-[11px] text-red-700/80 pt-1 border-t border-red-200/50 mt-1.5 space-y-0.5">
+                                                <p><strong>Troubleshooting:</strong></p>
+                                                <ul className="list-disc list-inside space-y-0.5">
+                                                    <li>Ensure your <strong>API Key</strong> is accurate and has not expired.</li>
+                                                    <li>Confirm your <strong>Sender ID</strong> is approved in your BulkSMS BD panel (e.g. <code>88096...</code> or your company brand).</li>
+                                                    <li>Verify your BulkSMS BD account has sufficient SMS credit balance.</li>
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

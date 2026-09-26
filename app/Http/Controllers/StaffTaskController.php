@@ -28,6 +28,8 @@ class StaffTaskController extends Controller
             'assignee',
             'steps.assignee',
             'item',
+            'client',
+            'order.requirements.attachments.uploader',
         ]);
 
         if ($employeeId) {

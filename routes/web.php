@@ -56,6 +56,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [ProfileController::class, 'edit'])->name('dashboard');
     Route::get('/my-orders', [ProfileController::class, 'edit'])->name('client.dashboard');
 
+    // Client & Staff Order Requirements & Multimedia Hub
+    Route::get('/orders/{order}/requirements', [\App\Http\Controllers\Client\ClientRequirementController::class, 'show'])->name('orders.requirements.show');
+    Route::post('/orders/{order}/requirements', [\App\Http\Controllers\Client\ClientRequirementController::class, 'store'])->name('orders.requirements.store');
+    Route::post('/orders/{order}/requirements/{requirement}/attachments', [\App\Http\Controllers\Client\ClientRequirementController::class, 'storeAttachment'])->name('orders.requirements.attachments.store');
+    Route::delete('/attachments/{attachment}', [\App\Http\Controllers\Client\ClientRequirementController::class, 'destroyAttachment'])->name('orders.requirements.attachments.destroy');
+
     // Staff Task Execution & Checklist
     Route::get('/my-tasks', [StaffTaskController::class, 'index'])->name('staff.tasks.index');
     Route::patch('/my-tasks/{task}/status', [StaffTaskController::class, 'updateStatus'])->name('staff.tasks.status');

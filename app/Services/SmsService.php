@@ -9,32 +9,56 @@ use Illuminate\Support\Facades\Log;
 class SmsService
 {
     /**
+     * Decode BulkSMS BD numeric response codes into clear readable messages.
+     */
+    public static function getBulkSmsErrorMessage(int $code, string $fallback = ''): string
+    {
+        return match ($code) {
+            202, 200 => 'SMS Submitted Successfully.',
+            1000 => 'Invalid user credentials or account inactive.',
+            1001 => 'Invalid recipient mobile number (Must be in 8801XXXXXXXXX or 01XXXXXXXXX format).',
+            1002 => 'Sender ID is incorrect or not approved in BulkSMS BD dashboard.',
+            1003 => 'Required API parameters are missing.',
+            1004 => 'Invalid API Key. Please verify your API Key in BulkSMS BD.',
+            1005 => 'BulkSMS BD Internal Server Error. Please try again shortly.',
+            1006 => 'Your server IP is not whitelisted in BulkSMS BD.',
+            1007 => 'Insufficient SMS Balance (ব্যালেন্স অপর্যাপ্ত). Please recharge your BulkSMS BD account.',
+            1008 => 'Account is suspended or deactivated.',
+            1009 => 'SMS message content is too long.',
+            1010, 1012 => 'Masking SMS must be sent in Bengali language.',
+            1011 => 'Invalid scheduled time.',
+            1013 => 'Sender ID type mismatch (Masking vs Non-Masking).',
+            default => $fallback ?: "BulkSMS BD response code: {$code}",
+        };
+    }
+
+    /**
      * Send an SMS to a phone number.
      *
      * @param string $to Recipient phone number (e.g. 017XXXXXXXX or +88017XXXXXXXX)
      * @param string $message Text message content
      * @return array ['success' => bool, 'message' => string]
      */
-    public static function send(string $to, string $message): array
+    public static function send(string $to, string $message, bool $isTest = false, array $overrides = []): array
     {
-        $enabled = SiteSetting::get('sms_enabled', '0') === '1';
-        if (!$enabled) {
+        $enabled = ($overrides['enabled'] ?? SiteSetting::get('sms_enabled', '0')) === '1';
+        if (!$isTest && !$enabled) {
             return [
                 'success' => false,
                 'message' => 'SMS Gateway is disabled in Site Settings. Please enable it first.'
             ];
         }
 
-        $provider = SiteSetting::get('sms_provider', 'bulksmsbd');
-        $apiKey = SiteSetting::get('sms_api_key', '');
-        $apiSecret = SiteSetting::get('sms_api_secret', '');
-        $senderId = SiteSetting::get('sms_sender_id', 'IT SOLUTIONS');
-        $apiUrl = SiteSetting::get('sms_api_url', '');
+        $provider = !empty($overrides['provider']) ? $overrides['provider'] : SiteSetting::get('sms_provider', 'bulksmsbd');
+        $apiKey = !empty($overrides['api_key']) ? $overrides['api_key'] : SiteSetting::get('sms_api_key', '');
+        $apiSecret = !empty($overrides['api_secret']) ? $overrides['api_secret'] : SiteSetting::get('sms_api_secret', '');
+        $senderId = !empty($overrides['sender_id']) ? $overrides['sender_id'] : SiteSetting::get('sms_sender_id', 'IT SOLUTIONS');
+        $apiUrl = !empty($overrides['api_url']) ? $overrides['api_url'] : SiteSetting::get('sms_api_url', '');
 
         if (empty($apiKey) && !in_array($provider, ['custom'])) {
             return [
                 'success' => false,
-                'message' => 'SMS Gateway API Key / Token is missing in Site Settings.'
+                'message' => 'SMS Gateway API Key / Token is missing. Please enter your API Key in Settings.'
             ];
         }
 
@@ -57,21 +81,69 @@ class SmsService
         try {
             switch ($provider) {
                 case 'bulksmsbd':
-                    // BulkSMS BD Standard API Endpoint
-                    $url = 'http://bulksmsbd.net/api/smsapi';
-                    $response = Http::timeout(10)->post($url, [
-                        'api_key' => $apiKey,
+                    // BulkSMS BD Standard API Endpoint (Requires 8801... format)
+                    $bulkSmsPhone = preg_replace('/[^0-9]/', '', $to);
+                    if (str_starts_with($bulkSmsPhone, '01')) {
+                        $bulkSmsPhone = '88' . $bulkSmsPhone;
+                    }
+
+                    $params = [
+                        'api_key' => trim($apiKey),
                         'type' => 'text',
-                        'number' => $localPhone,
-                        'senderid' => $senderId,
+                        'number' => $bulkSmsPhone,
+                        'senderid' => trim($senderId),
                         'message' => $message,
-                    ]);
-                    $body = $response->body();
-                    $data = json_decode($body, true);
-                    $success = isset($data['response_code']) && in_array($data['response_code'], [202, 200, 1000]);
+                    ];
+
+                    $body = null;
+                    try {
+                        // BulkSMS BD accepts form_params / application/x-www-form-urlencoded
+                        $response = Http::asForm()
+                            ->withoutVerifying()
+                            ->timeout(15)
+                            ->post('https://bulksmsbd.net/api/smsapi', $params);
+                        $body = $response->body();
+                    } catch (\Throwable $e) {
+                        // Fallback to HTTP endpoint if local SSL certificate fails
+                        try {
+                            $response = Http::asForm()
+                                ->withoutVerifying()
+                                ->timeout(15)
+                                ->post('http://bulksmsbd.net/api/smsapi', $params);
+                            $body = $response->body();
+                        } catch (\Throwable $ex) {
+                            return [
+                                'success' => false,
+                                'message' => 'BulkSMS BD Server Connection Failed: ' . $ex->getMessage()
+                            ];
+                        }
+                    }
+
+                    $data = json_decode((string) $body, true);
+
+                    if (is_array($data)) {
+                        $code = (int) ($data['response_code'] ?? 0);
+                        $success = in_array($code, [202, 200]);
+                        $rawMsg = $data['success_message'] ?? ($data['error_message'] ?? $body);
+
+                        if ($success) {
+                            return [
+                                'success' => true,
+                                'message' => "BulkSMS BD: SMS sent successfully! ({$rawMsg}) [Code: {$code}]"
+                            ];
+                        }
+
+                        $friendlyMsg = self::getBulkSmsErrorMessage($code, $rawMsg);
+                        return [
+                            'success' => false,
+                            'message' => "BulkSMS BD Error (Code {$code}): {$friendlyMsg}" . ($rawMsg && $rawMsg !== $friendlyMsg ? " ({$rawMsg})" : '')
+                        ];
+                    }
+
+                    $isSuccess = str_contains(strtolower((string) $body), 'success') || str_contains((string) $body, '202');
                     return [
-                        'success' => $success || $response->successful(),
-                        'message' => $data['success_message'] ?? ($data['error_message'] ?? 'BulkSMS BD: ' . $body)
+                        'success' => $isSuccess,
+                        'message' => 'BulkSMS BD: ' . $body
                     ];
 
                 case 'greenweb':

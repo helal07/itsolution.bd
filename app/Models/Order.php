@@ -98,4 +98,19 @@ class Order extends Model
     {
         return $this->hasMany(ClientPayment::class);
     }
+
+    public function requirements(): HasMany
+    {
+        return $this->hasMany(OrderRequirement::class)->orderBy('id', 'desc');
+    }
+
+    public function latestRequirement()
+    {
+        return $this->hasOne(OrderRequirement::class)->latestOfMany();
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
 }

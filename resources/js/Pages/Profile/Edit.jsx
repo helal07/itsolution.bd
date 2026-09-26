@@ -23,7 +23,8 @@ import {
     Phone,
     Printer,
     X,
-    Lock
+    Lock,
+    Paperclip
 } from 'lucide-react';
 
 export default function Edit({ mustVerifyEmail, status, orders = [], quotes = [], review = null }) {
@@ -291,6 +292,18 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                             <FileText className="w-3.5 h-3.5 text-blue-600" />
                                                             <span>Invoice</span>
                                                         </button>
+                                                        <Link
+                                                            href={route('orders.requirements.show', order.id)}
+                                                            className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all flex items-center gap-1.5 border border-blue-200 shadow-2xs"
+                                                        >
+                                                            <Paperclip className="w-3.5 h-3.5 text-blue-600" />
+                                                            <span>Requirements & Media</span>
+                                                            {order.requirements?.length > 0 && (
+                                                                <span className="px-1.5 py-0.2 bg-blue-600 text-white text-[10px] rounded-full font-mono">
+                                                                    {order.requirements.length}
+                                                                </span>
+                                                            )}
+                                                        </Link>
                                                     </div>
                                                 </div>
 

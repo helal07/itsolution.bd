@@ -112,11 +112,46 @@ class AdminQuoteController extends Controller
             ]);
         }
 
-        // 2. Create Order
+        // 2. Find or create Client User Account
+        $newUserCreated = false;
+        $plainPassword = null;
+        $user = null;
+
+        if (!empty($quote->email)) {
+            $user = User::where('email', $quote->email)->first();
+        }
+        if (!$user && !empty($quote->phone)) {
+            $user = User::where('phone', $quote->phone)->first();
+        }
+
+        if (!$user) {
+            // Generate temporary password
+            $plainPassword = 'ITS@' . rand(100000, 999999);
+            $user = User::create([
+                'name' => $quote->name ?: ($quote->company_name ?: 'Client User'),
+                'email' => $quote->email ?: ('client_' . time() . '@itsolution.bd'),
+                'phone' => $quote->phone,
+                'password' => \Illuminate\Support\Facades\Hash::make($plainPassword),
+                'role' => 'client',
+            ]);
+            $newUserCreated = true;
+
+            // Spatie role assignment if role exists
+            if (class_exists(\Spatie\Permission\Models\Role::class) && \Spatie\Permission\Models\Role::where('name', 'Client')->exists()) {
+                $user->assignRole('Client');
+            }
+        }
+
+        // 3. Create Order
         $amount = $quote->estimated_budget ?: ($quote->item ? $quote->item->price : 5000);
+        $orderNotes = 'Converted from Quotation #' . $quote->id;
+        if ($newUserCreated && $plainPassword) {
+            $orderNotes .= "\n[System] Auto-generated client account:\nEmail: " . $user->email . "\nTemp Password: " . $plainPassword;
+        }
+
         $order = Order::create([
             'client_id' => $client->id,
-            'user_id' => User::where('email', $quote->email)->value('id') ?? $request->user()->id,
+            'user_id' => $user->id,
             'item_id' => $quote->item_id,
             'project_name' => $quote->item ? $quote->item->name : 'Project for ' . $client->name,
             'amount' => $amount,
@@ -126,13 +161,36 @@ class AdminQuoteController extends Controller
             'payment_method' => 'bKash',
             'transaction_id' => 'INV-' . strtoupper(substr(uniqid(), -6)),
             'added_by' => $request->user()->name ?? 'Admin',
-            'notes' => 'Converted from Quotation #' . $quote->id . ($quote->message ? "\n\nInitial Inquiry: " . $quote->message : ''),
+            'notes' => $orderNotes,
         ]);
 
-        // 3. Mark Quote Won
+        // 4. Create Initial OrderRequirement from quotation message
+        if (!empty($quote->message)) {
+            \App\Models\OrderRequirement::create([
+                'order_id' => $order->id,
+                'client_id' => $client->id,
+                'user_id' => $user->id,
+                'title' => 'Initial Quotation Scope & Details',
+                'description' => $quote->message,
+                'status' => 'submitted',
+            ]);
+        }
+
+        // 5. Mark Quote Won
         $quote->update(['status' => 'won']);
 
-        return redirect()->route('admin.orders.index')->with('success', 'Quotation successfully converted to Order #' . $order->id);
+        $successMsg = 'Quotation converted to Order #' . $order->id . ' successfully!';
+        if ($newUserCreated && $plainPassword) {
+            $successMsg .= ' Client account created (Email: ' . $user->email . ' | Password: ' . $plainPassword . ').';
+
+            // Send notification email via SMTP Gateway
+            $emailResult = \App\Services\MailConfigService::sendClientAccountNotification($user, $plainPassword, $order);
+            if ($emailResult['success']) {
+                $successMsg .= ' [Email: Sent to client successfully]';
+            }
+        }
+
+        return redirect()->route('admin.orders.index')->with('success', $successMsg);
     }
 
     public function destroy(Quote $quote): RedirectResponse

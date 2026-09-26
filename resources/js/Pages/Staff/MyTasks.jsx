@@ -12,7 +12,14 @@ import {
     Check, 
     Plus,
     ClipboardCheck,
-    Flame
+    Flame,
+    Paperclip,
+    Mic,
+    Music,
+    Image as ImageIcon,
+    Video,
+    ExternalLink,
+    Eye
 } from 'lucide-react';
 
 export default function StaffMyTasks({ tasks = [], stats = {}, employee = {}, filters = {} }) {
@@ -180,6 +187,21 @@ export default function StaffMyTasks({ tasks = [], stats = {}, employee = {}, fi
                                                     <CheckSquare className="w-3.5 h-3.5 text-slate-400" />
                                                     <span>{completedSteps}/{totalSteps} steps completed</span>
                                                 </div>
+
+                                                {task.order_id && (
+                                                    <Link
+                                                        href={route('orders.requirements.show', task.order_id)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs border border-indigo-200 transition-colors shadow-2xs"
+                                                    >
+                                                        <Paperclip className="w-3.5 h-3.5 text-indigo-600" />
+                                                        <span>Client Briefing & Media Hub</span>
+                                                        {task.order?.requirements?.length > 0 && (
+                                                            <span className="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[10px] font-mono">
+                                                                {task.order.requirements.length}
+                                                            </span>
+                                                        )}
+                                                    </Link>
+                                                )}
                                             </div>
                                         </div>
 
@@ -199,7 +221,7 @@ export default function StaffMyTasks({ tasks = [], stats = {}, employee = {}, fi
                                                 onClick={() => toggleExpand(task.id)}
                                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                                             >
-                                                <span>{isExpanded ? 'Hide' : 'Steps'}</span>
+                                                <span>{isExpanded ? 'Hide' : 'Details & Steps'}</span>
                                                 {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                             </button>
                                         </div>
@@ -214,6 +236,114 @@ export default function StaffMyTasks({ tasks = [], stats = {}, employee = {}, fi
                                             style={{ width: `${progressPercent}%` }}
                                         />
                                     </div>
+
+                                    {/* Client Briefing & Voice Notes Panel */}
+                                    {isExpanded && task.order?.requirements && task.order.requirements.length > 0 && (
+                                        <div className="p-5 bg-gradient-to-br from-indigo-50/50 via-slate-50/50 to-white border-t border-indigo-100/80 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Paperclip className="w-4 h-4 text-indigo-600" />
+                                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 font-mono">
+                                                        Client Requirement Briefing ({task.client?.name || task.order?.client?.name || 'Client'})
+                                                    </span>
+                                                </div>
+                                                <Link
+                                                    href={route('orders.requirements.show', task.order_id)}
+                                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 hover:underline"
+                                                >
+                                                    <span>Open Full Media Workspace</span>
+                                                    <ExternalLink className="w-3 h-3" />
+                                                </Link>
+                                            </div>
+
+                                            {task.order.requirements.map((req) => {
+                                                const audioFiles = req.attachments?.filter(a => a.file_type === 'audio') || [];
+                                                const imageFiles = req.attachments?.filter(a => a.file_type === 'image') || [];
+                                                const videoFiles = req.attachments?.filter(a => a.file_type === 'video') || [];
+
+                                                return (
+                                                    <div key={req.id} className="p-4 rounded-xl bg-white border border-indigo-100 shadow-2xs space-y-3">
+                                                        <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                                                            {req.title}
+                                                        </h4>
+
+                                                        {req.description && (
+                                                            <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                                {req.description}
+                                                            </p>
+                                                        )}
+
+                                                        {/* Audio Briefings */}
+                                                        {audioFiles.length > 0 && (
+                                                            <div className="space-y-1.5 pt-1">
+                                                                <p className="text-[11px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1.5">
+                                                                    <Music className="w-3.5 h-3.5 text-indigo-600" />
+                                                                    Client Voice Notes ({audioFiles.length})
+                                                                </p>
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                    {audioFiles.map((audio) => (
+                                                                        <div key={audio.id} className="p-2.5 rounded-lg bg-indigo-50/60 border border-indigo-100/70 flex items-center justify-between gap-2">
+                                                                            <span className="text-xs font-semibold text-slate-800 truncate">{audio.original_name}</span>
+                                                                            <audio src={audio.url} controls className="h-7 max-w-[200px]" />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Reference Images */}
+                                                        {imageFiles.length > 0 && (
+                                                            <div className="space-y-1.5 pt-1">
+                                                                <p className="text-[11px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1.5">
+                                                                    <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                                                                    Reference Images ({imageFiles.length})
+                                                                </p>
+                                                                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                                                                    {imageFiles.map((img) => (
+                                                                        <a
+                                                                            key={img.id}
+                                                                            href={img.url}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0 hover:opacity-90 transition shadow-2xs group relative"
+                                                                        >
+                                                                            <img src={img.url} alt="" className="w-full h-full object-cover" />
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Video Briefings */}
+                                                        {videoFiles.length > 0 && (
+                                                            <div className="space-y-1.5 pt-1">
+                                                                <p className="text-[11px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1.5">
+                                                                    <Video className="w-3.5 h-3.5 text-purple-600" />
+                                                                    Video Walkthroughs ({videoFiles.length})
+                                                                </p>
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    {videoFiles.map((vid) => (
+                                                                        <a
+                                                                            key={vid.id}
+                                                                            href={vid.url}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold hover:bg-purple-100 transition flex items-center gap-1.5"
+                                                                        >
+                                                                            <Video className="w-3.5 h-3.5" />
+                                                                            <span>{vid.original_name}</span>
+                                                                            <ExternalLink className="w-3 h-3 text-purple-500" />
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
 
                                     {/* Checklist */}
                                     {isExpanded && task.steps && task.steps.length > 0 && (

@@ -48,6 +48,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
     Route::post('/settings/test-sms', [AdminSettingController::class, 'testSms'])->middleware('throttle:sms-test')->name('settings.test-sms');
+    Route::post('/settings/test-email', [AdminSettingController::class, 'testEmail'])->middleware('throttle:10,1')->name('settings.test-email');
 
     // Role & Permissions Management (RBAC)
     Route::get('/roles', [AdminRoleController::class, 'index'])->name('roles.index');

@@ -24,6 +24,7 @@ class AdminTaskController extends Controller
             'steps.assignee',
             'item',
             'client',
+            'order.requirements.attachments.uploader',
         ]);
 
         if ($request->filled('search')) {
@@ -71,6 +72,12 @@ class AdminTaskController extends Controller
             ->orderBy('name', 'asc')
             ->get(['id', 'name', 'slug']);
 
+        $orders = \App\Models\Order::select('id', 'project_name', 'client_id', 'item_id')
+            ->with('client:id,name')
+            ->orderBy('id', 'desc')
+            ->take(50)
+            ->get();
+
         $stats = [
             'total' => Task::count(),
             'open' => Task::whereIn('status', ['pending', 'in_progress'])->count(),
@@ -83,6 +90,7 @@ class AdminTaskController extends Controller
             'tasks' => $tasks,
             'employees' => $employees,
             'items' => $items,
+            'orders' => $orders,
             'stats' => $stats,
             'filters' => $request->only(['search', 'status', 'priority', 'assigned_to']),
         ]);
@@ -97,6 +105,8 @@ class AdminTaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'assigned_to' => 'nullable|exists:employees,id',
+            'order_id' => 'nullable|exists:orders,id',
+            'client_id' => 'nullable|exists:clients,id',
             'priority' => 'required|in:low,medium,high,urgent',
             'status' => 'required|in:pending,in_progress,completed,cancelled',
             'due_date' => 'nullable|date',
@@ -106,16 +116,28 @@ class AdminTaskController extends Controller
             'steps.*.assigned_to' => 'nullable|exists:employees,id',
         ]);
 
+        $clientId = $validated['client_id'] ?? null;
+        $itemId = $validated['item_id'] ?? null;
+        if (!empty($validated['order_id'])) {
+            $order = \App\Models\Order::find($validated['order_id']);
+            if ($order) {
+                $clientId = $clientId ?: $order->client_id;
+                $itemId = $itemId ?: $order->item_id;
+            }
+        }
+
         $task = Task::create([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'assigned_to' => $validated['assigned_to'] ?? null,
+            'order_id' => $validated['order_id'] ?? null,
+            'client_id' => $clientId,
             'created_by' => $request->user()->id,
             'priority' => $validated['priority'],
             'status' => $validated['status'],
             'progress' => 0,
             'due_date' => $validated['due_date'] ?? null,
-            'item_id' => $validated['item_id'] ?? null,
+            'item_id' => $itemId,
         ]);
 
         if (!empty($validated['steps']) && is_array($validated['steps'])) {
@@ -144,12 +166,24 @@ class AdminTaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'assigned_to' => 'nullable|exists:employees,id',
+            'order_id' => 'nullable|exists:orders,id',
+            'client_id' => 'nullable|exists:clients,id',
             'priority' => 'required|in:low,medium,high,urgent',
             'status' => 'required|in:pending,in_progress,completed,cancelled',
             'progress' => 'nullable|integer|min:0|max:100',
             'due_date' => 'nullable|date',
             'item_id' => 'nullable|exists:items,id',
         ]);
+
+        if (!empty($validated['order_id']) && empty($validated['client_id'])) {
+            $order = \App\Models\Order::find($validated['order_id']);
+            if ($order) {
+                $validated['client_id'] = $order->client_id;
+                if (empty($validated['item_id'])) {
+                    $validated['item_id'] = $order->item_id;
+                }
+            }
+        }
 
         $task->update($validated);
 
