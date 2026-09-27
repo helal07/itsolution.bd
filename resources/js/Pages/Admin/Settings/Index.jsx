@@ -182,7 +182,9 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
             sms_api_secret: data.sms_api_secret,
             sms_sender_id: data.sms_sender_id,
             sms_api_url: data.sms_api_url,
-        })).post('/admin/settings/test-sms', {
+        }));
+
+        testSmsForm.post('/admin/settings/test-sms', {
             preserveScroll: true,
             onSuccess: (page) => {
                 const pageFlash = page?.props?.flash || {};
@@ -215,7 +217,9 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
             mail_encryption: data.mail_encryption,
             mail_from_address: data.mail_from_address,
             mail_from_name: data.mail_from_name,
-        })).post('/admin/settings/test-email', {
+        }));
+
+        testEmailForm.post('/admin/settings/test-email', {
             preserveScroll: true,
             onSuccess: (page) => {
                 const pageFlash = page?.props?.flash || {};
