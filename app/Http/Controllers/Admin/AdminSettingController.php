@@ -17,7 +17,7 @@ class AdminSettingController extends Controller
     {
         $settings = [
             // General / Brand
-            'site_name' => SiteSetting::get('site_name', 'IT SOLUTIONS'),
+            'site_name' => SiteSetting::get('site_name', config('app.name', 'IT Solution')),
             'site_tagline' => SiteSetting::get('site_tagline', 'Enterprise Software & Digital Engineering'),
             'site_logo' => SiteSetting::get('site_logo', ''),
             'site_favicon' => SiteSetting::get('site_favicon', ''),
@@ -33,7 +33,7 @@ class AdminSettingController extends Controller
             'sms_provider' => SiteSetting::get('sms_provider', 'greenweb'),
             'sms_api_key' => SiteSetting::get('sms_api_key', ''),
             'sms_api_secret' => SiteSetting::get('sms_api_secret', ''),
-            'sms_sender_id' => SiteSetting::get('sms_sender_id', 'ITSOLUTIONS'),
+            'sms_sender_id' => SiteSetting::get('sms_sender_id', SiteSetting::get('site_name', config('app.name', 'IT Solution'))),
             'sms_api_url' => SiteSetting::get('sms_api_url', ''),
             'sms_notify_order' => SiteSetting::get('sms_notify_order', '1'),
             'sms_notify_payment' => SiteSetting::get('sms_notify_payment', '1'),

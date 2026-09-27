@@ -28,8 +28,13 @@ import {
 } from 'lucide-react';
 
 export default function Edit({ mustVerifyEmail, status, orders = [], quotes = [], review = null }) {
-    const { auth } = usePage().props;
+    const { auth, siteSettings = {} } = usePage().props;
     const user = auth.user;
+    const brandName = siteSettings?.site_name || 'IT Solution';
+    const brandTagline = siteSettings?.site_tagline || 'Enterprise Software, Ready Apps & Cyber Security';
+    const brandAddress = siteSettings?.company_address || 'Dhaka, Bangladesh';
+    const brandPhone = siteSettings?.contact_phone || '+880 1800-000000';
+    const brandEmail = siteSettings?.contact_email || 'contact@itsolutions.com';
     const orderList = Array.isArray(orders) ? orders : (orders?.data || []);
 
     const pendingOrders = orderList.filter(o => o.status === 'pending');
@@ -109,7 +114,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
     };
 
     return (
-        <PublicLayout title="Profile & Invoices — IT SOLUTIONS">
+        <PublicLayout title="Profile & Invoices">
             <div className="bg-neutral-50/70 min-h-screen py-6 sm:py-8 text-neutral-900">
                 
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
@@ -604,18 +609,18 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                             <div className="space-y-1.5">
                                 <div className="flex items-center gap-2">
                                     <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0D3B66] via-primary to-cyan-500 text-white flex items-center justify-center font-display font-black text-base shadow-sm">
-                                        ITS
+                                        {brandName.substring(0, 2).toUpperCase()}
                                     </div>
                                     <span className="font-heading font-black text-xl text-neutral-900 tracking-tight">
-                                        IT SOLUTIONS
+                                        {brandName}
                                     </span>
                                 </div>
                                 <p className="text-xs text-neutral-500">
-                                    Enterprise Software, Ready Apps & Cyber Security
+                                    {brandTagline}
                                 </p>
                                 <div className="text-[11px] text-neutral-400 space-y-0.5 pt-1 font-mono">
-                                    <p>Dhaka, Bangladesh &bull; Hotline: +880 1800-000000</p>
-                                    <p>support@itsolutions.com &bull; www.itsolutions.com</p>
+                                    <p>{brandAddress} &bull; Hotline: {brandPhone}</p>
+                                    <p>{brandEmail}</p>
                                 </div>
                             </div>
 
@@ -721,7 +726,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                         <div className="pt-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-neutral-500">
                             <div className="flex items-center gap-2">
                                 <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                                <span>256-bit TLS Verified Digital Receipt &bull; IT SOLUTIONS</span>
+                                <span>256-bit TLS Verified Digital Receipt &bull; {brandName}</span>
                             </div>
                             <div className="text-center sm:text-right">
                                 <span className="font-bold block text-neutral-800">Authorized Electronic Seal</span>

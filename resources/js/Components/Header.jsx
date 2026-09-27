@@ -30,7 +30,7 @@ export default function Header() {
     const [mobileServicesOpen, setMobileServicesOpen] = useState(true);
     const dropdownRef = useRef(null);
 
-    const brandName = siteSettings.site_name || 'IT SOLUTIONS';
+    const brandName = siteSettings.site_name || 'IT Solution';
     const brandTagline = siteSettings.site_tagline || 'Software & Services';
     const hotline = siteSettings.contact_phone || '+880 1800-000000';
     const whatsapp = siteSettings.whatsapp_number || '+880 1800-000000';

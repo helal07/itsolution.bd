@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { 
     Plus, 
@@ -52,6 +52,13 @@ export default function Index({
         due_count: 0,
     }
 }) {
+    const { siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
+    const brandTagline = siteSettings?.site_tagline || 'Enterprise Software & Digital Engineering';
+    const brandAddress = siteSettings?.company_address || 'Dhaka, Bangladesh';
+    const brandPhone = siteSettings?.contact_phone || '+880 1800-000000';
+    const brandEmail = siteSettings?.contact_email || 'contact@itsolutions.com';
+
     const orderList = orders.data || orders;
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editProgressOrder, setEditProgressOrder] = useState(null);
@@ -471,11 +478,11 @@ export default function Index({
                 <div class="invoice-container">
                     <div class="header">
                         <div>
-                            <div class="brand-title">IT SOLUTIONS</div>
-                            <div class="brand-sub">Enterprise Software & Digital Engineering</div>
+                            <div class="brand-title">${brandName}</div>
+                            <div class="brand-sub">${brandTagline}</div>
                             <div class="brand-info">
-                                Dhaka, Bangladesh &bull; Hotline: +880 1800-000000<br/>
-                                support@itsolutions.com &bull; www.itsolutions.com
+                                ${brandAddress} &bull; Hotline: ${brandPhone}<br/>
+                                ${brandEmail}
                             </div>
                         </div>
                         <div class="invoice-tag-box">
@@ -553,7 +560,7 @@ export default function Index({
                     </div>
 
                     <div class="footer">
-                        <p>Thank you for choosing <strong>IT SOLUTIONS</strong>. For any inquiries, contact support@itsolutions.com.</p>
+                        <p>Thank you for choosing <strong>${brandName}</strong>. For any inquiries, contact ${brandEmail}.</p>
                         <p style="margin-top: 4px; font-size: 10px; color: #cbd5e1;">Generated electronically &bull; Valid without signature</p>
                     </div>
                 </div>
@@ -1680,14 +1687,14 @@ export default function Index({
                                     <div>
                                         <div className="flex items-center gap-2 mb-1.5">
                                             <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs">
-                                                IT
+                                                {brandName.substring(0, 2).toUpperCase()}
                                             </div>
-                                            <h3 className="font-black text-2xl text-slate-900 tracking-tight">IT SOLUTIONS</h3>
+                                            <h3 className="font-black text-2xl text-slate-900 tracking-tight">{brandName}</h3>
                                         </div>
-                                        <p className="text-xs text-slate-500 font-semibold">Digital Agency &amp; Enterprise Software Engineering</p>
+                                        <p className="text-xs text-slate-500 font-semibold">{brandTagline}</p>
                                         <div className="text-[11px] text-slate-400 font-medium mt-2 space-y-0.5">
-                                            <p>Dhaka, Bangladesh &bull; Hotline: +880 1800-000000</p>
-                                            <p>support@itsolutions.com &bull; www.itsolutions.com</p>
+                                            <p>{brandAddress} &bull; Hotline: {brandPhone}</p>
+                                            <p>{brandEmail}</p>
                                         </div>
                                     </div>
 
@@ -1854,7 +1861,7 @@ export default function Index({
                                                 let clean = phone.replace(/[^0-9+]/g, '');
                                                 if (clean.startsWith('01')) clean = '880' + clean.substring(1);
                                                 if (clean.startsWith('+')) clean = clean.replace('+', '');
-                                                const message = encodeURIComponent(`Hello ${invoiceModalOrder.client?.name || 'Customer'},\n\nHere is your Invoice #${invoiceModalOrder.transaction_id || invoiceModalOrder.id} for "${invoiceModalOrder.project_name || invoiceModalOrder.item?.name}".\n\nTotal Bill: ৳${net.toLocaleString()} BDT\nPaid: ৳${paid.toLocaleString()} BDT\nDue: ৳${due.toLocaleString()} BDT\nStatus: ${isPaid ? 'PAID & SETTLED' : isPartial ? 'PARTIALLY PAID' : 'DUE'}\n\nThank you for choosing IT SOLUTIONS!`);
+                                                const message = encodeURIComponent(`Hello ${invoiceModalOrder.client?.name || 'Customer'},\n\nHere is your Invoice #${invoiceModalOrder.transaction_id || invoiceModalOrder.id} for "${invoiceModalOrder.project_name || invoiceModalOrder.item?.name}".\n\nTotal Bill: ৳${net.toLocaleString()} BDT\nPaid: ৳${paid.toLocaleString()} BDT\nDue: ৳${due.toLocaleString()} BDT\nStatus: ${isPaid ? 'PAID & SETTLED' : isPartial ? 'PARTIALLY PAID' : 'DUE'}\n\nThank you for choosing ${brandName}!`);
                                                 window.open(`https://wa.me/${clean}?text=${message}`, '_blank');
                                             }}
                                             className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold hover:bg-emerald-100 text-xs transition-colors shadow-2xs cursor-pointer"

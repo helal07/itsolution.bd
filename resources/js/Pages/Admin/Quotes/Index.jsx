@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { 
     Plus, 
@@ -25,6 +25,8 @@ import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
 
 export default function Index({ quotes, items = [], currentStatus = 'all', startDate = '', endDate = '' }) {
+    const { siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
     const quoteList = quotes.data || quotes;
     const [search, setSearch] = useState('');
     const [filterStartDate, setFilterStartDate] = useState(startDate);
@@ -135,7 +137,7 @@ export default function Index({ quotes, items = [], currentStatus = 'all', start
         let clean = phone.replace(/[^0-9+]/g, '');
         if (clean.startsWith('01')) clean = '880' + clean.substring(1);
         if (clean.startsWith('+')) clean = clean.replace('+', '');
-        const msg = encodeURIComponent(`Hello ${name || 'Customer'},\n\nThank you for contacting IT SOLUTIONS regarding "${service || 'your software requirements'}". We are pleased to provide you with the quotation proposal.\n\nBest regards,\nIT SOLUTIONS`);
+        const msg = encodeURIComponent(`Hello ${name || 'Customer'},\n\nThank you for contacting ${brandName} regarding "${service || 'your software requirements'}". We are pleased to provide you with the quotation proposal.\n\nBest regards,\n${brandName}`);
         return `https://wa.me/${clean}?text=${msg}`;
     };
 

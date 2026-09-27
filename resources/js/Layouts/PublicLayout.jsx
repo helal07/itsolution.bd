@@ -7,11 +7,12 @@ import CookieConsent from '../Components/CookieConsent';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function PublicLayout({ children, title }) {
-    const { flash = {} } = usePage().props;
+    const { flash = {}, siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
 
     return (
         <div className="min-h-screen flex flex-col bg-neutral-50 text-neutral-900 font-sans selection:bg-primary selection:text-white relative">
-            <Head title={title ? `${title} — IT SOLUTIONS` : 'IT SOLUTIONS — Next-Gen Software, Apps & Web Solutions'} />
+            <Head title={title ? `${title} — ${brandName}` : `${brandName} — Next-Gen Software, Apps & Web Solutions`} />
 
             {/* Sticky Header */}
             <Header />

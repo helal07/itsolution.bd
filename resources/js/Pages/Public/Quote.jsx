@@ -5,7 +5,7 @@ import { Sparkles, MessageSquare, Clock, CheckCircle2, ShieldCheck, Zap } from '
 
 export default function Quote({ categories = [], selectedItemId = null }) {
     return (
-        <PublicLayout title="Request a Free Quote — IT SOLUTIONS">
+        <PublicLayout title="Request a Free Quote">
             <div className="py-8 sm:py-12 bg-neutral-50/70 min-h-screen">
                 <div className="site-container space-y-8">
                     

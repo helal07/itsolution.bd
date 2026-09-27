@@ -27,7 +27,7 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
     const { url } = usePage();
     const { data, setData, post, processing, recentlySuccessful } = useForm({
         // Brand & Identity
-        site_name: settings.site_name || 'IT SOLUTIONS',
+        site_name: settings.site_name || 'IT Solution',
         site_tagline: settings.site_tagline || 'Enterprise Software & Digital Engineering',
         site_logo: settings.site_logo || '',
         site_logo_file: null,
@@ -55,7 +55,7 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
         sms_provider: settings.sms_provider || 'bulksmsbd',
         sms_api_key: settings.sms_api_key || '',
         sms_api_secret: settings.sms_api_secret || '',
-        sms_sender_id: settings.sms_sender_id || 'IT SOLUTIONS',
+        sms_sender_id: settings.sms_sender_id || settings.site_name || 'IT Solution',
         sms_api_url: settings.sms_api_url || '',
         sms_notify_order: settings.sms_notify_order ?? '1',
         sms_notify_payment: settings.sms_notify_payment ?? '1',
@@ -137,7 +137,7 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
 
     const testSmsForm = useForm({
         test_phone: '',
-        test_message: 'IT SOLUTIONS: Test SMS gateway configuration verified successfully.',
+        test_message: `${settings.site_name || 'IT Solution'}: Test SMS gateway configuration verified successfully.`,
     });
 
     const testEmailForm = useForm({
@@ -655,7 +655,7 @@ export default function SettingsIndex({ settings = {}, flash = {} }) {
                                         type="text"
                                         value={data.mail_from_name}
                                         onChange={(e) => setData('mail_from_name', e.target.value)}
-                                        placeholder="IT SOLUTIONS BD"
+                                        placeholder={settings.site_name || "IT Solution"}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                     />
                                 </div>

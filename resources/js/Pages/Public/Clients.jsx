@@ -14,7 +14,7 @@ export default function Clients({ clients }) {
     const clientList = clients.data || clients;
 
     return (
-        <PublicLayout title="Clients & Global Partners — IT SOLUTIONS">
+        <PublicLayout title="Clients & Global Partners">
             <div className="py-8 sm:py-12 bg-neutral-50/70 min-h-screen">
                 <div className="site-container space-y-8">
                     

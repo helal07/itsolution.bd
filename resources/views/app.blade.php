@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title inertia>{{ config('app.name', 'IT SOLUTIONS') }}</title>
+        <title inertia>{{ \App\Models\SiteSetting::get('site_name', config('app.name', 'IT Solution')) }}</title>
 
         @php
             $siteFavicon = \App\Models\SiteSetting::get('site_favicon');

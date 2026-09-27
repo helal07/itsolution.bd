@@ -1,11 +1,14 @@
 import React from 'react';
-import { Link, Head } from '@inertiajs/react';
+import { Link, Head, usePage } from '@inertiajs/react';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
 export default function GuestLayout({ children, title }) {
+    const { siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
+
     return (
         <div className="min-h-screen flex flex-col justify-between bg-[#050811] text-white font-sans selection:bg-primary selection:text-white relative overflow-hidden">
-            {title && <Head title={`${title} — IT SOLUTIONS`} />}
+            {title && <Head title={`${title} — ${brandName}`} />}
 
             {/* Dynamic Ambient Background Glows */}
             <div className="absolute -top-36 left-1/2 -translate-x-1/2 w-[46rem] h-[28rem] bg-primary/20 rounded-full blur-[140px] pointer-events-none animate-pulse-glow" />
@@ -26,7 +29,7 @@ export default function GuestLayout({ children, title }) {
                     </div>
                     <div className="flex flex-col">
                         <span className="font-heading font-black text-lg tracking-tight text-white leading-none">
-                            IT <span className="text-primary-light">SOLUTIONS</span>
+                            {brandName}
                         </span>
                         <span className="text-[9px] tracking-widest uppercase font-semibold text-neutral-400 mt-0.5">
                             Client Hub
@@ -65,7 +68,7 @@ export default function GuestLayout({ children, title }) {
 
             {/* Footer */}
             <footer className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 text-center text-xs text-neutral-400">
-                <span>&copy; {new Date().getFullYear()} IT SOLUTIONS. All rights reserved.</span>
+                <span>&copy; {new Date().getFullYear()} {brandName}. All rights reserved.</span>
             </footer>
         </div>
     );

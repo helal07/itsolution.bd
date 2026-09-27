@@ -52,7 +52,7 @@ class SmsService
         $provider = !empty($overrides['provider']) ? $overrides['provider'] : SiteSetting::get('sms_provider', 'bulksmsbd');
         $apiKey = !empty($overrides['api_key']) ? $overrides['api_key'] : SiteSetting::get('sms_api_key', '');
         $apiSecret = !empty($overrides['api_secret']) ? $overrides['api_secret'] : SiteSetting::get('sms_api_secret', '');
-        $senderId = !empty($overrides['sender_id']) ? $overrides['sender_id'] : SiteSetting::get('sms_sender_id', 'IT SOLUTIONS');
+        $senderId = !empty($overrides['sender_id']) ? $overrides['sender_id'] : SiteSetting::get('sms_sender_id', SiteSetting::get('site_name', config('app.name', 'IT Solution')));
         $apiUrl = !empty($overrides['api_url']) ? $overrides['api_url'] : SiteSetting::get('sms_api_url', '');
 
         if (empty($apiKey) && !in_array($provider, ['custom'])) {

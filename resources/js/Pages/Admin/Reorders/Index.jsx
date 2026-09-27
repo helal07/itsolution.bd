@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { router, useForm, Head } from '@inertiajs/react';
+import { router, useForm, Head, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { 
     RefreshCw, 
@@ -22,6 +22,8 @@ import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
 
 export default function Index({ reorders, stats, filters = {} }) {
+    const { siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
     const reorderList = reorders.data || reorders;
     const [search, setSearch] = useState(filters.search || '');
     const [activeCycle, setActiveCycle] = useState(filters.cycle || 'all');
@@ -148,7 +150,7 @@ export default function Index({ reorders, stats, filters = {} }) {
             ? `expired on ${item.finish_date}` 
             : (days === 0 ? `finishes TODAY (${item.finish_date})` : `finishes on ${item.finish_date} (in ${days} days)`);
 
-        const message = `Dear ${item.client_name},\n\nThis is a renewal reminder from IT SOLUTIONS regarding your *${item.package_name}* (${item.billing_cycle} package).\n\nYour subscription ${urgencyText}.\nRenewal Amount: ৳${Number(item.price).toLocaleString()} BDT\n\nPlease let us know if you would like to renew.\n\nThank you,\n*IT SOLUTIONS*`;
+        const message = `Dear ${item.client_name},\n\nThis is a renewal reminder from ${brandName} regarding your *${item.package_name}* (${item.billing_cycle} package).\n\nYour subscription ${urgencyText}.\nRenewal Amount: ৳${Number(item.price).toLocaleString()} BDT\n\nPlease let us know if you would like to renew.\n\nThank you,\n*${brandName}*`;
         return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     };
 
@@ -171,11 +173,11 @@ export default function Index({ reorders, stats, filters = {} }) {
         const days = item.days_remaining;
         let msg = '';
         if (type === 'expired') {
-            msg = `IT SOLUTIONS: Dear ${item.client_name}, your ${item.package_name} expired on ${item.finish_date}. Amount ৳${Number(item.price).toLocaleString()} BDT. Renew now to avoid service stop.`;
+            msg = `${brandName}: Dear ${item.client_name}, your ${item.package_name} expired on ${item.finish_date}. Amount ৳${Number(item.price).toLocaleString()} BDT. Renew now to avoid service stop.`;
         } else if (type === 'urgent') {
-            msg = `IT SOLUTIONS: Dear ${item.client_name}, your ${item.package_name} finishes on ${item.finish_date} (${days === 0 ? 'Today' : `in ${days} days`}). Renewal: ৳${Number(item.price).toLocaleString()} BDT.`;
+            msg = `${brandName}: Dear ${item.client_name}, your ${item.package_name} finishes on ${item.finish_date} (${days === 0 ? 'Today' : `in ${days} days`}). Renewal: ৳${Number(item.price).toLocaleString()} BDT.`;
         } else {
-            msg = `IT SOLUTIONS: Reminder that your ${item.package_name} finishes on ${item.finish_date}. Renewal: ৳${Number(item.price).toLocaleString()} BDT. Thank you!`;
+            msg = `${brandName}: Reminder that your ${item.package_name} finishes on ${item.finish_date}. Renewal: ৳${Number(item.price).toLocaleString()} BDT. Thank you!`;
         }
         setCustomSmsMessage(msg);
     };

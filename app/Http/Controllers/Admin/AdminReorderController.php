@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Item;
 use App\Models\Reorder;
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\SmsService;
 use Carbon\Carbon;
@@ -202,7 +203,8 @@ class AdminReorderController extends Controller
                 $urgency = $days < 0 
                     ? "expired on {$reorder->finish_date}" 
                     : ($days === 0 ? "expires today ({$reorder->finish_date})" : "expires on {$reorder->finish_date}");
-                $message = "IT SOLUTIONS: Dear {$reorder->client_name}, your {$reorder->package_name} ({$reorder->billing_cycle}) {$urgency}. Renewal amount: ৳" . number_format($reorder->price) . " BDT. Thank you!";
+                $siteName = SiteSetting::get('site_name', config('app.name', 'IT Solution'));
+                $message = "{$siteName}: Dear {$reorder->client_name}, your {$reorder->package_name} ({$reorder->billing_cycle}) {$urgency}. Renewal amount: ৳" . number_format($reorder->price) . " BDT. Thank you!";
             }
 
             $result = SmsService::send($phone, $message);

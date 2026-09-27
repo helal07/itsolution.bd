@@ -32,7 +32,7 @@ class MailConfigService
         $password = !empty($overrides['mail_password']) ? $overrides['mail_password'] : SiteSetting::get('mail_password');
         $encryption = !empty($overrides['mail_encryption']) ? $overrides['mail_encryption'] : SiteSetting::get('mail_encryption', 'tls'); // tls, ssl, none
         $fromAddress = !empty($overrides['mail_from_address']) ? $overrides['mail_from_address'] : SiteSetting::get('mail_from_address', SiteSetting::get('contact_email', 'noreply@itsolution.bd'));
-        $fromName = !empty($overrides['mail_from_name']) ? $overrides['mail_from_name'] : SiteSetting::get('mail_from_name', SiteSetting::get('site_name', 'IT SOLUTIONS'));
+        $fromName = !empty($overrides['mail_from_name']) ? $overrides['mail_from_name'] : SiteSetting::get('mail_from_name', SiteSetting::get('site_name', config('app.name', 'IT Solution')));
 
         Config::set('mail.default', 'smtp');
         Config::set('mail.mailers.smtp.transport', 'smtp');
@@ -104,7 +104,7 @@ class MailConfigService
         }
 
         try {
-            $siteName = SiteSetting::get('site_name', 'IT SOLUTIONS');
+            $siteName = SiteSetting::get('site_name', config('app.name', 'IT Solution'));
             Mail::raw("This is a test email sent from {$siteName} to verify that your SMTP Email Gateway configuration is active and working properly.", function ($message) use ($recipientEmail, $siteName) {
                 $message->to($recipientEmail)
                         ->subject("SMTP Gateway Connection Test - {$siteName}");

@@ -23,7 +23,7 @@ class ClientAccountCreatedMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $siteName = SiteSetting::get('site_name', 'IT SOLUTIONS');
+        $siteName = SiteSetting::get('site_name', config('app.name', 'IT Solution'));
         return new Envelope(
             subject: "Your Account Credentials & Work Order Details - {$siteName}",
         );
@@ -37,7 +37,7 @@ class ClientAccountCreatedMail extends Mailable
                 'user' => $this->user,
                 'plainPassword' => $this->plainPassword,
                 'order' => $this->order,
-                'siteName' => SiteSetting::get('site_name', 'IT SOLUTIONS'),
+                'siteName' => SiteSetting::get('site_name', config('app.name', 'IT Solution')),
                 'contactEmail' => SiteSetting::get('contact_email', 'contact@itsolution.bd'),
                 'contactPhone' => SiteSetting::get('contact_phone', '+880 1800-000000'),
                 'loginUrl' => url('/login'),

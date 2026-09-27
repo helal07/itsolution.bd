@@ -46,7 +46,7 @@ export default function AdminLayout({ children, title }) {
     const { url } = usePage();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    const brandName = siteSettings.site_name || 'IT SOLUTIONS';
+    const brandName = siteSettings.site_name || 'IT Solution';
     const isSuperOrAdmin = auth?.is_admin || auth?.roles?.includes('Super Admin') || auth?.roles?.includes('Admin');
     const userPermissions = auth?.permissions || [];
 

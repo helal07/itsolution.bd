@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { 
     Plus, 
@@ -55,6 +55,12 @@ const MULTI_PAY_METHODS = ['bKash', 'Nagad', 'Bank Transfer', 'Card', 'Cash'];
 const MONTH_NAMES = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
 
 export default function Index({ clients, services = [], users = [], billingStats = {}, filters = {} }) {
+    const { siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
+    const brandTagline = siteSettings?.site_tagline || 'Premium Software & IT Services';
+    const brandPhone = siteSettings?.contact_phone || '+880 1800-000000';
+    const brandEmail = siteSettings?.contact_email || 'contact@itsolutions.com';
+
     const clientList = clients.data || clients;
     const [editingClient, setEditingClient] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
@@ -1296,9 +1302,9 @@ export default function Index({ clients, services = [], users = [], billingStats
                                 {/* Invoice Header */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div className="logo-side">
-                                        <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#1e40af', margin: 0 }}>IT SOLUTION BD</h1>
-                                        <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Premium Software & IT Services</p>
-                                        <p style={{ fontSize: '10px', color: '#94a3b8', margin: '2px 0 0 0' }}>📞 +880 1770-820880 • ✉ info@itsolution.com.bd</p>
+                                        <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#1e40af', margin: 0 }}>{brandName}</h1>
+                                        <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>{brandTagline}</p>
+                                        <p style={{ fontSize: '10px', color: '#94a3b8', margin: '2px 0 0 0' }}>📞 {brandPhone} • ✉ {brandEmail}</p>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#3b82f6', margin: 0 }}>INVOICE</h2>
@@ -1385,8 +1391,7 @@ export default function Index({ clients, services = [], users = [], billingStats
 
                                 {/* Footer */}
                                 <div style={{ marginTop: '32px', textAlign: 'center', fontSize: '10px', color: '#94a3b8', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                                    <p>Thank you for your business! • IT Solution BD</p>
-                                    <p>🌐 itsolution.com.bd</p>
+                                    <p>Thank you for your business! • {brandName}</p>
                                 </div>
                             </div>
                         </div>

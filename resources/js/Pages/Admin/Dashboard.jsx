@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, router, Head } from '@inertiajs/react';
+import { Link, router, Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { 
     Layers, 
@@ -29,6 +29,8 @@ export default function Dashboard({
     recentOrders = [], 
     expiringSubscriptions = [] 
 }) {
+    const { siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
     const handleQuoteStatusChange = (quoteId, status) => {
         router.patch(`/admin/quotes/${quoteId}`, { status }, { preserveScroll: true });
     };
@@ -43,7 +45,7 @@ export default function Dashboard({
             ? `expired on ${item.finish_date}` 
             : (days === 0 ? `finishes TODAY (${item.finish_date})` : `finishes on ${item.finish_date} (in ${days} days)`);
 
-        const message = `Dear ${item.client_name},\n\nThis is a renewal reminder from IT SOLUTIONS regarding your *${item.package_name}* (${item.billing_cycle} package).\n\nYour subscription ${urgencyText}.\nRenewal Amount: ৳${Number(item.price).toLocaleString()} BDT\n\nPlease let us know if you would like to renew.\n\nThank you,\n*IT SOLUTIONS*`;
+        const message = `Dear ${item.client_name},\n\nThis is a renewal reminder from ${brandName} regarding your *${item.package_name}* (${item.billing_cycle} package).\n\nYour subscription ${urgencyText}.\nRenewal Amount: ৳${Number(item.price).toLocaleString()} BDT\n\nPlease let us know if you would like to renew.\n\nThank you,\n*${brandName}*`;
         const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
         
         router.post(route('admin.reorders.reminder', item.id), { channel: 'whatsapp' }, {

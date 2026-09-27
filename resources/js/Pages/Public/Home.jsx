@@ -15,7 +15,7 @@ import {
 
 export default function Home({ hero, featuredItems = [], categories = [], featuredPortfolios = [], reviews = [] }) {
     return (
-        <PublicLayout title="IT SOLUTIONS — Software & Apps">
+        <PublicLayout title="Software & Apps">
             {/* 1. Hero Section */}
             <HeroBanner hero={hero} />
 

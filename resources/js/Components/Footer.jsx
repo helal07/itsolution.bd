@@ -5,7 +5,7 @@ import { Sparkles, Mail, Phone, MapPin, ShieldCheck, Globe } from 'lucide-react'
 export default function Footer() {
     const { siteSettings = {} } = usePage().props;
 
-    const brandName = siteSettings.site_name || 'IT SOLUTIONS';
+    const brandName = siteSettings.site_name || 'IT Solution';
     const brandTagline = siteSettings.site_tagline || 'Next-generation software engineering house creating high-impact mobile apps, conversion-driven websites, and high-performance enterprise systems.';
     const contactEmail = siteSettings.contact_email || 'contact@itsolutions.com';
     const contactPhone = siteSettings.contact_phone || '+880 1700-000000';

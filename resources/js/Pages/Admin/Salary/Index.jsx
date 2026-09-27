@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { 
     Banknote, 
@@ -39,6 +39,11 @@ export default function AdminSalaryIndex({
     selectedMonth,
     selectedYear
 }) {
+    const { siteSettings = {} } = usePage().props;
+    const brandName = siteSettings?.site_name || 'IT Solution';
+    const brandTagline = siteSettings?.site_tagline || 'Custom Software, Web & IT Services';
+    const brandAddress = siteSettings?.company_address || 'Dhaka, Bangladesh';
+
     const [month, setMonth] = useState(selectedMonth || new Date().getMonth() + 1);
     const [year, setYear] = useState(selectedYear || new Date().getFullYear());
     
@@ -721,9 +726,9 @@ export default function AdminSalaryIndex({
                             {/* Company Branding */}
                             <div className="flex items-start justify-between border-b border-slate-200 pb-6">
                                 <div>
-                                    <h2 className="text-xl font-black text-slate-950 tracking-tight">IT SOLUTIONS BD</h2>
-                                    <p className="text-xs text-slate-500 mt-0.5">Custom Software, Web & IT Services</p>
-                                    <p className="text-xs text-slate-500">Dhaka, Bangladesh</p>
+                                    <h2 className="text-xl font-black text-slate-950 tracking-tight">{brandName}</h2>
+                                    <p className="text-xs text-slate-500 mt-0.5">{brandTagline}</p>
+                                    <p className="text-xs text-slate-500">{brandAddress}</p>
                                 </div>
                                 <div className="text-right">
                                     <span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-extrabold uppercase tracking-wider">
