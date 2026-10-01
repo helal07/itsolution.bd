@@ -66,12 +66,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Items CRUD (Service Products)
     Route::get('/items', [AdminItemController::class, 'index'])->name('items.index');
+    Route::get('/items/create', [AdminItemController::class, 'create'])->name('items.create');
+    Route::get('/items/{item}/edit', [AdminItemController::class, 'edit'])->name('items.edit');
     Route::post('/items', [AdminItemController::class, 'store'])->name('items.store');
     Route::put('/items/{item}', [AdminItemController::class, 'update'])->name('items.update');
     Route::delete('/items/{item}', [AdminItemController::class, 'destroy'])->name('items.destroy');
+    Route::put('/categories/{category}', [\App\Http\Controllers\Admin\AdminCategoryController::class, 'update'])->name('categories.update');
 
     // Portfolios CRUD
     Route::get('/portfolios', [AdminPortfolioController::class, 'index'])->name('portfolios.index');
+    Route::get('/portfolios/create', [AdminPortfolioController::class, 'create'])->name('portfolios.create');
+    Route::get('/portfolios/{portfolio}/edit', [AdminPortfolioController::class, 'edit'])->name('portfolios.edit');
     Route::post('/portfolios', [AdminPortfolioController::class, 'store'])->name('portfolios.store');
     Route::put('/portfolios/{portfolio}', [AdminPortfolioController::class, 'update'])->name('portfolios.update');
     Route::delete('/portfolios/{portfolio}', [AdminPortfolioController::class, 'destroy'])->name('portfolios.destroy');

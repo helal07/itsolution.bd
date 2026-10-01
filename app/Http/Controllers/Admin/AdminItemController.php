@@ -20,10 +20,53 @@ class AdminItemController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(15);
 
-        $categories = Category::all(['id', 'name']);
+        $categories = Category::orderBy('sort_order', 'asc')->get([
+            'id', 
+            'name', 
+            'name_bn', 
+            'slug', 
+            'description', 
+            'description_bn', 
+            'sort_order'
+        ]);
 
         return Inertia::render('Admin/Items/Index', [
             'items' => $items,
+            'categories' => $categories,
+        ]);
+    }
+
+    public function create(): Response
+    {
+        $categories = Category::orderBy('sort_order', 'asc')->get([
+            'id', 
+            'name', 
+            'name_bn', 
+            'slug', 
+            'description', 
+            'description_bn', 
+            'sort_order'
+        ]);
+
+        return Inertia::render('Admin/Items/Create', [
+            'categories' => $categories,
+        ]);
+    }
+
+    public function edit(Item $item): Response
+    {
+        $categories = Category::orderBy('sort_order', 'asc')->get([
+            'id', 
+            'name', 
+            'name_bn', 
+            'slug', 
+            'description', 
+            'description_bn', 
+            'sort_order'
+        ]);
+
+        return Inertia::render('Admin/Items/Edit', [
+            'item' => $item,
             'categories' => $categories,
         ]);
     }
@@ -56,7 +99,7 @@ class AdminItemController extends Controller
         \Illuminate\Support\Facades\Cache::forget('home_featured_items');
         \Illuminate\Support\Facades\Cache::forget('global_menu_categories');
 
-        return back()->with('success', 'Service created successfully.');
+        return redirect()->route('admin.items.index')->with('success', 'Service created successfully.');
     }
 
     public function update(AdminItemRequest $request, Item $item): RedirectResponse
@@ -92,7 +135,7 @@ class AdminItemController extends Controller
         \Illuminate\Support\Facades\Cache::forget('home_featured_items');
         \Illuminate\Support\Facades\Cache::forget('global_menu_categories');
 
-        return back()->with('success', 'Service updated successfully.');
+        return redirect()->route('admin.items.index')->with('success', 'Service updated successfully.');
     }
 
     public function destroy(Item $item): RedirectResponse

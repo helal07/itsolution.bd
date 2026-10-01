@@ -1,9 +1,24 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 import { ArrowUpRight, Building2, Sparkles } from 'lucide-react';
+import { useLanguage } from '../Context/LanguageContext';
 
 export default function PortfolioCard({ portfolio }) {
+    const { isBn } = useLanguage();
+
     const formatType = (type) => {
+        if (isBn) {
+            switch (type) {
+                case 'pos_software':
+                    return 'পিওএস সফটওয়্যার';
+                case 'software':
+                    return 'এন্টারপ্রাইজ সফটওয়্যার';
+                case 'website':
+                    return 'ওয়েবসাইট / ই-কমার্স';
+                default:
+                    return type;
+            }
+        }
         switch (type) {
             case 'pos_software':
                 return 'POS Software';
@@ -16,6 +31,9 @@ export default function PortfolioCard({ portfolio }) {
         }
     };
 
+    const displayTitle = isBn ? (portfolio.title_bn || portfolio.title) : portfolio.title;
+    const displayDesc = isBn ? (portfolio.description_bn || portfolio.description) : portfolio.description;
+
     return (
         <Link
             href={`/portfolio/${portfolio.slug}`}
@@ -24,7 +42,7 @@ export default function PortfolioCard({ portfolio }) {
             <div className="relative aspect-[16/10] overflow-hidden bg-neutral-900">
                 <img
                     src={portfolio.cover_image}
-                    alt={portfolio.title}
+                    alt={displayTitle}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95 group-hover:opacity-100"
                     loading="lazy"
                     onError={(e) => {
@@ -54,18 +72,18 @@ export default function PortfolioCard({ portfolio }) {
                     )}
 
                     <h3 className="font-heading font-bold text-lg text-neutral-900 group-hover:text-primary transition-colors duration-200 line-clamp-1">
-                        {portfolio.title}
+                        {displayTitle}
                     </h3>
 
-                    {portfolio.description && (
+                    {displayDesc && (
                         <p className="text-neutral-500 text-xs sm:text-sm leading-relaxed line-clamp-2">
-                            {portfolio.description}
+                            {displayDesc}
                         </p>
                     )}
                 </div>
 
                 <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-xs font-bold text-primary group-hover:text-primary-dark">
-                    <span>View Case Study</span>
+                    <span>{isBn ? 'কেস স্টাডি দেখুন' : 'View Case Study'}</span>
                     <div className="w-8 h-8 rounded-full bg-blue-50 group-hover:bg-primary group-hover:text-white flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-sm">
                         <ArrowUpRight className="w-4 h-4" />
                     </div>

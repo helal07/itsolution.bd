@@ -4,15 +4,17 @@ import PublicLayout from '../../Layouts/PublicLayout';
 import PortfolioCarousel from '../../Components/PortfolioCarousel';
 import PortfolioCard from '../../Components/PortfolioCard';
 import { Layers, Globe, Cpu, ShoppingBag } from 'lucide-react';
+import { useLanguage } from '../../Context/LanguageContext';
 
 export default function Portfolio({ portfolios, featuredCarousel = [], currentType = 'all' }) {
+    const { isBn } = useLanguage();
     const portfolioList = portfolios.data || portfolios;
 
     const filterTabs = [
-        { id: 'all', label: 'All Works', icon: Layers },
-        { id: 'website', label: 'Websites & Portals', icon: Globe },
-        { id: 'software', label: 'Enterprise Software', icon: Cpu },
-        { id: 'pos_software', label: 'POS Systems', icon: ShoppingBag },
+        { id: 'all', label: isBn ? 'সকল প্রজেক্ট' : 'All Works', icon: Layers },
+        { id: 'website', label: isBn ? 'ওয়েবসাইট ও পোর্টাল' : 'Websites & Portals', icon: Globe },
+        { id: 'software', label: isBn ? 'এন্টারপ্রাইজ সফটওয়্যার' : 'Enterprise Software', icon: Cpu },
+        { id: 'pos_software', label: isBn ? 'পিওএস সিস্টেম' : 'POS Systems', icon: ShoppingBag },
     ];
 
     const handleFilterChange = (type) => {
@@ -20,7 +22,7 @@ export default function Portfolio({ portfolios, featuredCarousel = [], currentTy
     };
 
     return (
-        <PublicLayout title="Portfolio & Case Studies — Delivered Solutions">
+        <PublicLayout title={isBn ? "পোর্টফোলিও ও কেস স্টাডিজ — সলিউশন ও প্রজেক্টসমূহ" : "Portfolio & Case Studies — Delivered Solutions"}>
             <div className="py-8 sm:py-12 bg-neutral-50/70 min-h-screen">
                 <div className="site-container space-y-8">
                     
@@ -28,10 +30,12 @@ export default function Portfolio({ portfolios, featuredCarousel = [], currentTy
                     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="space-y-2">
                             <h1 className="font-heading font-black text-2xl sm:text-4xl text-neutral-900 tracking-tight">
-                                Portfolio & Case Studies
+                                {isBn ? 'পোর্টফোলিও ও কেস স্টাডিজ' : 'Portfolio & Case Studies'}
                             </h1>
                             <p className="text-neutral-600 text-xs sm:text-sm max-w-2xl leading-relaxed">
-                                Explore production systems, bespoke software, and web applications delivered to our enterprise clients.
+                                {isBn 
+                                    ? 'আমাদের ক্লায়েন্টদের জন্য নির্মিত সফল সিস্টেম, কাস্টম সফটওয়্যার ও ওয়েব অ্যাপ্লিকেশন এক্সপ্লোর করুন।' 
+                                    : 'Explore production systems, bespoke software, and web applications delivered to our enterprise clients.'}
                             </p>
                         </div>
 
@@ -64,10 +68,10 @@ export default function Portfolio({ portfolios, featuredCarousel = [], currentTy
                             <div className="flex items-center gap-2">
                                 <span className="h-2 w-2 rounded-full bg-primary animate-ping" />
                                 <h2 className="font-mono font-bold text-xs uppercase tracking-wider text-neutral-400">
-                                    Featured Case Studies
+                                    {isBn ? 'স্পেশাল কেস স্টাডিজ' : 'Featured Case Studies'}
                                 </h2>
                             </div>
-                            <PortfolioCarousel portfolios={featuredCarousel} />
+                            <PortfolioCarousel items={featuredCarousel} />
                         </div>
                     )}
 

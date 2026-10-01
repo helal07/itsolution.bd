@@ -1,157 +1,272 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { 
     ArrowRight, 
     Sparkles, 
-    Layers,
-    Smartphone
+    Star, 
+    Laptop, 
+    Smile, 
+    Headphones, 
+    Search, 
+    ShoppingCart, 
+    Plus, 
+    ShieldCheck, 
+    Truck, 
+    CreditCard,
+    Lock,
+    CheckCircle2
 } from 'lucide-react';
+import { useLanguage } from '../Context/LanguageContext';
 
 export default function HeroBanner({ hero }) {
-    const photo1 = hero?.image_1 || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1000&auto=format&fit=crop&q=80';
-    const photo2 = hero?.image_2 || 'https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&auto=format&fit=crop&q=80';
-    const photo1Tag = hero?.image_1_tag || 'Cloud & Web';
-    const photo2Tag = hero?.image_2_tag || 'Mobile Apps';
+    const { siteSettings = {} } = usePage().props;
+    const { t, isBn } = useLanguage();
+    const whatsapp = siteSettings.whatsapp_number || siteSettings.contact_phone || '+880 1800-000000';
+    const cleanPhone = whatsapp.replace(/[^0-9]/g, '');
+
+    const badgeText = isBn ? (hero?.badge_bn || hero?.badge || t('heroBadge')) : (hero?.badge || t('heroBadge'));
+    const headlineText = isBn 
+        ? (hero?.headline_bn || hero?.headline || t('heroHeadlineMain')) 
+        : (hero?.headline || `${t('heroHeadlineMain')} ${t('heroHeadlineHighlight')}`);
+    const descText = isBn ? (hero?.subheadline_bn || hero?.subheadline || t('heroDesc')) : (hero?.subheadline || t('heroDesc'));
+
+    const stat1Num = hero?.stat1_value || t('heroStat1Num');
+    const stat1Label = isBn ? (hero?.stat1_label_bn || hero?.stat1_label || t('heroStat1Label')) : (hero?.stat1_label || t('heroStat1Label'));
+
+    const stat2Num = hero?.stat2_value || t('heroStat2Num');
+    const stat2Label = isBn ? (hero?.stat2_label_bn || hero?.stat2_label || t('heroStat2Label')) : (hero?.stat2_label || t('heroStat2Label'));
+
+    const stat3Num = hero?.stat3_value || t('heroStat3Num');
+    const stat3Label = isBn ? (hero?.stat3_label_bn || hero?.stat3_label || t('heroStat3Label')) : (hero?.stat3_label || t('heroStat3Label'));
 
     return (
-        <section className="relative overflow-hidden bg-gradient-to-b from-[#0a1128] via-[#091538] to-neutral-950 text-white py-8 sm:py-12 lg:py-16">
-            {/* Ambient Background */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:3rem_3rem] pointer-events-none" />
-            <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-600/20 rounded-full blur-3xl pointer-events-none animate-pulse duration-1000" />
-            <div className="absolute top-1/3 right-10 w-72 h-72 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+        <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/50 py-12 sm:py-16 lg:py-20 border-b border-slate-200/80">
+            {/* Subtle Grid Pattern */}
+            <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
+            
+            {/* Soft Ambient Light Blobs */}
+            <div className="absolute -top-24 -left-20 w-96 h-96 bg-cyan-200/40 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-1/2 -right-20 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative site-container">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 2xl:gap-14 items-center">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
                     
-                    {/* Left Column (7 Cols) */}
-                    <div className="lg:col-span-7 space-y-4 text-left">
+                    {/* Left Column: Human Centered Agency Messaging */}
+                    <div className="lg:col-span-6 space-y-6 text-left">
                         
-                        {/* Glowing Category Badge */}
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-cyan-300 text-[11px] font-bold tracking-wide backdrop-blur-md">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
-                            </span>
-                            <Sparkles className="w-3 h-3 text-cyan-300 flex-shrink-0" />
-                            <span className="uppercase font-mono tracking-wider">
-                                {hero?.badge || 'SOFTWARE & APPS'}
+                        {/* Trust Milestone Badge */}
+                        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
+                            <div className="flex items-center text-amber-500">
+                                {[...Array(5)].map((_, i) => (
+                                    <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                ))}
+                            </div>
+                            <span className="text-xs font-bold text-slate-800">
+                                {badgeText}
                             </span>
                         </div>
 
-                        {/* Short Main Headline */}
-                        <h1 className="font-heading font-black text-3xl sm:text-4xl md:text-5xl lg:text-[3rem] tracking-tight text-white leading-tight">
-                            {hero?.headline ? (
-                                hero.headline
-                            ) : (
-                                <>
-                                    Software & Apps{' '}
-                                    <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">
-                                        Built to Scale
-                                    </span>
-                                </>
-                            )}
+                        {/* Main Relatable Headline */}
+                        <h1 className="font-heading font-black text-3xl sm:text-4xl md:text-5xl lg:text-[3.1rem] text-slate-900 tracking-tight leading-[1.2]">
+                            {headlineText}
                         </h1>
 
-                        {/* Short Subheadline */}
-                        <p className="text-neutral-300 text-xs sm:text-sm md:text-base leading-relaxed max-w-lg">
-                            {hero?.subheadline || 'Custom mobile apps, web systems, and enterprise software engineering.'}
+                        {/* Relatable Subtitle */}
+                        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-xl font-normal">
+                            {descText}
                         </p>
 
-                        {/* Action CTAs */}
-                        <div className="pt-1 flex items-center gap-2.5">
-                            <Link
-                                href="/get-a-quote"
-                                className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-md shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
-                            >
-                                <span>Get Quote</span>
-                                <ArrowRight className="w-3.5 h-3.5" />
-                            </Link>
+                        {/* 3 Authentic Trust Stat Cards */}
+                        <div className="grid grid-cols-3 gap-2.5 pt-1 max-w-lg">
+                            <div className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                    <Laptop className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="font-heading font-black text-sm text-slate-900 leading-tight">
+                                        {stat1Num}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 font-semibold truncate">
+                                        {stat1Label}
+                                    </div>
+                                </div>
+                            </div>
 
-                            <Link
-                                href="/services"
-                                className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 backdrop-blur-md hover:-translate-y-0.5 active:translate-y-0 transition-all"
-                            >
-                                <span>Services</span>
-                            </Link>
+                            <div className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                    <Smile className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="font-heading font-black text-sm text-slate-900 leading-tight">
+                                        {stat2Num}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 font-semibold truncate">
+                                        {stat2Label}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center flex-shrink-0">
+                                    <Headphones className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="font-heading font-black text-sm text-slate-900 leading-tight">
+                                        {stat3Num}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 font-semibold truncate">
+                                        {stat3Label}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Trust Metrics Strip */}
-                        <div className="pt-3 border-t border-white/10 grid grid-cols-3 gap-2.5 max-w-md">
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-                                <p className="font-heading font-black text-base sm:text-lg text-white">
-                                    {hero?.stat1_value || '100+'}
-                                </p>
-                                <p className="text-[10px] text-neutral-400 font-medium">Projects</p>
-                            </div>
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-                                <p className="font-heading font-black text-base sm:text-lg text-cyan-300">
-                                    {hero?.stat2_value || '99.9%'}
-                                </p>
-                                <p className="text-[10px] text-neutral-400 font-medium">Uptime</p>
-                            </div>
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-                                <p className="font-heading font-black text-base sm:text-lg text-amber-300">
-                                    {hero?.stat3_value || '5.0 ★'}
-                                </p>
-                                <p className="text-[10px] text-neutral-400 font-medium">Rating</p>
-                            </div>
+                        {/* Dual Action Buttons */}
+                        <div className="pt-2 flex flex-wrap items-center gap-3">
+                            <Link
+                                href="/services"
+                                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
+                            >
+                                <span>{t('heroBtnPackages')}</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </Link>
+
+                            <a
+                                href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent('Hello! I would like free consultation regarding software/website development.')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs sm:text-sm shadow-xs hover:border-slate-300 active:scale-95 transition-all"
+                            >
+                                <span>{t('heroBtnConsult')}</span>
+                            </a>
                         </div>
 
                     </div>
 
-                    {/* Right Column: Visual Showcase (5 Cols) */}
-                    <div className="lg:col-span-5 relative">
-                        <div className="absolute -inset-2 bg-gradient-to-tr from-blue-600/20 via-cyan-500/20 to-purple-600/20 rounded-3xl blur-xl -z-10 opacity-70" />
+                    {/* Right Column: Tangible Browser Frame Mockup */}
+                    <div className="lg:col-span-6 relative">
+                        
+                        {/* Floating Animated Badges */}
+                        <div className="animate-float-1 absolute -top-4 -left-4 sm:-left-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200/90 shadow-lg text-[11px] font-bold text-slate-800">
+                            <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                            <span>{t('heroFloatSecure')}</span>
+                        </div>
 
-                        <div className="relative space-y-[-2rem] sm:space-y-[-3rem]">
+                        <div className="animate-float-2 absolute top-1/2 -right-4 sm:-right-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200/90 shadow-lg text-[11px] font-bold text-slate-800">
+                            <Truck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{t('heroFloatDelivery')}</span>
+                        </div>
+
+                        <div className="animate-float-3 absolute -bottom-4 left-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200/90 shadow-lg text-[11px] font-bold text-slate-800">
+                            <ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />
+                            <span>{t('heroFloatTerms')}</span>
+                        </div>
+
+                        {/* macOS Browser Window Frame */}
+                        <div className="rounded-3xl bg-white border border-slate-200/80 shadow-2xl overflow-hidden relative z-10 transition-transform hover:scale-[1.01] duration-300">
                             
-                            {/* Photo 1 */}
-                            <div className="relative group rounded-2xl overflow-hidden border border-white/20 bg-neutral-900/80 shadow-xl transition-all duration-300 hover:border-cyan-400/40 hover:-translate-y-1">
-                                <div className="aspect-[16/10] w-full overflow-hidden bg-neutral-800">
-                                    <img
-                                        src={photo1}
-                                        alt="Software"
-                                        fetchPriority="high"
-                                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                                        onError={(e) => {
-                                            e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1000&auto=format&fit=crop&q=80';
-                                        }}
-                                    />
+                            {/* Browser Top Bar */}
+                            <div className="px-4 py-3 bg-slate-100/80 border-b border-slate-200 flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full bg-rose-400" />
+                                    <div className="w-3 h-3 rounded-full bg-amber-400" />
+                                    <div className="w-3 h-3 rounded-full bg-emerald-400" />
                                 </div>
-                                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/20 to-transparent pointer-events-none" />
-                                
-                                <div className="absolute top-2.5 left-2.5">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-950/80 border border-white/20 text-white text-[10px] font-semibold backdrop-blur-md">
-                                        <Layers className="w-3 h-3 text-cyan-400" />
-                                        <span>{photo1Tag}</span>
-                                    </span>
+                                <div className="flex-1 max-w-sm mx-auto bg-white px-3 py-1 rounded-full border border-slate-200 text-[11px] font-mono text-slate-500 flex items-center justify-center gap-1.5">
+                                    <Lock className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>itsolution.bd/ecom-demo</span>
                                 </div>
                             </div>
 
-                            {/* Photo 2 */}
-                            <div className="relative ml-auto w-4/5 z-20 group rounded-2xl overflow-hidden border-2 border-cyan-500/40 bg-neutral-900/90 shadow-2xl transition-all duration-300 hover:border-cyan-400 hover:scale-[1.02] hover:-translate-y-1">
-                                <div className="aspect-[16/9] w-full overflow-hidden bg-neutral-800">
-                                    <img
-                                        src={photo2}
-                                        alt="Mobile"
-                                        fetchPriority="high"
-                                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                                        onError={(e) => {
-                                            e.currentTarget.src = 'https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&auto=format&fit=crop&q=80';
-                                        }}
-                                    />
+                            {/* Browser Content: Live Software & E-Com Preview */}
+                            <div className="p-4 sm:p-5 bg-slate-50/60 space-y-3.5">
+                                
+                                {/* Mini Header */}
+                                <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-2xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center">
+                                            IT
+                                        </div>
+                                        <span className="font-bold text-xs text-slate-800 hidden xs:inline">E-Shop</span>
+                                    </div>
+                                    <div className="flex-1 max-w-[180px] bg-slate-100 rounded-lg px-2.5 py-1 text-[10px] text-slate-400 flex items-center gap-1.5">
+                                        <Search className="w-3 h-3 text-slate-400" />
+                                        <span>{t('browserSearchPlaceholder')}</span>
+                                    </div>
+                                    <div className="relative p-1.5 rounded-lg bg-slate-100 text-slate-700">
+                                        <ShoppingCart className="w-3.5 h-3.5" />
+                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                                            3
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/85 via-neutral-950/20 to-transparent pointer-events-none" />
 
-                                <div className="absolute top-2 left-2">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-950/85 border border-cyan-400/30 text-cyan-200 text-[10px] font-semibold backdrop-blur-md">
-                                        <Smartphone className="w-3 h-3 text-cyan-300" />
-                                        <span>{photo2Tag}</span>
+                                {/* Promo Mini Banner */}
+                                <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative overflow-hidden flex items-center justify-between">
+                                    <div className="space-y-0.5 z-10">
+                                        <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[9px] font-black uppercase">
+                                            {t('browserPromoBadge')}
+                                        </span>
+                                        <div className="font-bold text-xs">{t('browserPromoTitle')}</div>
+                                    </div>
+                                    <button className="z-10 px-3 py-1 rounded-full bg-white text-blue-700 font-bold text-[10px] shadow-xs cursor-pointer">
+                                        {t('browserPromoBtn')}
+                                    </button>
+                                </div>
+
+                                {/* Category Pills */}
+                                <div className="flex items-center gap-1.5 text-[10px] font-bold overflow-hidden">
+                                    <span className="px-2.5 py-1 rounded-full bg-blue-600 text-white shadow-xs">{t('browserCatAll')}</span>
+                                    <span className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600">{t('browserCatEcom')}</span>
+                                    <span className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600">{t('browserCatWeb')}</span>
+                                    <span className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600">{t('browserCatApp')}</span>
+                                </div>
+
+                                {/* 3 Product Cards in BDT */}
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1 relative">
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-rose-100 text-rose-700">
+                                            Hot
+                                        </span>
+                                        <div className="font-bold text-[11px] text-slate-800 line-clamp-1">{t('browserProd1Name')}</div>
+                                        <div className="font-mono font-black text-xs text-blue-600">{isBn ? '৳ ১,২৯৯' : '৳ 1,299'}</div>
+                                        <div className="text-[9px] text-amber-500 font-bold">★ 4.9 (120)</div>
+                                    </div>
+
+                                    <div className="p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1 relative">
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-100 text-emerald-700">
+                                            New
+                                        </span>
+                                        <div className="font-bold text-[11px] text-slate-800 line-clamp-1">{t('browserProd2Name')}</div>
+                                        <div className="font-mono font-black text-xs text-blue-600">{isBn ? '৳ ৮৯৯' : '৳ 899'}</div>
+                                        <div className="text-[9px] text-amber-500 font-bold">★ 4.8 (85)</div>
+                                    </div>
+
+                                    <div className="p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1 relative">
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-cyan-100 text-cyan-700">
+                                            Pro
+                                        </span>
+                                        <div className="font-bold text-[11px] text-slate-800 line-clamp-1">{t('browserProd3Name')}</div>
+                                        <div className="font-mono font-black text-xs text-blue-600">{isBn ? '৳ ২,৪৯৯' : '৳ 2,499'}</div>
+                                        <div className="text-[9px] text-amber-500 font-bold">★ 5.0 (42)</div>
+                                    </div>
+                                </div>
+
+                                {/* Checkout Footer Bar */}
+                                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-[11px] text-emerald-900 font-bold">
+                                    <div className="flex items-center gap-1.5">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>{t('browserCartSummary')}</span>
+                                    </div>
+                                    <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-bold">
+                                        {t('browserCheckoutBtn')}
                                     </span>
                                 </div>
+
                             </div>
 
                         </div>
+
                     </div>
 
                 </div>

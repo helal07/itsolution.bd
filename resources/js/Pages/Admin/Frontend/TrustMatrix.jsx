@@ -15,10 +15,13 @@ export default function TrustMatrix({ settings, flash = {} }) {
     const { data, setData, post, processing, recentlySuccessful } = useForm({
         hero_stat1_value: settings.hero_stat1_value || '100+',
         hero_stat1_label: settings.hero_stat1_label || 'Projects Delivered',
+        hero_stat1_label_bn: settings.hero_stat1_label_bn || '',
         hero_stat2_value: settings.hero_stat2_value || '99.9%',
         hero_stat2_label: settings.hero_stat2_label || 'Uptime Guarantee',
+        hero_stat2_label_bn: settings.hero_stat2_label_bn || '',
         hero_stat3_value: settings.hero_stat3_value || '5.0 ★',
         hero_stat3_label: settings.hero_stat3_label || 'Client Rating',
+        hero_stat3_label_bn: settings.hero_stat3_label_bn || '',
     });
 
     const handleSubmit = (e) => {
@@ -43,7 +46,7 @@ export default function TrustMatrix({ settings, flash = {} }) {
                                 Trust Matrix & Live Counters
                             </h1>
                             <span className="text-xs text-slate-400 font-medium">
-                                Configure the 3 live performance badges, credibility stats & trust metrics on the homepage
+                                Configure the 3 live performance badges & trust metrics with English &amp; বাংলা translations
                             </span>
                         </div>
                     </div>
@@ -71,10 +74,10 @@ export default function TrustMatrix({ settings, flash = {} }) {
                 <form onSubmit={handleSubmit} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-5">
                     <div className="flex items-center justify-between">
                         <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                            Key Credibility Counters
+                            Key Credibility Counters (Bilingual)
                         </h2>
-                        <span className="text-[11px] text-blue-600 font-bold">
-                            Appears right beside the hero section on desktop & mobile
+                        <span className="text-[11px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">
+                            English + বাংলা Support
                         </span>
                     </div>
 
@@ -104,13 +107,27 @@ export default function TrustMatrix({ settings, flash = {} }) {
 
                             <div>
                                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                    Description Label
+                                    Description (English)
                                 </label>
                                 <input
                                     type="text"
                                     value={data.hero_stat1_label}
                                     onChange={(e) => setData('hero_stat1_label', e.target.value)}
                                     placeholder="e.g. Projects Delivered"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                                    <span>বিবরণ (বাংলা)</span>
+                                    <span className="text-[9px] text-blue-600 bg-blue-50 px-1 py-0.2 rounded font-mono font-bold">BN</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.hero_stat1_label_bn}
+                                    onChange={(e) => setData('hero_stat1_label_bn', e.target.value)}
+                                    placeholder="যেমন: সফল প্রজেক্ট ডেলিভারি"
                                     className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                 />
                             </div>
@@ -140,13 +157,27 @@ export default function TrustMatrix({ settings, flash = {} }) {
 
                             <div>
                                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                    Description Label
+                                    Description (English)
                                 </label>
                                 <input
                                     type="text"
                                     value={data.hero_stat2_label}
                                     onChange={(e) => setData('hero_stat2_label', e.target.value)}
                                     placeholder="e.g. Uptime Guarantee"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                                    <span>বিবরণ (বাংলা)</span>
+                                    <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1 py-0.2 rounded font-mono font-bold">BN</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.hero_stat2_label_bn}
+                                    onChange={(e) => setData('hero_stat2_label_bn', e.target.value)}
+                                    placeholder="যেমন: আপটাইম গ্যারান্টি"
                                     className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
                                 />
                             </div>
@@ -176,13 +207,27 @@ export default function TrustMatrix({ settings, flash = {} }) {
 
                             <div>
                                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                    Description Label
+                                    Description (English)
                                 </label>
                                 <input
                                     type="text"
                                     value={data.hero_stat3_label}
                                     onChange={(e) => setData('hero_stat3_label', e.target.value)}
                                     placeholder="e.g. Client Rating"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                                    <span>বিবরণ (বাংলা)</span>
+                                    <span className="text-[9px] text-amber-600 bg-amber-50 px-1 py-0.2 rounded font-mono font-bold">BN</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.hero_stat3_label_bn}
+                                    onChange={(e) => setData('hero_stat3_label_bn', e.target.value)}
+                                    placeholder="যেমন: ক্লায়েন্ট রেটিং"
                                     className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition-all"
                                 />
                             </div>

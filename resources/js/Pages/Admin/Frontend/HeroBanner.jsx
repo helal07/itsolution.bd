@@ -14,14 +14,19 @@ import {
 export default function HeroBanner({ settings, flash = {} }) {
     const { data, setData, post, processing, recentlySuccessful } = useForm({
         hero_headline: settings.hero_headline || '',
+        hero_headline_bn: settings.hero_headline_bn || '',
         hero_subheadline: settings.hero_subheadline || '',
+        hero_subheadline_bn: settings.hero_subheadline_bn || '',
         hero_badge: settings.hero_badge || '',
+        hero_badge_bn: settings.hero_badge_bn || '',
         hero_image_1: settings.hero_image_1 || '',
         hero_image_1_file: null,
         hero_image_2: settings.hero_image_2 || '',
         hero_image_2_file: null,
         hero_image_1_tag: settings.hero_image_1_tag || '',
+        hero_image_1_tag_bn: settings.hero_image_1_tag_bn || '',
         hero_image_2_tag: settings.hero_image_2_tag || '',
+        hero_image_2_tag_bn: settings.hero_image_2_tag_bn || '',
     });
 
     const [hero1Preview, setHero1Preview] = useState(settings.hero_image_1 || '');
@@ -69,7 +74,7 @@ export default function HeroBanner({ settings, flash = {} }) {
                                 Home Hero Banner
                             </h1>
                             <span className="text-xs text-slate-400 font-medium">
-                                Configure homepage main headline, callout badge & featured showcase images
+                                Configure homepage main headline, badge & images with English and বাংলা translations
                             </span>
                         </div>
                     </div>
@@ -94,45 +99,98 @@ export default function HeroBanner({ settings, flash = {} }) {
                 </div>
 
                 {/* Form Content */}
-                <form onSubmit={handleSubmit} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-5">
-                    <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                        Hero Banner Content & Media
-                    </h2>
+                <form onSubmit={handleSubmit} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                            Hero Banner Content (Bilingual Dual-Language)
+                        </h2>
+                        <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                            English + বাংলা Support
+                        </span>
+                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+                    <div className="space-y-5 text-xs">
                         
-                        {/* Text Information */}
-                        <div className="space-y-4">
+                        {/* Top Badge: English & Bangla */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/70">
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">Badge Text (Top Pill)</label>
+                                <label className="block font-bold text-slate-700 mb-1">Badge Text (English)</label>
                                 <input
                                     type="text"
                                     value={data.hero_badge}
                                     onChange={(e) => setData('hero_badge', e.target.value)}
                                     placeholder="e.g. PREMIUM IT SOLUTIONS & WEB ENGINEERING"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-mono text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                 />
                             </div>
 
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">Main Headline</label>
+                                <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                                    <span>ব্যাজ টেক্সট (বাংলা)</span>
+                                    <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono font-bold">BN</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.hero_badge_bn}
+                                    onChange={(e) => setData('hero_badge_bn', e.target.value)}
+                                    placeholder="যেমন: প্রিমিয়াম আইটি সলিউশন ও ওয়েব ইঞ্জিনিয়ারিং"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Main Headline: English & Bangla */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/70">
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">Main Headline (English)</label>
                                 <input
                                     type="text"
                                     value={data.hero_headline}
                                     onChange={(e) => setData('hero_headline', e.target.value)}
                                     placeholder="e.g. We Build World-Class Apps, Websites & Enterprise Software"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-bold text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                 />
                             </div>
 
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">Subheadline Description</label>
+                                <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                                    <span>মূল হেডলাইন (বাংলা)</span>
+                                    <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono font-bold">BN</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.hero_headline_bn}
+                                    onChange={(e) => setData('hero_headline_bn', e.target.value)}
+                                    placeholder="যেমন: আমরা তৈরি করি বিশ্বমানের মোবাইল অ্যাপস ও সফটওয়্যার"
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-bold text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Subheadline: English & Bangla */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/70">
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">Subheadline Description (English)</label>
                                 <textarea
                                     rows={4}
                                     value={data.hero_subheadline}
                                     onChange={(e) => setData('hero_subheadline', e.target.value)}
                                     placeholder="Enter descriptive copy explaining your core value proposition..."
-                                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 resize-none text-xs leading-relaxed focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 resize-none text-xs leading-relaxed focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                                    <span>সাব-হেডলাইন বিবরণ (বাংলা)</span>
+                                    <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono font-bold">BN</span>
+                                </label>
+                                <textarea
+                                    rows={4}
+                                    value={data.hero_subheadline_bn}
+                                    onChange={(e) => setData('hero_subheadline_bn', e.target.value)}
+                                    placeholder="বাংলায় আপনার মূল সেবার বিবরণ লিখুন..."
+                                    className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 resize-none text-xs leading-relaxed focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                                 />
                             </div>
                         </div>
@@ -184,13 +242,22 @@ export default function HeroBanner({ settings, flash = {} }) {
                                             placeholder="Or enter direct image URL"
                                             className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800 font-mono"
                                         />
-                                        <input
-                                            type="text"
-                                            value={data.hero_image_1_tag}
-                                            onChange={(e) => setData('hero_image_1_tag', e.target.value)}
-                                            placeholder="Caption tag (e.g. Enterprise Cloud & Web Apps)"
-                                            className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
-                                        />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                            <input
+                                                type="text"
+                                                value={data.hero_image_1_tag}
+                                                onChange={(e) => setData('hero_image_1_tag', e.target.value)}
+                                                placeholder="Caption tag (EN)"
+                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={data.hero_image_1_tag_bn}
+                                                onChange={(e) => setData('hero_image_1_tag_bn', e.target.value)}
+                                                placeholder="ক্যাপশন ট্যাগ (বাংলা)"
+                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -239,13 +306,22 @@ export default function HeroBanner({ settings, flash = {} }) {
                                             placeholder="Or enter direct image URL"
                                             className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800 font-mono"
                                         />
-                                        <input
-                                            type="text"
-                                            value={data.hero_image_2_tag}
-                                            onChange={(e) => setData('hero_image_2_tag', e.target.value)}
-                                            placeholder="Caption tag (e.g. Mobile & High Scale Systems)"
-                                            className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
-                                        />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                            <input
+                                                type="text"
+                                                value={data.hero_image_2_tag}
+                                                onChange={(e) => setData('hero_image_2_tag', e.target.value)}
+                                                placeholder="Caption tag (EN)"
+                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={data.hero_image_2_tag_bn}
+                                                onChange={(e) => setData('hero_image_2_tag_bn', e.target.value)}
+                                                placeholder="ক্যাপশন ট্যাগ (বাংলা)"
+                                                className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-800"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>

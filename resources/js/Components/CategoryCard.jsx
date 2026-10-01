@@ -9,9 +9,31 @@ import {
     CheckCircle2, 
     Sparkles 
 } from 'lucide-react';
+import { useLanguage } from '../Context/LanguageContext';
 
 export default function CategoryCard({ category }) {
+    const { isBn } = useLanguage();
+
+    const categoryTranslations = {
+        apps: {
+            nameBn: 'মোবাইল অ্যাপস সলিউশন',
+            descBn: 'আইওএস ও অ্যান্ড্রয়েড অ্যাপ, রিয়েল-টাইম সিঙ্ক, পুশ নোটিফিকেশন ও আধুনিক ইউজার এক্সপেরিয়েন্স।',
+            pillsBn: ['আইওএস ও অ্যান্ড্রয়েড অ্যাপ', 'রিঅ্যাক্ট নেটিভ ও ফ্লাটার', 'প্লেস্টোর ও অ্যাপ স্টোর']
+        },
+        website: {
+            nameBn: 'ওয়েবসাইট ও ই-কমার্স',
+            descBn: 'হাই-পারফরম্যান্স ডায়নামিক কর্পোরেট পোর্টাল, ফুল স্ট্যাক ই-কমার্স ও দ্রুতগতির অপ্টিমাইজড ওয়েবসাইট।',
+            pillsBn: ['কাস্টম ওয়েব পোর্টাল', 'ই-কমার্স সমাধান', 'এসইও ও স্পিড অপ্টিমাইজেশন']
+        },
+        software: {
+            nameBn: 'কাস্টম সফটওয়্যার ও ইআরপি',
+            descBn: 'ক্লাউড-নেটিভ এন্টারপ্রাইজ ইআরপি, পিওএস, ইনভেন্টরি, একাউন্টস ও সম্পূর্ণ অটোমেটেড বিজনেস সিস্টেম।',
+            pillsBn: ['এন্টারপ্রাইজ ইআরপি ও সাস', 'ক্লাউড ব্যাকএন্ড আর্কিটেকচার', 'কাস্টম এপিআই ও সফটওয়্যার']
+        }
+    };
+
     const getCategoryConfig = (slug) => {
+        const trans = categoryTranslations[slug];
         switch (slug) {
             case 'apps':
                 return {
@@ -20,7 +42,7 @@ export default function CategoryCard({ category }) {
                     borderHover: 'group-hover:border-primary/40',
                     glowHover: 'group-hover:shadow-blue-500/10',
                     iconBg: 'bg-blue-50 group-hover:bg-primary group-hover:text-white',
-                    pills: ['iOS & Android Apps', 'React Native & Flutter', 'App Store Deployment']
+                    pills: isBn && trans ? trans.pillsBn : ['iOS & Android Apps', 'React Native & Flutter', 'App Store Deployment']
                 };
             case 'website':
                 return {
@@ -29,7 +51,7 @@ export default function CategoryCard({ category }) {
                     borderHover: 'group-hover:border-cyan-500/40',
                     glowHover: 'group-hover:shadow-cyan-500/10',
                     iconBg: 'bg-cyan-50 group-hover:bg-cyan-600 group-hover:text-white',
-                    pills: ['Custom Web Portals', 'Headless eCommerce', 'SEO & Speed Optimization']
+                    pills: isBn && trans ? trans.pillsBn : ['Custom Web Portals', 'Headless eCommerce', 'SEO & Speed Optimization']
                 };
             case 'software':
                 return {
@@ -38,7 +60,7 @@ export default function CategoryCard({ category }) {
                     borderHover: 'group-hover:border-purple-500/40',
                     glowHover: 'group-hover:shadow-purple-500/10',
                     iconBg: 'bg-purple-50 group-hover:bg-purple-600 group-hover:text-white',
-                    pills: ['Enterprise ERP & SaaS', 'Cloud Microservices', 'Custom APIs & Systems']
+                    pills: isBn && trans ? trans.pillsBn : ['Enterprise ERP & SaaS', 'Cloud Microservices', 'Custom APIs & Systems']
                 };
             default:
                 return {
@@ -53,6 +75,13 @@ export default function CategoryCard({ category }) {
     };
 
     const config = getCategoryConfig(category.slug);
+    const trans = categoryTranslations[category.slug];
+    const categoryName = isBn 
+        ? (category.name_bn || trans?.nameBn || category.name) 
+        : (category.name || trans?.nameBn);
+    const categoryDesc = isBn 
+        ? (category.description_bn || trans?.descBn || category.description) 
+        : (category.description || trans?.descBn);
 
     return (
         <Link
@@ -71,7 +100,7 @@ export default function CategoryCard({ category }) {
 
                     {category.items_count !== undefined && (
                         <span className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-neutral-100/80 text-neutral-600 group-hover:bg-neutral-900 group-hover:text-white transition-colors duration-300">
-                            {category.items_count} Solutions
+                            {category.items_count} {isBn ? 'টি সলিউশন' : 'Solutions'}
                         </span>
                     )}
                 </div>
@@ -79,10 +108,10 @@ export default function CategoryCard({ category }) {
                 {/* Title & Description */}
                 <div className="space-y-2.5">
                     <h3 className="font-heading font-black text-2xl text-neutral-900 group-hover:text-primary transition-colors duration-200">
-                        {category.name}
+                        {categoryName}
                     </h3>
                     <p className="text-neutral-500 text-xs sm:text-sm leading-relaxed line-clamp-3">
-                        {category.description}
+                        {categoryDesc}
                     </p>
                 </div>
 
@@ -99,7 +128,9 @@ export default function CategoryCard({ category }) {
 
             {/* Footer Interactive Action */}
             <div className="pt-6 mt-6 border-t border-neutral-100 flex items-center justify-between text-xs font-bold text-neutral-900 group-hover:text-primary transition-colors">
-                <span className="uppercase tracking-wider font-mono">Explore Solutions</span>
+                <span className="uppercase tracking-wider font-mono">
+                    {isBn ? 'সলিউশন দেখুন' : 'Explore Solutions'}
+                </span>
                 <div className="w-9 h-9 rounded-full bg-neutral-100 group-hover:bg-primary group-hover:text-white flex items-center justify-center transition-all duration-300 group-hover:translate-x-1 shadow-sm">
                     <ArrowRight className="w-4 h-4" />
                 </div>

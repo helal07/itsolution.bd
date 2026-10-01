@@ -147,3 +147,37 @@
         display: none !important;
     }
 }
+
+/* Human UI Animations & Marquee */
+@keyframes marqueeScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+    display: flex;
+    width: max-content;
+    animation: marqueeScroll 28s linear infinite;
+    will-change: transform;
+}
+
+.animate-marquee:hover {
+    animation-play-state: paused;
+}
+
+@keyframes floatSmooth {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+}
+
+.animate-float-1 {
+    animation: floatSmooth 3.8s ease-in-out infinite;
+}
+
+.animate-float-2 {
+    animation: floatSmooth 4.4s ease-in-out 1.2s infinite;
+}
+
+.animate-float-3 {
+    animation: floatSmooth 5s ease-in-out 2.4s infinite;
+}

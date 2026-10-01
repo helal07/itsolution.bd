@@ -19,10 +19,15 @@ import {
     ArrowRight,
     Phone,
     MessageCircle,
-    Search
+    Search,
+    Mail,
+    Clock
 } from 'lucide-react';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useLanguage } from '../Context/LanguageContext';
 
 export default function Header() {
+    const { t, locale } = useLanguage();
     const { auth, menuCategories = [], siteSettings = {} } = usePage().props;
     const [isScrolled, setIsScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -80,13 +85,47 @@ export default function Header() {
     };
 
     return (
-        <header 
-            className={`sticky top-0 z-50 transition-all duration-300 ${
-                isScrolled 
-                    ? 'bg-white/95 backdrop-blur-md shadow-sm py-2.5 sm:py-3 border-b border-slate-200/80' 
-                    : 'bg-white border-b border-slate-100 py-3 sm:py-4'
-            }`}
-        >
+        <>
+            {/* Top Hotline Micro-Bar */}
+            <div className="bg-slate-900 text-slate-300 text-[11px] py-1.5 px-4 border-b border-slate-800 hidden md:block">
+                <div className="site-container flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                        <span className="flex items-center gap-1.5 text-white font-medium">
+                            <Phone className="w-3 h-3 text-cyan-400" />
+                            <span>{t('hotlineLabel')} <a href={`tel:${hotline}`} className="hover:text-cyan-300 font-bold">{hotline}</a></span>
+                        </span>
+                        <span className="flex items-center gap-1.5 text-slate-400">
+                            <Mail className="w-3 h-3 text-cyan-400" />
+                            <span>{siteSettings.contact_email || 'contact@itsolution.bd'}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 text-slate-400">
+                            <Clock className="w-3 h-3 text-cyan-400" />
+                            <span>{t('workingHours')}</span>
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <a
+                            href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello! I would like to consult with IT Solution.')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold"
+                        >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>{t('whatsappSupport')}</span>
+                        </a>
+
+                        <LanguageSwitcher />
+                    </div>
+                </div>
+            </div>
+
+            <header 
+                className={`sticky top-0 z-50 transition-all duration-300 ${
+                    isScrolled 
+                        ? 'bg-white/95 backdrop-blur-md shadow-sm py-2.5 sm:py-3 border-b border-slate-200/80' 
+                        : 'bg-white border-b border-slate-100 py-3 sm:py-4'
+                }`}
+            >
             <div className="site-container">
                 <div className="flex items-center justify-between gap-2 sm:gap-4">
                     
@@ -124,7 +163,7 @@ export default function Header() {
                                 href="/" 
                                 className="px-3 py-2 text-xs xl:text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors rounded-xl"
                             >
-                                Home
+                                {t('navHome')}
                             </Link>
 
                             {/* Our Services Mega Menu Dropdown */}
@@ -134,7 +173,7 @@ export default function Header() {
                                     onMouseEnter={() => setServicesDropdownOpen(true)}
                                     className="flex items-center gap-1 px-3 py-2 text-xs xl:text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors rounded-xl cursor-pointer"
                                 >
-                                    <span>Services & Solutions</span>
+                                    <span>{t('navServices')}</span>
                                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${servicesDropdownOpen ? 'rotate-180 text-blue-600' : 'text-slate-400'}`} />
                                 </button>
 
@@ -178,7 +217,7 @@ export default function Header() {
                                                     onClick={() => setServicesDropdownOpen(false)}
                                                     className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 pt-1"
                                                 >
-                                                    All {category.name} <ArrowRight className="w-2.5 h-2.5" />
+                                                    {t('allServicesLink')}
                                                 </Link>
                                             </div>
                                         ))}
@@ -190,15 +229,22 @@ export default function Header() {
                                 href="/portfolio" 
                                 className="px-3 py-2 text-xs xl:text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors rounded-xl"
                             >
-                                Portfolio
+                                {t('navPortfolio')}
                             </Link>
 
                             <Link 
                                 href="/clients" 
                                 className="px-3 py-2 text-xs xl:text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors rounded-xl"
                             >
-                                Clients
+                                {t('navClients')}
                             </Link>
+
+                            <a 
+                                href="#packages" 
+                                className="px-3 py-2 text-xs xl:text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors rounded-xl"
+                            >
+                                {t('navPackages')}
+                            </a>
                         </nav>
                     </div>
 
@@ -210,6 +256,9 @@ export default function Header() {
                     {/* Right: Actions & Mobile Hamburger */}
                     <div className="flex items-center gap-1.5 sm:gap-2.5">
                         
+                        {/* Language Switcher in Navbar */}
+                        <LanguageSwitcher className="hidden sm:inline-block" />
+
                         {/* Admin Shortcut Button */}
                         {auth?.user?.role === 'admin' && (
                             <Link
@@ -217,7 +266,7 @@ export default function Header() {
                                 className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shadow-xs active:scale-95 transition-all"
                             >
                                 <LayoutDashboard className="w-3.5 h-3.5 text-cyan-400" />
-                                <span className="hidden sm:inline">Admin</span>
+                                <span className="hidden sm:inline">{t('navAdmin')}</span>
                             </Link>
                         )}
 
@@ -238,7 +287,7 @@ export default function Header() {
                                 className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition-colors"
                             >
                                 <UserIcon className="w-3.5 h-3.5" />
-                                <span>Login</span>
+                                <span>{t('navLogin')}</span>
                             </Link>
                         )}
 
@@ -248,7 +297,7 @@ export default function Header() {
                             className="inline-flex items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all whitespace-nowrap"
                         >
                             <Sparkles className="w-3 h-3 hidden xs:block" />
-                            <span>Quote</span>
+                            <span>{t('navQuote')}</span>
                         </Link>
 
                         {/* Prominent Mobile Hamburger Button */}
@@ -273,6 +322,14 @@ export default function Header() {
                 <div className="lg:hidden fixed inset-x-0 top-[57px] sm:top-[65px] bottom-0 z-50 bg-white flex flex-col justify-between overflow-y-auto animate-in fade-in slide-in-from-top-3 duration-200 border-t border-slate-200 shadow-2xl">
                     <div className="p-4 sm:p-6 space-y-4 flex-1">
                         
+                        {/* Mobile Language Switcher Row */}
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <span className="text-xs font-semibold text-slate-500">
+                                {isBn ? 'ভাষা নির্বাচন করুন:' : 'Language:'}
+                            </span>
+                            <LanguageSwitcher />
+                        </div>
+
                         {/* Mobile Search */}
                         <div className="pb-1">
                             <SearchBar onSelect={() => setMobileMenuOpen(false)} />
@@ -286,7 +343,7 @@ export default function Header() {
                                 className="flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-100 transition-colors"
                             >
                                 <HomeIcon className="w-4 h-4 text-blue-600" />
-                                <span>Home</span>
+                                <span>{t('navHome')}</span>
                             </Link>
 
                             {/* Collapsible Services Section */}
@@ -298,7 +355,7 @@ export default function Header() {
                                 >
                                     <div className="flex items-center gap-3">
                                         <Layers className="w-4 h-4 text-blue-600" />
-                                        <span>Our Services & Solutions</span>
+                                        <span>{t('navServices')}</span>
                                     </div>
                                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${mobileServicesOpen ? 'rotate-180 text-blue-600' : ''}`} />
                                 </button>
@@ -339,7 +396,7 @@ export default function Header() {
                                             onClick={() => setMobileMenuOpen(false)}
                                             className="block text-center py-2 text-xs font-bold text-blue-600 hover:underline"
                                         >
-                                            View All Services & Packages →
+                                            {t('allServicesLink')}
                                         </Link>
                                     </div>
                                 )}
@@ -351,7 +408,7 @@ export default function Header() {
                                 className="flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-100 transition-colors"
                             >
                                 <Briefcase className="w-4 h-4 text-blue-600" />
-                                <span>Portfolio Showcase</span>
+                                <span>{t('navPortfolio')}</span>
                             </Link>
                             
                             <Link 
@@ -360,8 +417,17 @@ export default function Header() {
                                 className="flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-100 transition-colors"
                             >
                                 <Users className="w-4 h-4 text-blue-600" />
-                                <span>Clients & Testimonials</span>
+                                <span>{t('navClients')}</span>
                             </Link>
+
+                            <a 
+                                href="#packages" 
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-100 transition-colors"
+                            >
+                                <Sparkles className="w-4 h-4 text-cyan-600" />
+                                <span>{t('navPackages')}</span>
+                            </a>
 
                             <Link 
                                 href="/get-a-quote" 
@@ -370,7 +436,7 @@ export default function Header() {
                             >
                                 <div className="flex items-center gap-3">
                                     <Sparkles className="w-4 h-4 text-blue-600" />
-                                    <span>Interactive Quote Builder</span>
+                                    <span>{t('navQuote')}</span>
                                 </div>
                                 <ArrowRight className="w-4 h-4" />
                             </Link>
@@ -455,5 +521,6 @@ export default function Header() {
                 </div>
             )}
         </header>
+        </>
     );
 }

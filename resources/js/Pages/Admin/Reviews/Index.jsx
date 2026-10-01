@@ -14,8 +14,11 @@ export default function Index({ reviews }) {
     const { data: editData, setData: setEditData, put: putReview, processing: editProcessing, reset: resetEdit } = useForm({
         rating: 5,
         title: '',
+        title_bn: '',
         comment: '',
+        comment_bn: '',
         project_name: '',
+        project_name_bn: '',
         is_approved: true,
     });
 
@@ -24,8 +27,11 @@ export default function Index({ reviews }) {
         setEditData({
             rating: review.rating,
             title: review.title || '',
+            title_bn: review.title_bn || '',
             comment: review.comment || '',
+            comment_bn: review.comment_bn || '',
             project_name: review.project_name || '',
+            project_name_bn: review.project_name_bn || '',
             is_approved: Boolean(review.is_approved),
         });
     };
@@ -102,9 +108,19 @@ export default function Index({ reviews }) {
                                         <h3 className="font-bold text-sm text-slate-900">
                                             "{review.title || 'Client Review'}"
                                         </h3>
+                                        {review.title_bn && (
+                                            <p className="text-xs font-semibold text-blue-600">
+                                                "{review.title_bn}"
+                                            </p>
+                                        )}
                                         <p className="text-xs text-slate-600 italic">
                                             "{review.comment || 'No feedback text.'}"
                                         </p>
+                                        {review.comment_bn && (
+                                            <p className="text-xs text-slate-500 italic">
+                                                "{review.comment_bn}"
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
@@ -178,34 +194,70 @@ export default function Index({ reviews }) {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">Product</label>
-                                <input
-                                    type="text"
-                                    value={editData.project_name}
-                                    onChange={(e) => setEditData('project_name', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500"
-                                />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Product (English)</label>
+                                    <input
+                                        type="text"
+                                        value={editData.project_name}
+                                        onChange={(e) => setEditData('project_name', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Product (বাংলা)</label>
+                                    <input
+                                        type="text"
+                                        value={editData.project_name_bn}
+                                        onChange={(e) => setEditData('project_name_bn', e.target.value)}
+                                        placeholder="যেমন: স্মার্ট কুরিয়ার সফটওয়্যার"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500"
+                                    />
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">Headline</label>
-                                <input
-                                    type="text"
-                                    value={editData.title}
-                                    onChange={(e) => setEditData('title', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500"
-                                />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Headline (English)</label>
+                                    <input
+                                        type="text"
+                                        value={editData.title}
+                                        onChange={(e) => setEditData('title', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Headline (বাংলা)</label>
+                                    <input
+                                        type="text"
+                                        value={editData.title_bn}
+                                        onChange={(e) => setEditData('title_bn', e.target.value)}
+                                        placeholder="যেমন: চমৎকার সার্ভিস ও দ্রুত ডেলিভারি"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500"
+                                    />
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">Comment</label>
-                                <textarea
-                                    rows="3"
-                                    value={editData.comment}
-                                    onChange={(e) => setEditData('comment', e.target.value)}
-                                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500 resize-none"
-                                />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Comment (English)</label>
+                                    <textarea
+                                        rows="3"
+                                        value={editData.comment}
+                                        onChange={(e) => setEditData('comment', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500 resize-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Comment (বাংলা)</label>
+                                    <textarea
+                                        rows="3"
+                                        value={editData.comment_bn}
+                                        onChange={(e) => setEditData('comment_bn', e.target.value)}
+                                        placeholder="বাংলা রিভিউ বিবরণ লিখুন..."
+                                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:border-blue-500 resize-none"
+                                    />
+                                </div>
                             </div>
 
                             <div>

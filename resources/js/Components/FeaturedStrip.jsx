@@ -6,18 +6,28 @@ import {
     ShieldCheck, 
     Zap, 
     Code2, 
-    ExternalLink,
-    Layers,
-    Terminal
+    ExternalLink, 
+    Layers, 
+    Terminal 
 } from 'lucide-react';
+import { useLanguage } from '../Context/LanguageContext';
 
 export default function FeaturedStrip({ items = [] }) {
+    const { isBn } = useLanguage();
     if (!items || items.length === 0) return null;
 
     const [activeIndex, setActiveIndex] = useState(0);
     const activeItem = items[activeIndex] || items[0];
     const activeItemCatSlug = activeItem?.category?.slug || (activeItem?.category_id === 1 ? 'apps' : activeItem?.category_id === 2 ? 'website' : activeItem?.category_id === 3 ? 'software' : 'services');
     const activeItemUrl = `/services/${activeItemCatSlug}/${activeItem?.slug}`;
+
+    const activeItemName = isBn ? (activeItem?.name_bn || activeItem?.name) : activeItem?.name;
+    const activeItemDesc = isBn 
+        ? (activeItem?.description_bn || activeItem?.short_description_bn || activeItem?.description || activeItem?.short_description) 
+        : (activeItem?.description || activeItem?.short_description);
+    const activeCategoryName = isBn 
+        ? (activeItem?.category?.name_bn || activeItem?.category?.name || 'স্পেশাল সিস্টেম') 
+        : (activeItem?.category?.name || 'Featured System');
 
     return (
         <section className="py-16 sm:py-24 bg-gradient-to-b from-white via-slate-50/70 to-neutral-100/60 border-b border-neutral-200/70 relative overflow-hidden">
@@ -36,13 +46,21 @@ export default function FeaturedStrip({ items = [] }) {
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                             </span>
                             <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                            <span className="uppercase font-mono tracking-wider">Enterprise Software & Digital Products</span>
+                            <span className="uppercase font-mono tracking-wider">
+                                {isBn ? 'আধুনিক সফটওয়্যার ও ডিজিটাল প্ল্যাটফর্ম' : 'Enterprise Software & Digital Products'}
+                            </span>
                         </div>
                         <h2 className="font-heading font-black text-3xl sm:text-4xl lg:text-5xl text-neutral-900 tracking-tight leading-tight">
-                            Latest <span className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 bg-clip-text text-transparent">Products</span>
+                            {isBn ? (
+                                <>আমাদের সেরা <span className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 bg-clip-text text-transparent">প্রোডাক্টসমূহ</span></>
+                            ) : (
+                                <>Latest <span className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 bg-clip-text text-transparent">Products</span></>
+                            )}
                         </h2>
                         <p className="text-neutral-500 text-sm sm:text-base leading-relaxed">
-                            Explore our software systems, custom platforms, and mobile apps engineered for immediate deployment.
+                            {isBn 
+                                ? 'বাণিজ্যিক ও প্রতিষ্ঠানিক ব্যবহারের জন্য প্রস্তুত আমাদের আধুনিক সফটওয়্যার, মোবাইল অ্যাপস এবং ওয়েব সিস্টেম এক্সপ্লোর করুন।' 
+                                : 'Explore our software systems, custom platforms, and mobile apps engineered for immediate deployment.'}
                         </p>
                     </div>
 
@@ -50,6 +68,7 @@ export default function FeaturedStrip({ items = [] }) {
                     <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 bg-neutral-200/60 p-1.5 rounded-2xl border border-neutral-200 backdrop-blur-sm self-start lg:self-end max-w-full">
                         {items.map((item, index) => {
                             const isActive = index === activeIndex;
+                            const tabName = isBn ? (item.name_bn || item.name) : item.name;
                             return (
                                 <button
                                     key={item.id}
@@ -60,7 +79,7 @@ export default function FeaturedStrip({ items = [] }) {
                                             : 'text-neutral-600 hover:text-neutral-900 hover:bg-white/80'
                                     }`}
                                 >
-                                    {item.name}
+                                    {tabName}
                                 </button>
                             );
                         })}
@@ -80,18 +99,18 @@ export default function FeaturedStrip({ items = [] }) {
                             <div className="lg:col-span-7 space-y-6 text-left">
                                 <div className="flex flex-wrap items-center gap-2.5">
                                     <span className="px-3.5 py-1 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-blue-500/20 text-cyan-300 border border-cyan-400/30 backdrop-blur-md">
-                                        {activeItem.category?.name || 'Featured System'}
+                                        {activeCategoryName}
                                     </span>
                                 </div>
 
                                 <div className="space-y-3">
                                     <Link href={activeItemUrl} className="block group/title">
                                         <h3 className="font-heading font-black text-2xl sm:text-3xl lg:text-4xl text-white group-hover/title:text-cyan-300 transition-colors tracking-tight leading-tight">
-                                            {activeItem.name}
+                                            {activeItemName}
                                         </h3>
                                     </Link>
                                     <p className="text-neutral-300 text-sm sm:text-base leading-relaxed font-normal">
-                                        {activeItem.description || activeItem.short_description}
+                                        {activeItemDesc}
                                     </p>
                                 </div>
 
@@ -129,7 +148,7 @@ export default function FeaturedStrip({ items = [] }) {
                                         href={`/get-a-quote?item_id=${activeItem.id}`}
                                         className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl bg-gradient-to-r from-primary via-blue-600 to-indigo-600 hover:from-primary-hover hover:via-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm tracking-wide shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
                                     >
-                                        <span>Request Quote</span>
+                                        <span>{isBn ? 'কোটেশন রিকোয়েস্ট' : 'Request Quote'}</span>
                                         <ArrowRight className="w-4 h-4" />
                                     </Link>
 
@@ -137,7 +156,7 @@ export default function FeaturedStrip({ items = [] }) {
                                         href={activeItemUrl}
                                         className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/15 backdrop-blur-md hover:border-white/30 transition-all"
                                     >
-                                        <span>View Details</span>
+                                        <span>{isBn ? 'বিস্তারিত দেখুন' : 'View Details'}</span>
                                         <ExternalLink className="w-3.5 h-3.5" />
                                     </Link>
                                 </div>
@@ -153,11 +172,11 @@ export default function FeaturedStrip({ items = [] }) {
                                 >
                                     <img
                                         src={activeItem.thumbnail}
-                                        alt={activeItem.name}
+                                        alt={activeItemName}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                         loading="lazy"
                                         onError={(e) => {
-                                            e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80';
+                                             e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80';
                                         }}
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
@@ -166,10 +185,10 @@ export default function FeaturedStrip({ items = [] }) {
                                     <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between p-3 rounded-2xl bg-neutral-950/80 border border-white/15 backdrop-blur-md">
                                         <div className="flex items-center gap-2">
                                             <Layers className="w-4 h-4 text-cyan-400" />
-                                            <span className="text-xs font-bold text-white truncate">{activeItem.name}</span>
+                                            <span className="text-xs font-bold text-white truncate">{activeItemName}</span>
                                         </div>
                                         <span className="text-[10px] font-mono font-semibold text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded-lg border border-cyan-800 flex items-center gap-1">
-                                            <span>Click to View</span>
+                                            <span>{isBn ? 'ক্লিক করে দেখুন' : 'Click to View'}</span>
                                             <ArrowRight className="w-3 h-3" />
                                         </span>
                                     </div>

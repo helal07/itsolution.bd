@@ -34,8 +34,11 @@ class AdminReviewController extends Controller
         $validated = $request->validate([
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'title' => ['nullable', 'string', 'max:255'],
+            'title_bn' => ['nullable', 'string', 'max:255'],
             'comment' => ['nullable', 'string', 'max:2000'],
+            'comment_bn' => ['nullable', 'string', 'max:2000'],
             'project_name' => ['nullable', 'string', 'max:255'],
+            'project_name_bn' => ['nullable', 'string', 'max:255'],
             'is_approved' => ['required', 'boolean'],
         ]);
 

@@ -3,8 +3,11 @@ import { Link } from '@inertiajs/react';
 import PublicLayout from '../../Layouts/PublicLayout';
 import ItemCard from '../../Components/ItemCard';
 import { Smartphone, Globe, Cpu, Layers, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../../Context/LanguageContext';
 
 export default function CategoryDetail({ category, items, otherCategories = [] }) {
+    const { isBn } = useLanguage();
+
     const getIcon = (slug) => {
         switch (slug) {
             case 'apps':
@@ -19,9 +22,11 @@ export default function CategoryDetail({ category, items, otherCategories = [] }
     };
 
     const itemList = items.data || items;
+    const catName = isBn ? (category.name_bn || category.name) : category.name;
+    const catDesc = isBn ? (category.description_bn || category.description) : category.description;
 
     return (
-        <PublicLayout title={`${category.name} Solutions & Products`}>
+        <PublicLayout title={`${catName} Solutions & Products`}>
             <div className="py-8 sm:py-12 bg-neutral-50/70 min-h-screen">
                 <div className="site-container space-y-8">
                     
@@ -33,11 +38,11 @@ export default function CategoryDetail({ category, items, otherCategories = [] }
                             </div>
                             <div className="space-y-1">
                                 <h1 className="font-heading font-black text-2xl sm:text-4xl text-neutral-900 tracking-tight">
-                                    {category.name} Solutions
+                                    {catName} {isBn ? 'সলিউশন' : 'Solutions'}
                                 </h1>
-                                {category.description && (
+                                {catDesc && (
                                     <p className="text-neutral-600 text-xs sm:text-sm max-w-2xl">
-                                        {category.description}
+                                        {catDesc}
                                     </p>
                                 )}
                             </div>
@@ -46,7 +51,7 @@ export default function CategoryDetail({ category, items, otherCategories = [] }
                         {/* Category Selector Tabs */}
                         <div className="flex flex-wrap items-center gap-2 bg-neutral-100/80 p-1.5 rounded-2xl border border-neutral-200 self-start md:self-auto">
                             <span className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-primary shadow-xs border border-neutral-200/80">
-                                {category.name}
+                                {catName}
                             </span>
                             {otherCategories.map((c) => (
                                 <Link
@@ -54,7 +59,7 @@ export default function CategoryDetail({ category, items, otherCategories = [] }
                                     href={`/services/${c.slug}`}
                                     className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-600 hover:text-neutral-900 hover:bg-white/60 transition-all"
                                 >
-                                    {c.name}
+                                    {isBn ? (c.name_bn || c.name) : c.name}
                                 </Link>
                             ))}
                         </div>
@@ -70,10 +75,14 @@ export default function CategoryDetail({ category, items, otherCategories = [] }
                             </div>
                         ) : (
                             <div className="text-center py-20 bg-white rounded-3xl border border-neutral-200/60 p-12 space-y-3">
-                                <h3 className="font-heading font-bold text-xl text-neutral-800">No items available in this category yet.</h3>
-                                <p className="text-neutral-500 text-sm">Check back soon or explore our other service categories.</p>
+                                <h3 className="font-heading font-bold text-xl text-neutral-800">
+                                    {isBn ? 'এই ক্যাটাগরিতে এখনো কোনো আইটেম যোগ করা হয়নি।' : 'No items available in this category yet.'}
+                                </h3>
+                                <p className="text-neutral-500 text-sm">
+                                    {isBn ? 'অন্যান্য ক্যাটাগরির সার্ভিসসমূহ দেখতে নিচে ক্লিক করুন।' : 'Check back soon or explore our other service categories.'}
+                                </p>
                                 <Link href="/services" className="mt-4 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-white text-xs font-bold">
-                                    <span>Browse All Categories</span>
+                                    <span>{isBn ? 'সকল ক্যাটাগরি ব্রাউজ করুন' : 'Browse All Categories'}</span>
                                     <ArrowRight className="w-4 h-4" />
                                 </Link>
                             </div>

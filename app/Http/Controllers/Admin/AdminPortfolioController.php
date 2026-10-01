@@ -30,6 +30,29 @@ class AdminPortfolioController extends Controller
         ]);
     }
 
+    public function create(): Response
+    {
+        $items = Item::where('status', 'published')->get(['id', 'name', 'name_bn']);
+        $clients = Client::all(['id', 'name']);
+
+        return Inertia::render('Admin/Portfolios/Create', [
+            'items' => $items,
+            'clients' => $clients,
+        ]);
+    }
+
+    public function edit(Portfolio $portfolio): Response
+    {
+        $items = Item::where('status', 'published')->get(['id', 'name', 'name_bn']);
+        $clients = Client::all(['id', 'name']);
+
+        return Inertia::render('Admin/Portfolios/Edit', [
+            'portfolio' => $portfolio,
+            'items' => $items,
+            'clients' => $clients,
+        ]);
+    }
+
     public function store(AdminPortfolioRequest $request): RedirectResponse
     {
         $data = $request->validated();
@@ -51,7 +74,7 @@ class AdminPortfolioController extends Controller
 
         \Illuminate\Support\Facades\Cache::forget('home_featured_portfolios');
 
-        return back()->with('success', 'Project created successfully.');
+        return redirect()->route('admin.portfolios.index')->with('success', 'Project created successfully.');
     }
 
     public function update(AdminPortfolioRequest $request, Portfolio $portfolio): RedirectResponse
@@ -77,7 +100,7 @@ class AdminPortfolioController extends Controller
 
         \Illuminate\Support\Facades\Cache::forget('home_featured_portfolios');
 
-        return back()->with('success', 'Project updated successfully.');
+        return redirect()->route('admin.portfolios.index')->with('success', 'Project updated successfully.');
     }
 
     public function destroy(Portfolio $portfolio): RedirectResponse

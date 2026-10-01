@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, Link } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { 
     Plus, 
@@ -43,113 +43,44 @@ export default function Index({ items, categories = [] }) {
 
     const defaultThumbnail = PRESET_PHOTOS[0].url;
 
-    const { data, setData, post, processing, errors, reset } = useForm({
-        category_id: categories[0]?.id || 1,
+    // Category bilingual management state
+    const [catModalOpen, setCatModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState(null);
+    const [catForm, setCatForm] = useState({
         name: '',
-        slug: '',
-        short_description: '',
+        name_bn: '',
         description: '',
-        thumbnail: defaultThumbnail,
-        thumbnail_file: null,
-        is_purchasable: false,
-        is_featured: false,
-        status: 'published',
+        description_bn: '',
+        sort_order: 1,
     });
+    const [catSaving, setCatSaving] = useState(false);
 
-    const openCreateModal = () => {
-        setEditingItem(null);
-        reset();
-        setPreviewUrl(defaultThumbnail);
-        setPhotoMode('upload');
-        setData({
-            category_id: categories[0]?.id || 1,
-            name: '',
-            slug: '',
-            short_description: '',
-            description: '',
-            thumbnail: defaultThumbnail,
-            thumbnail_file: null,
-            is_purchasable: false,
-            is_featured: false,
-            status: 'published',
+    const openCategoryEdit = (cat) => {
+        setEditingCategory(cat);
+        setCatForm({
+            name: cat.name || '',
+            name_bn: cat.name_bn || '',
+            description: cat.description || '',
+            description_bn: cat.description_bn || '',
+            sort_order: cat.sort_order || 1,
         });
-        setModalOpen(true);
+        setCatModalOpen(true);
     };
 
-    const openEditModal = (item) => {
-        setEditingItem(item);
-        setPreviewUrl(item.thumbnail || defaultThumbnail);
-        setPhotoMode(item.thumbnail?.startsWith('/storage/') ? 'upload' : 'url');
-        setData({
-            category_id: item.category_id,
-            name: item.name,
-            slug: item.slug,
-            short_description: item.short_description || '',
-            description: item.description || '',
-            thumbnail: item.thumbnail || defaultThumbnail,
-            thumbnail_file: null,
-            is_purchasable: Boolean(item.is_purchasable),
-            is_featured: Boolean(item.is_featured),
-            status: item.status,
-        });
-        setModalOpen(true);
-    };
-
-    const handleNameChange = (val) => {
-        setData((prev) => ({
-            ...prev,
-            name: val,
-            slug: prev.slug === '' || prev.slug === prev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-                ? val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-                : prev.slug,
-        }));
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setData('thumbnail_file', file);
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setPreviewUrl(event.target.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleSelectPreset = (url) => {
-        setData(prev => ({
-            ...prev,
-            thumbnail: url,
-            thumbnail_file: null
-        }));
-        setPreviewUrl(url);
-    };
-
-    const handleSubmit = (e) => {
+    const handleSaveCategory = (e) => {
         e.preventDefault();
-
-        if (editingItem) {
-            // For file uploads on updates, use POST with _method = 'PUT' for multipart/form-data support
-            router.post(`/admin/items/${editingItem.id}`, {
-                _method: 'put',
-                ...data,
-            }, {
-                forceFormData: true,
-                onSuccess: () => {
-                    setModalOpen(false);
-                    reset();
-                },
-            });
-        } else {
-            post('/admin/items', {
-                forceFormData: true,
-                onSuccess: () => {
-                    setModalOpen(false);
-                    reset();
-                },
-            });
-        }
+        if (!editingCategory) return;
+        setCatSaving(true);
+        router.put(`/admin/categories/${editingCategory.id}`, catForm, {
+            onSuccess: () => {
+                setCatModalOpen(false);
+                setEditingCategory(null);
+                setCatSaving(false);
+            },
+            onError: () => {
+                setCatSaving(false);
+            }
+        });
     };
 
     const handleDelete = (item) => {
@@ -177,16 +108,30 @@ export default function Index({ items, categories = [] }) {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="font-black text-2xl sm:text-3xl text-slate-900 tracking-tight">
-                            Service
+                            Services & Solutions
                         </h1>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Manage service offerings and bilingual (English &amp; বাংলা) translations.
+                        </p>
                     </div>
-                    <button
-                        onClick={openCreateModal}
-                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition-all self-start sm:self-auto active:scale-95"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Service</span>
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                            type="button"
+                            onClick={() => setCatModalOpen(true)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Layers className="w-4 h-4 text-cyan-400" />
+                            <span>Manage Categories (ক্যাটাগরি সমূহ)</span>
+                        </button>
+
+                        <Link
+                            href="/admin/items/create"
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Add New Service</span>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Filter & Search */}
@@ -240,6 +185,9 @@ export default function Index({ items, categories = [] }) {
                                                     />
                                                     <div className="min-w-0 pr-2">
                                                         <p className="font-bold text-slate-900 text-sm truncate">{item.name}</p>
+                                                        {item.name_bn && (
+                                                            <p className="text-[11px] text-blue-600 font-semibold truncate">{item.name_bn}</p>
+                                                        )}
                                                         <p className="text-[10px] text-slate-400 font-mono truncate">{item.slug}</p>
                                                     </div>
                                                 </div>
@@ -272,7 +220,7 @@ export default function Index({ items, categories = [] }) {
                                             <td className="py-3.5 pl-3 pr-6 text-right whitespace-nowrap">
                                                 <ActionDropdown label="Actions">
                                                     <div className="py-1">
-                                                        <ActionItem onClick={() => openEditModal(item)} icon={Edit2}>
+                                                        <ActionItem onClick={() => router.visit(`/admin/items/${item.id}/edit`)} icon={Edit2}>
                                                             Edit Service
                                                         </ActionItem>
                                                         <ActionItem onClick={() => handleDelete(item)} icon={Trash2} danger>
@@ -290,270 +238,143 @@ export default function Index({ items, categories = [] }) {
                 </div>
             </div>
 
-            {/* Comprehensive Service Create/Edit Modal with Photo Upload & Rich Details */}
-            <Modal show={modalOpen} onClose={() => setModalOpen(false)} maxWidth="2xl">
-                <div className="bg-white p-6 space-y-4 rounded-2xl text-slate-800 max-h-[90vh] overflow-y-auto">
-                    
-                    {/* Modal Header */}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                                <Layers className="w-4 h-4" />
-                            </div>
-                            <h2 className="font-bold text-base text-slate-900">
-                                {editingItem ? 'Edit Service' : 'Add New Service'}
+            {/* Category Bilingual Management Modal */}
+            <Modal show={catModalOpen} onClose={() => setCatModalOpen(false)} maxWidth="2xl">
+                <div className="p-6">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div>
+                            <h2 className="font-heading font-black text-xl text-slate-900">
+                                {editingCategory ? `Edit Category: ${editingCategory.name}` : 'Manage Service Categories'}
                             </h2>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Configure category names and descriptions in both English &amp; বাংলা (Bengali).
+                            </p>
                         </div>
                         <button
-                            onClick={() => setModalOpen(false)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            type="button"
+                            onClick={() => {
+                                setCatModalOpen(false);
+                                setEditingCategory(null);
+                            }}
+                            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                         >
                             <X className="w-5 h-5" />
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-                        
-                        {/* 1. Category & Status Row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Category *</label>
-                                <select
-                                    value={data.category_id}
-                                    onChange={(e) => setData('category_id', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                                    required
-                                >
-                                    {categories.map((c) => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Publication Status</label>
-                                <select
-                                    value={data.status}
-                                    onChange={(e) => setData('status', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-semibold"
-                                >
-                                    <option value="published">Published (Live in Store)</option>
-                                    <option value="draft">Draft (Hidden)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* 2. Service Name & Slug */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Service Name *</label>
-                                <input
-                                    type="text"
-                                    value={data.name}
-                                    onChange={(e) => handleNameChange(e.target.value)}
-                                    placeholder="e.g. Enterprise Cloud Migration"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">URL Slug *</label>
-                                <input
-                                    type="text"
-                                    value={data.slug}
-                                    onChange={(e) => setData('slug', e.target.value)}
-                                    placeholder="enterprise-cloud-migration"
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 font-mono"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        {/* 3. Photo Upload & Preview Section */}
-                        <div className="p-4 rounded-2xl bg-blue-50/40 border border-blue-100 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <label className="block text-slate-800 font-bold">
-                                    Service Cover Photo
-                                </label>
-                                
-                                {/* Photo Source Tabs */}
-                                <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-blue-100 text-[11px]">
-                                    <button
-                                        type="button"
-                                        onClick={() => setPhotoMode('upload')}
-                                        className={`px-2 py-1 rounded-md font-semibold transition-all ${
-                                            photoMode === 'upload' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-blue-600'
-                                        }`}
+                    {!editingCategory ? (
+                        <div className="py-4 space-y-3">
+                            <p className="text-xs font-semibold text-slate-600">
+                                Select a category to edit English and Bengali translations:
+                            </p>
+                            <div className="grid grid-cols-1 gap-3">
+                                {categories.map((cat) => (
+                                    <div 
+                                        key={cat.id} 
+                                        className="p-4 rounded-2xl border border-slate-200 hover:border-blue-400 bg-white hover:bg-blue-50/30 transition-all flex items-center justify-between gap-4"
                                     >
-                                        <span className="flex items-center gap-1"><Upload className="w-3 h-3" /> Upload File</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPhotoMode('url')}
-                                        className={`px-2 py-1 rounded-md font-semibold transition-all ${
-                                            photoMode === 'url' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-blue-600'
-                                        }`}
-                                    >
-                                        <span className="flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Image URL</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPhotoMode('presets')}
-                                        className={`px-2 py-1 rounded-md font-semibold transition-all ${
-                                            photoMode === 'presets' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-blue-600'
-                                        }`}
-                                    >
-                                        <span className="flex items-center gap-1"><ImageIcon className="w-3 h-3" /> Presets</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Photo Mode Controls */}
-                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                                
-                                {/* Preview Card */}
-                                <div className="sm:col-span-4">
-                                    <div className="relative aspect-[16/10] rounded-xl overflow-hidden bg-slate-900 border border-slate-200 shadow-2xs group">
-                                        <img 
-                                            src={previewUrl || defaultThumbnail} 
-                                            alt="Preview" 
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => { e.currentTarget.src = defaultThumbnail; }}
-                                        />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
-                                            Preview
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Inputs for active mode */}
-                                <div className="sm:col-span-8 space-y-2">
-                                    {photoMode === 'upload' && (
-                                        <div className="space-y-2">
-                                            <input
-                                                type="file"
-                                                ref={fileInputRef}
-                                                onChange={handleFileChange}
-                                                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-                                                className="hidden"
-                                            />
-                                            <div 
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="p-4 border-2 border-dashed border-blue-200 hover:border-blue-500 rounded-xl bg-white text-center cursor-pointer transition-all hover:bg-blue-50/50"
-                                            >
-                                                <Upload className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-                                                <p className="font-bold text-slate-800 text-xs">Click to browse photo from computer</p>
-                                                <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WEBP or SVG (Max 10MB)</p>
+                                        <div className="space-y-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-heading font-black text-slate-900 text-sm">{cat.name}</span>
+                                                {cat.name_bn && (
+                                                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                                                        {cat.name_bn}
+                                                    </span>
+                                                )}
+                                                <span className="text-[10px] text-slate-400 font-mono">/{cat.slug}</span>
                                             </div>
-                                            {data.thumbnail_file && (
-                                                <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                                                    <CheckCircle2 className="w-3.5 h-3.5" /> Selected: {data.thumbnail_file.name}
-                                                </p>
+                                            <p className="text-xs text-slate-500 line-clamp-1">{cat.description || 'No English description'}</p>
+                                            {cat.description_bn && (
+                                                <p className="text-xs text-blue-600/80 line-clamp-1">{cat.description_bn}</p>
                                             )}
                                         </div>
-                                    )}
-
-                                    {photoMode === 'url' && (
-                                        <div className="space-y-1">
-                                            <input
-                                                type="url"
-                                                value={data.thumbnail}
-                                                onChange={(e) => {
-                                                    setData('thumbnail', e.target.value);
-                                                    setPreviewUrl(e.target.value);
-                                                }}
-                                                placeholder="https://images.unsplash.com/..."
-                                                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 focus:border-blue-500 font-mono text-[11px]"
-                                            />
-                                            <p className="text-[10px] text-slate-400">Enter a direct image link URL</p>
-                                        </div>
-                                    )}
-
-                                    {photoMode === 'presets' && (
-                                        <div className="grid grid-cols-3 gap-1.5">
-                                            {PRESET_PHOTOS.map((preset, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    type="button"
-                                                    onClick={() => handleSelectPreset(preset.url)}
-                                                    className={`p-1.5 rounded-lg border text-left text-[10px] transition-all truncate flex items-center gap-1 ${
-                                                        previewUrl === preset.url ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' : 'border-slate-200 bg-white hover:bg-slate-50'
-                                                    }`}
-                                                >
-                                                    <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                                                    <span className="truncate">{preset.label}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
+                                        <button
+                                            type="button"
+                                            onClick={() => openCategoryEdit(cat)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex-shrink-0 cursor-pointer shadow-2xs"
+                                        >
+                                            <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
+                                            <span>Edit Translations</span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveCategory} className="py-4 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1 text-xs">
+                                        Category Name (English) *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={catForm.name}
+                                        onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-blue-500"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1 text-xs flex items-center gap-1.5">
+                                        <span>ক্যাটাগরির নাম (বাংলা)</span>
+                                        <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono font-bold">BN</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={catForm.name_bn}
+                                        onChange={(e) => setCatForm({ ...catForm, name_bn: e.target.value })}
+                                        placeholder="যেমন: মোবাইল অ্যাপস সলিউশন"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-blue-500"
+                                    />
                                 </div>
                             </div>
-                        </div>
 
-                        {/* 4. Short Summary Tagline */}
-                        <div>
-                            <label className="block text-slate-700 font-bold mb-1">
-                                Short Summary / Tagline
-                            </label>
-                            <input
-                                type="text"
-                                value={data.short_description}
-                                onChange={(e) => setData('short_description', e.target.value)}
-                                placeholder="e.g. End-to-end custom platform architecture with scalable 24/7 cloud infrastructure."
-                                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500"
-                            />
-                        </div>
-
-                        {/* 5. Full Service Details Description & Scope */}
-                        <div>
-                            <label className="block text-slate-700 font-bold mb-1">
-                                Full Service Details, Scope & Technical Specifications
-                            </label>
-                            <textarea
-                                rows={5}
-                                value={data.description}
-                                onChange={(e) => setData('description', e.target.value)}
-                                placeholder="Describe the technical details, deliverables, system architecture, deliverables, warranty, and development process..."
-                                className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-blue-500 resize-none font-sans leading-relaxed"
-                            />
-                        </div>
-
-                        {/* 6. Featured Toggle */}
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                            <div>
-                                <p className="font-bold text-slate-800 text-xs">Featured Service</p>
-                                <p className="text-[10px] text-slate-500">Showcase this service in the featured solutions section on the homepage</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1 text-xs">
+                                        Description (English)
+                                    </label>
+                                    <textarea
+                                        rows={4}
+                                        value={catForm.description}
+                                        onChange={(e) => setCatForm({ ...catForm, description: e.target.value })}
+                                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:border-blue-500 resize-none leading-relaxed"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-700 font-bold mb-1 text-xs flex items-center gap-1.5">
+                                        <span>বিবরণ (বাংলা)</span>
+                                        <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono font-bold">BN</span>
+                                    </label>
+                                    <textarea
+                                        rows={4}
+                                        value={catForm.description_bn}
+                                        onChange={(e) => setCatForm({ ...catForm, description_bn: e.target.value })}
+                                        placeholder="বাংলায় ক্যাটাগরির বিস্তারিত বিবরণ..."
+                                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:border-blue-500 resize-none leading-relaxed"
+                                    />
+                                </div>
                             </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={data.is_featured}
-                                    onChange={(e) => setData('is_featured', e.target.checked)}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </div>
 
-                        {/* 7. Action Buttons */}
-                        <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={() => setModalOpen(false)}
-                                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-xs disabled:opacity-50 active:scale-95 transition-all"
-                            >
-                                {editingItem ? 'Update Service' : 'Create Service'}
-                            </button>
-                        </div>
-                    </form>
+                            <div className="pt-3 flex items-center justify-between border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingCategory(null)}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                                >
+                                    ← Back to Categories
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={catSaving}
+                                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs disabled:opacity-50"
+                                >
+                                    {catSaving ? 'Saving...' : 'Save Category Translations'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
                 </div>
             </Modal>
         </AdminLayout>

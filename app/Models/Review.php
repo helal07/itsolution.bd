@@ -14,8 +14,11 @@ class Review extends Model
         'user_id',
         'rating',
         'title',
+        'title_bn',
         'comment',
+        'comment_bn',
         'project_name',
+        'project_name_bn',
         'is_approved',
     ];
 

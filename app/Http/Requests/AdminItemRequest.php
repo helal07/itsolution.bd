@@ -18,9 +18,12 @@ class AdminItemRequest extends FormRequest
         return [
             'category_id' => ['required', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:150'],
+            'name_bn' => ['nullable', 'string', 'max:150'],
             'slug' => ['required', 'string', 'max:180', 'unique:items,slug,' . $itemId],
             'short_description' => ['nullable', 'string', 'max:500'],
+            'short_description_bn' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
+            'description_bn' => ['nullable', 'string'],
             'thumbnail' => ['nullable', 'string', 'max:500'],
             'thumbnail_file' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,svg,gif', 'max:10240'],
             'price' => ['nullable', 'numeric', 'min:0'],
