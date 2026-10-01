@@ -113,8 +113,6 @@ export default function Header() {
                             <MessageCircle className="w-3.5 h-3.5" />
                             <span>{t('whatsappSupport')}</span>
                         </a>
-
-                        <LanguageSwitcher />
                     </div>
                 </div>
             </div>
