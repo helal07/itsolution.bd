@@ -59,7 +59,7 @@ export default function AdminLayout({ children, title }) {
     const salesSubItems = [
         { href: '/admin/clients', label: 'Clients Directory', icon: Building2, permission: 'manage clients' },
         { href: '/admin/orders', label: 'Orders & Sales', icon: ShoppingBag, permission: 'manage sales' },
-        { href: '/admin/quotes', label: 'Quotations', icon: MessageSquare, permission: 'manage quotes' },
+        { href: '/admin/quotes', label: 'Quotations & Work Orders', icon: FileText, permission: 'manage quotes' },
         { href: '/admin/reorders', label: 'Subscriptions', icon: RefreshCw, permission: 'manage reorders' },
         { href: '/admin/users', label: 'Registered Users', icon: Users, permission: 'manage users' },
     ].filter(i => hasPerm(i.permission));

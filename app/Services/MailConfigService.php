@@ -123,4 +123,44 @@ class MailConfigService
             ];
         }
     }
+
+    /**
+     * Send official Quotation & Work Order Proposal to client email.
+     */
+    public static function sendQuoteProposal(\App\Models\Quote $quote): array
+    {
+        $configured = self::applySettings();
+        if (!$configured) {
+            return [
+                'success' => false,
+                'message' => 'SMTP Email Gateway is currently disabled or not configured in Settings.',
+            ];
+        }
+
+        if (empty($quote->email)) {
+            return [
+                'success' => false,
+                'message' => 'Quotation does not have a valid recipient email address.',
+            ];
+        }
+
+        try {
+            Mail::to($quote->email)->send(new \App\Mail\QuoteProposalMail($quote));
+
+            return [
+                'success' => true,
+                'message' => "Quotation proposal #{$quote->quote_number} emailed to {$quote->email} successfully.",
+            ];
+        } catch (\Throwable $e) {
+            Log::error('SMTP Quote Proposal Email Error: ' . $e->getMessage(), [
+                'quote_id' => $quote->id,
+                'email' => $quote->email,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to send proposal email: ' . $e->getMessage(),
+            ];
+        }
+    }
 }

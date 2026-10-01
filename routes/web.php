@@ -38,6 +38,8 @@ Route::get('/clients', [ClientsController::class, 'index'])->name('clients.index
 // Quotes
 Route::get('/get-a-quote', [QuoteController::class, 'create'])->name('quotes.create');
 Route::post('/quotes', [QuoteController::class, 'store'])->middleware('throttle:quotes')->name('quotes.store');
+Route::get('/quotes/view/{token}', [QuoteController::class, 'showPublic'])->name('quotes.public.view');
+Route::post('/quotes/sign/{token}', [QuoteController::class, 'sign'])->name('quotes.public.sign');
 
 // Live Typeahead & Search
 Route::get('/api/search', [SearchController::class, 'typeahead'])->middleware('throttle:search')->name('search.typeahead');

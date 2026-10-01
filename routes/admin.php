@@ -81,6 +81,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/quotes', [AdminQuoteController::class, 'store'])->name('quotes.store');
     Route::patch('/quotes/{quote}', [AdminQuoteController::class, 'update'])->name('quotes.update');
     Route::post('/quotes/{quote}/convert', [AdminQuoteController::class, 'convert'])->name('quotes.convert');
+    Route::post('/quotes/{quote}/send-email', [AdminQuoteController::class, 'sendEmail'])->name('quotes.send-email');
+    Route::post('/quotes/{quote}/sign-company', [AdminQuoteController::class, 'signCompany'])->name('quotes.sign-company');
     Route::delete('/quotes/{quote}', [AdminQuoteController::class, 'destroy'])->name('quotes.destroy');
 
     // Orders Management
