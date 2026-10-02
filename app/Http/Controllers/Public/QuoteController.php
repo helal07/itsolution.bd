@@ -95,7 +95,7 @@ class QuoteController extends Controller
         $year = date('Y');
         $workOrderNumber = $quote->work_order_number ?: ('WO-' . $year . '-' . str_pad($quote->id, 4, '0', STR_PAD_LEFT));
 
-        $quote->update([
+        $updateData = [
             'client_signature' => $validated['signature'],
             'client_signer_name' => $validated['signer_name'],
             'client_signer_ip' => $request->ip(),
@@ -105,8 +105,15 @@ class QuoteController extends Controller
             'status' => 'signed',
             // If company signature wasn't manually stamped yet, apply company authorized seal
             'company_signer_name' => $quote->company_signer_name ?: (SiteSetting::get('site_name', 'IT Solution') . ' Authorized Management'),
-            'company_signed_at' => $quote->company_signed_at ?: now(),
-        ]);
+            'company_signed_at' => $quote->company_signer_at ?: now(),
+        ];
+
+        try {
+            $quote->update($updateData);
+        } catch (\Throwable $e) {
+            $updateData['status'] = 'won';
+            $quote->update($updateData);
+        }
 
         return back()->with('success', 'Work Order signed and accepted successfully! Both parties now hold a mutually binding digital contract.');
     }

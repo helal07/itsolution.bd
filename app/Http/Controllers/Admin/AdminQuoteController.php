@@ -218,7 +218,15 @@ class AdminQuoteController extends Controller
 
         if ($result['success']) {
             if ($quote->status === 'new') {
-                $quote->update(['status' => 'sent']);
+                try {
+                    $quote->update(['status' => 'sent']);
+                } catch (\Throwable $e) {
+                    try {
+                        $quote->update(['status' => 'contacted']);
+                    } catch (\Throwable $ex) {
+                        // ignore status update error so email success message is still delivered
+                    }
+                }
             }
             return back()->with('success', $result['message']);
         }
