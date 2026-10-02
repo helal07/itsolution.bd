@@ -88,6 +88,22 @@ class AdminQuoteController extends Controller
         ]);
     }
 
+    public function create(): Response
+    {
+        $items = Item::select('id', 'name', 'price')->orderBy('name')->get();
+
+        return Inertia::render('Admin/Quotes/Create', [
+            'items' => $items,
+            'companyDetails' => [
+                'name' => SiteSetting::get('site_name', config('app.name', 'IT Solution')),
+                'logo' => SiteSetting::get('site_logo'),
+                'email' => SiteSetting::get('contact_email', 'contact@itsolution.bd'),
+                'phone' => SiteSetting::get('contact_phone', '+880 1800-000000'),
+                'address' => SiteSetting::get('company_address', 'Level 8, Software Technology Park, Dhaka, Bangladesh'),
+            ],
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -139,7 +155,7 @@ class AdminQuoteController extends Controller
 
         $quote = Quote::create($validated);
 
-        return back()->with('success', "Quotation #{$quote->quote_number} generated successfully.");
+        return redirect()->route('admin.quotes.index')->with('success', "Quotation #{$quote->quote_number} generated successfully.");
     }
 
     public function update(Request $request, Quote $quote): RedirectResponse

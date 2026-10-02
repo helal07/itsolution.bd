@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { 
     Plus, 
@@ -53,7 +53,6 @@ export default function Index({
     const [filterEndDate, setFilterEndDate] = useState(endDate);
     const [activeTab, setActiveTab] = useState(viewType === 'work_orders' ? 'work_orders' : 'all');
 
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [viewQuote, setViewQuote] = useState(null);
     const [editQuote, setEditQuote] = useState(null);
     const [copiedQuoteId, setCopiedQuoteId] = useState(null);
@@ -73,28 +72,7 @@ export default function Index({
         { percentage: 30, condition: '30% Upon Final Handover, Training & Deployment', amount: '' },
     ];
 
-    // 1. Create Form
-    const createForm = useForm({
-        name: '',
-        company_name: '',
-        email: '',
-        phone: '',
-        item_id: items[0]?.id || '',
-        project_title: '',
-        valid_until: '',
-        phases: defaultPhases,
-        subtotal: '',
-        discount: 0,
-        tax: 0,
-        total_amount: '',
-        payment_terms: defaultPaymentTerms,
-        terms_conditions: '',
-        message: '',
-        notes: '',
-        status: 'new',
-    });
-
-    // 2. Edit Form
+    // Edit Form
     const editForm = useForm({
         name: '',
         company_name: '',
@@ -118,54 +96,6 @@ export default function Index({
     // Helper to calculate phases sum
     const calculatePhasesTotal = (phasesList) => {
         return phasesList.reduce((acc, curr) => acc + (parseFloat(curr.cost) || 0), 0);
-    };
-
-    // Auto-update amounts when phases change in Create Form
-    const handleCreatePhaseChange = (index, field, value) => {
-        const updated = [...createForm.data.phases];
-        updated[index][field] = value;
-        
-        const newSubtotal = calculatePhasesTotal(updated);
-        const disc = parseFloat(createForm.data.discount) || 0;
-        const tx = parseFloat(createForm.data.tax) || 0;
-        const newTotal = Math.max(0, newSubtotal - disc + tx);
-
-        // Update payment terms amounts proportionally
-        const updatedTerms = (createForm.data.payment_terms || defaultPaymentTerms).map(term => ({
-            ...term,
-            amount: ((newTotal * (parseFloat(term.percentage) || 0)) / 100).toFixed(2),
-        }));
-
-        createForm.setData({
-            ...createForm.data,
-            phases: updated,
-            subtotal: newSubtotal,
-            total_amount: newTotal,
-            payment_terms: updatedTerms,
-        });
-    };
-
-    const addCreatePhase = () => {
-        const updated = [
-            ...createForm.data.phases,
-            { name: `Phase ${createForm.data.phases.length + 1}: Deliverable`, description: '', duration: '7 Days', cost: '' }
-        ];
-        createForm.setData('phases', updated);
-    };
-
-    const removeCreatePhase = (index) => {
-        const updated = createForm.data.phases.filter((_, i) => i !== index);
-        const newSubtotal = calculatePhasesTotal(updated);
-        const disc = parseFloat(createForm.data.discount) || 0;
-        const tx = parseFloat(createForm.data.tax) || 0;
-        const newTotal = Math.max(0, newSubtotal - disc + tx);
-
-        createForm.setData({
-            ...createForm.data,
-            phases: updated,
-            subtotal: newSubtotal,
-            total_amount: newTotal,
-        });
     };
 
     // Apply Standard 50-20-30 condition
@@ -249,41 +179,6 @@ export default function Index({
         setFilterStartDate('');
         setFilterEndDate('');
         router.get('/admin/quotes', activeTab === 'work_orders' ? { view_type: 'work_orders' } : {}, { preserveState: true });
-    };
-
-    const handleOpenCreate = () => {
-        createForm.reset();
-        createForm.setData({
-            name: '',
-            company_name: '',
-            email: '',
-            phone: '',
-            item_id: items[0]?.id || '',
-            project_title: '',
-            valid_until: '',
-            phases: defaultPhases,
-            subtotal: '',
-            discount: 0,
-            tax: 0,
-            total_amount: '',
-            payment_terms: defaultPaymentTerms,
-            terms_conditions: '',
-            message: '',
-            notes: '',
-            status: 'new',
-        });
-        setIsCreateModalOpen(true);
-    };
-
-    const handleCreateSubmit = (e) => {
-        e.preventDefault();
-        createForm.post('/admin/quotes', {
-            preserveScroll: true,
-            onSuccess: () => {
-                setIsCreateModalOpen(false);
-                createForm.reset();
-            },
-        });
     };
 
     const handleOpenEdit = (quote) => {
@@ -582,13 +477,13 @@ export default function Index({
                         </p>
                     </div>
 
-                    <button
-                        onClick={handleOpenCreate}
+                    <Link
+                        href="/admin/quotes/create"
                         className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
                     >
                         <Plus className="w-4 h-4" />
                         <span>Create Quotation</span>
-                    </button>
+                    </Link>
                 </div>
 
                 {/* 2. SUMMARY METRICS CARDS */}
@@ -924,357 +819,6 @@ export default function Index({
 
             </div>
 
-            {/* ======================================================== */}
-            {/* 1. CREATE QUOTATION MODAL (WITH DYNAMIC PHASES BUILDER) */}
-            {/* ======================================================== */}
-            <Modal show={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} maxWidth="2xl">
-                <div className="bg-white p-6 rounded-3xl text-slate-800 max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <div>
-                            <h2 className="font-black text-lg text-slate-900 tracking-tight flex items-center gap-2">
-                                <Plus className="w-5 h-5 text-blue-600" />
-                                Create Commercial Quotation &amp; Work Order
-                            </h2>
-                            <p className="text-xs text-slate-500">
-                                Configure project phases, required time, deliverables and payment schedule.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setIsCreateModalOpen(false)}
-                            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
-
-                    <form onSubmit={handleCreateSubmit} className="space-y-4 pt-4 text-xs">
-                        
-                        {/* Section A: Client Information */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                Step 1: Client &amp; Company Particulars
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Customer / Contact Person *</label>
-                                    <input
-                                        type="text"
-                                        value={createForm.data.name}
-                                        onChange={(e) => createForm.setData('name', e.target.value)}
-                                        placeholder="e.g. Helal Uddin"
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 focus:border-blue-500"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Company / Organization</label>
-                                    <input
-                                        type="text"
-                                        value={createForm.data.company_name}
-                                        onChange={(e) => createForm.setData('company_name', e.target.value)}
-                                        placeholder="e.g. Apex Global Corp"
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 focus:border-blue-500"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Client Email Address *</label>
-                                    <input
-                                        type="email"
-                                        value={createForm.data.email}
-                                        onChange={(e) => createForm.setData('email', e.target.value)}
-                                        placeholder="client@example.com"
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 focus:border-blue-500"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Contact Phone / WhatsApp</label>
-                                    <input
-                                        type="text"
-                                        value={createForm.data.phone}
-                                        onChange={(e) => createForm.setData('phone', e.target.value)}
-                                        placeholder="+880 1800 000000"
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-mono focus:border-blue-500"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Section B: Project Scope & Validity */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                Step 2: Project Scope &amp; Validity
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="sm:col-span-2">
-                                    <label className="block text-slate-700 font-bold mb-1">Project Title / Scope Name *</label>
-                                    <input
-                                        type="text"
-                                        value={createForm.data.project_title}
-                                        onChange={(e) => createForm.setData('project_title', e.target.value)}
-                                        placeholder="e.g. Enterprise ERP & Multi-Vendor Mobile App"
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-semibold focus:border-blue-500"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Quotation Valid Until</label>
-                                    <input
-                                        type="date"
-                                        value={createForm.data.valid_until}
-                                        onChange={(e) => createForm.setData('valid_until', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-mono focus:border-blue-500 cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Associated Tech Service / Product</label>
-                                    <select
-                                        value={createForm.data.item_id}
-                                        onChange={(e) => createForm.setData('item_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 focus:border-blue-500"
-                                    >
-                                        <option value="">-- Custom Engineering Solution --</option>
-                                        {items.map(i => (
-                                            <option key={i.id} value={i.id}>{i.name} (৳{parseFloat(i.price || 0).toLocaleString()})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-slate-700 font-bold mb-1">Pipeline Status</label>
-                                    <select
-                                        value={createForm.data.status}
-                                        onChange={(e) => createForm.setData('status', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 focus:border-blue-500"
-                                    >
-                                        <option value="new">New Inquiry</option>
-                                        <option value="contacted">Contacted / Negotiating</option>
-                                        <option value="sent">Proposal Sent</option>
-                                        <option value="won">Won / Approved</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Section C: Dynamic Project Phases, Duration & Cost Builder */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">
-                                        Step 3: Sequential Project Phases &amp; Deliverables
-                                    </span>
-                                    <h4 className="font-bold text-slate-900 text-xs">Define Required Time and Cost per Phase</h4>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={addCreatePhase}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-[11px] hover:bg-blue-500 cursor-pointer shadow-xs"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    <span>Add Phase</span>
-                                </button>
-                            </div>
-
-                            <div className="space-y-2.5">
-                                {createForm.data.phases.map((ph, idx) => (
-                                    <div key={idx} className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 relative">
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-bold text-slate-900 text-[11px]">Phase #{idx + 1}</span>
-                                            {createForm.data.phases.length > 1 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeCreatePhase(idx)}
-                                                    className="text-slate-400 hover:text-rose-600 p-1"
-                                                    title="Remove Phase"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                                            <div className="sm:col-span-2">
-                                                <input
-                                                    type="text"
-                                                    value={ph.name}
-                                                    onChange={(e) => handleCreatePhaseChange(idx, 'name', e.target.value)}
-                                                    placeholder="Phase Title (e.g. UI/UX Wireframing)"
-                                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-semibold text-xs text-slate-900"
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <input
-                                                    type="text"
-                                                    value={ph.duration}
-                                                    onChange={(e) => handleCreatePhaseChange(idx, 'duration', e.target.value)}
-                                                    placeholder="Duration (e.g. 7 Days)"
-                                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-800"
-                                                />
-                                            </div>
-                                            <div>
-                                                <input
-                                                    type="number"
-                                                    value={ph.cost}
-                                                    onChange={(e) => handleCreatePhaseChange(idx, 'cost', e.target.value)}
-                                                    placeholder="Cost (৳ BDT)"
-                                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-mono font-bold text-slate-900"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <textarea
-                                                rows="2"
-                                                value={ph.description}
-                                                onChange={(e) => handleCreatePhaseChange(idx, 'description', e.target.value)}
-                                                placeholder="Phase deliverables breakdown & technical scope details..."
-                                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700"
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Financial totals row */}
-                            <div className="grid grid-cols-3 gap-3 pt-2">
-                                <div>
-                                    <label className="block text-slate-600 font-bold mb-1">Subtotal (৳)</label>
-                                    <input
-                                        type="number"
-                                        value={createForm.data.subtotal}
-                                        readOnly
-                                        className="w-full px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 font-mono font-bold text-slate-900"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-600 font-bold mb-1">Discount (৳)</label>
-                                    <input
-                                        type="number"
-                                        value={createForm.data.discount}
-                                        onChange={(e) => {
-                                            const disc = parseFloat(e.target.value) || 0;
-                                            const sub = parseFloat(createForm.data.subtotal) || 0;
-                                            const tx = parseFloat(createForm.data.tax) || 0;
-                                            const tot = Math.max(0, sub - disc + tx);
-                                            createForm.setData({
-                                                ...createForm.data,
-                                                discount: disc,
-                                                total_amount: tot,
-                                            });
-                                        }}
-                                        className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 font-mono font-bold text-emerald-600"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-600 font-bold mb-1">Total Investment (৳)</label>
-                                    <input
-                                        type="number"
-                                        value={createForm.data.total_amount}
-                                        readOnly
-                                        className="w-full px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 font-mono font-bold text-blue-800 text-sm"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Section D: Contractual Payment Conditions (50% Advance / 20% Phase / 30% Delivery) */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">
-                                        Step 4: Contract Payment Conditions &amp; Milestones
-                                    </span>
-                                    <h4 className="font-bold text-slate-900 text-xs">Default Schedule (50% Advance &bull; 20% Milestone &bull; 30% Delivery)</h4>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => applyStandard502030(createForm)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 text-[10px] font-black hover:bg-blue-200 cursor-pointer"
-                                >
-                                    <Sparkles className="w-3 h-3" />
-                                    <span>Reset 50-20-30</span>
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                {(createForm.data.payment_terms || defaultPaymentTerms).map((term, idx) => (
-                                    <div key={idx} className="p-3 bg-white rounded-xl border border-slate-200 space-y-1.5">
-                                        <div className="flex justify-between items-center">
-                                            <span className="font-bold text-slate-700 text-[11px]">Milestone {idx + 1}</span>
-                                            <span className="font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[10px]">
-                                                {term.percentage}%
-                                            </span>
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={term.condition}
-                                            onChange={(e) => {
-                                                const updated = [...createForm.data.payment_terms];
-                                                updated[idx].condition = e.target.value;
-                                                createForm.setData('payment_terms', updated);
-                                            }}
-                                            className="w-full px-2 py-1 text-[11px] rounded border border-slate-200"
-                                        />
-                                        <div className="font-mono text-xs font-bold text-slate-900 text-right">
-                                            ৳{parseFloat(term.amount || ((createForm.data.total_amount || 0) * (term.percentage / 100))).toLocaleString()}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Section E: Internal Notes & Requirements */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Requirement Notes from Client</label>
-                                <textarea
-                                    rows="2"
-                                    value={createForm.data.message}
-                                    onChange={(e) => createForm.setData('message', e.target.value)}
-                                    placeholder="Initial client specifications..."
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-1">Internal Strategy Notes</label>
-                                <textarea
-                                    rows="2"
-                                    value={createForm.data.notes}
-                                    onChange={(e) => createForm.setData('notes', e.target.value)}
-                                    placeholder="Admin internal notes..."
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={() => setIsCreateModalOpen(false)}
-                                className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 cursor-pointer"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={createForm.processing}
-                                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md cursor-pointer flex items-center gap-1.5"
-                            >
-                                <Check className="w-4 h-4" />
-                                <span>{createForm.processing ? 'Creating...' : 'Save & Generate Quotation'}</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </Modal>
 
             {/* ======================================================== */}
             {/* 2. EDIT QUOTATION MODAL (PHASES & PAYMENT TERMS) */}

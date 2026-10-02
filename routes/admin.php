@@ -83,6 +83,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Quotes Management
     Route::get('/quotes', [AdminQuoteController::class, 'index'])->name('quotes.index');
+    Route::get('/quotes/create', [AdminQuoteController::class, 'create'])->name('quotes.create');
     Route::post('/quotes', [AdminQuoteController::class, 'store'])->name('quotes.store');
     Route::patch('/quotes/{quote}', [AdminQuoteController::class, 'update'])->name('quotes.update');
     Route::post('/quotes/{quote}/convert', [AdminQuoteController::class, 'convert'])->name('quotes.convert');
