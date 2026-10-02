@@ -10,16 +10,23 @@ use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\Quote;
 use App\Models\Reorder;
+use App\Models\Attendance;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
         $today = Carbon::today()->toDateString();
         $sevenDays = Carbon::today()->addDays(7)->toDateString();
+        $user = $request->user();
+
+        $todayAttendance = $user ? Attendance::where('user_id', $user->id)
+            ->whereDate('date', $today)
+            ->first() : null;
 
         $stats = [
             'total_items' => Item::count(),
@@ -63,6 +70,7 @@ class DashboardController extends Controller
             'recentQuotes' => $recentQuotes,
             'recentOrders' => $recentOrders,
             'expiringSubscriptions' => $expiringSubscriptions,
+            'todayAttendance' => $todayAttendance,
         ]);
     }
 }

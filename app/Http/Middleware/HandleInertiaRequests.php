@@ -41,6 +41,13 @@ class HandleInertiaRequests extends Middleware
                 'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name')->values()->toArray() : [],
                 'is_admin' => $request->user() ? $request->user()->isAdmin() : false,
                 'is_client' => $request->user() ? $request->user()->isClient() : false,
+                'today_attendance' => function () use ($request) {
+                    if (! $request->user()) return null;
+                    return \App\Models\Attendance::where('user_id', $request->user()->id)
+                        ->whereDate('date', now()->toDateString())
+                        ->select(['id', 'date', 'check_in_time', 'check_out_time', 'status', 'total_hours'])
+                        ->first();
+                },
             ],
             'siteSettings' => function () {
                 return SiteSetting::allCached();

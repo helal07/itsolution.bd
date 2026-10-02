@@ -603,6 +603,34 @@ export default function AdminLayout({ children, title }) {
 
                     {/* Right: Actions & User Info */}
                     <div className="flex items-center gap-2 sm:gap-3">
+                        {/* HRM Selfie Attendance Button (Visible on Mobile & Laptop) */}
+                        <Link
+                            href="/attendance"
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 border ${
+                                auth.today_attendance?.check_in_time && !auth.today_attendance?.check_out_time
+                                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                                    : auth.today_attendance?.check_out_time
+                                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                            }`}
+                            title="HRM Selfie Attendance (Check-in / Check-out)"
+                        >
+                            {!auth.today_attendance?.check_in_time ? (
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                </span>
+                            ) : null}
+                            <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="hidden sm:inline">Selfie Attendance</span>
+                            <span className="sm:hidden text-[11px]">Selfie</span>
+                            {auth.today_attendance?.check_in_time && !auth.today_attendance?.check_out_time ? (
+                                <span className="hidden md:inline-block text-[10px] bg-emerald-200/70 text-emerald-900 px-1.5 py-0.5 rounded font-mono font-bold">
+                                    {auth.today_attendance.check_in_time.substring(0, 5)}
+                                </span>
+                            ) : null}
+                        </Link>
+
                         <Link
                             href="/admin/profile"
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 text-xs font-bold transition-colors"
