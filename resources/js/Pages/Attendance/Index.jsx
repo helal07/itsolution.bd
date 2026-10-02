@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { formatDate, formatTime, formatFullDate } from '@/Utils/dateFormat';
 import { 
     Camera, 
     MapPin, 
@@ -309,7 +310,7 @@ export default function AttendanceIndex({
                                     <div className="flex items-center justify-between">
                                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-medium text-slate-200">
                                             <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                                            <span>{currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                                            <span>{formatFullDate(currentTime)}</span>
                                         </div>
 
                                         {/* Presence Status Badge */}
@@ -334,7 +335,7 @@ export default function AttendanceIndex({
                                     <div className="mt-6">
                                         <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Current Time</p>
                                         <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-white font-mono mt-1">
-                                            {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                            {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                                         </h2>
                                     </div>
 
@@ -343,11 +344,11 @@ export default function AttendanceIndex({
                                         <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
                                             <div>
                                                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Check-in Time</p>
-                                                <p className="text-sm font-bold text-white mt-0.5">{todayAttendance.check_in_time}</p>
+                                                <p className="text-sm font-bold text-white mt-0.5">{formatTime(todayAttendance.check_in_time)}</p>
                                             </div>
                                             <div>
                                                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Check-out Time</p>
-                                                <p className="text-sm font-bold text-white mt-0.5">{todayAttendance.check_out_time || '— Still Working'}</p>
+                                                <p className="text-sm font-bold text-white mt-0.5">{formatTime(todayAttendance.check_out_time, '— Still Working')}</p>
                                             </div>
                                             <div className="col-span-2 sm:col-span-1">
                                                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Total Logged</p>
@@ -481,7 +482,7 @@ export default function AttendanceIndex({
                                             myAttendances.map((att) => (
                                                 <tr key={att.id} className="hover:bg-slate-50/70 transition-colors">
                                                     <td className="py-3.5 px-4 font-bold text-slate-900">
-                                                        {att.date}
+                                                        {formatDate(att.date)}
                                                     </td>
                                                     <td className="py-3.5 px-4">
                                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
@@ -495,10 +496,10 @@ export default function AttendanceIndex({
                                                         </span>
                                                     </td>
                                                     <td className="py-3.5 px-4 font-mono font-medium">
-                                                        {att.check_in_time || '—'}
+                                                        {formatTime(att.check_in_time)}
                                                     </td>
                                                     <td className="py-3.5 px-4 font-mono font-medium">
-                                                        {att.check_out_time || '—'}
+                                                        {formatTime(att.check_out_time)}
                                                     </td>
                                                     <td className="py-3.5 px-4 font-bold text-blue-600">
                                                         {att.total_hours ? `${att.total_hours} hrs` : '—'}
@@ -546,12 +547,15 @@ export default function AttendanceIndex({
                                     <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
                                         Select Date
                                     </label>
-                                    <input
-                                        type="date"
-                                        value={filterDate}
-                                        onChange={handleDateFilter}
-                                        className="mt-1 font-bold text-sm text-slate-900 border-none bg-transparent p-0 focus:ring-0 cursor-pointer"
-                                    />
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <input
+                                            type="date"
+                                            value={filterDate}
+                                            onChange={handleDateFilter}
+                                            className="font-bold text-sm text-slate-900 border-none bg-transparent p-0 focus:ring-0 cursor-pointer"
+                                        />
+                                        <span className="text-xs text-slate-400 font-semibold">({formatDate(filterDate)})</span>
+                                    </div>
                                 </div>
                                 <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600">
                                     {teamAttendances.length} Active Logged
@@ -620,11 +624,11 @@ export default function AttendanceIndex({
                                             <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-xs text-slate-600">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-slate-400">Check-in Time:</span>
-                                                    <span className="font-bold text-slate-800 font-mono">{att.check_in_time || '—'}</span>
+                                                    <span className="font-bold text-slate-800 font-mono">{formatTime(att.check_in_time)}</span>
                                                 </div>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-slate-400">Check-out Time:</span>
-                                                    <span className="font-bold text-slate-800 font-mono">{att.check_out_time || 'In Progress'}</span>
+                                                    <span className="font-bold text-slate-800 font-mono">{formatTime(att.check_out_time, 'In Progress')}</span>
                                                 </div>
                                                 {att.total_hours && (
                                                     <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">

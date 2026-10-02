@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { formatDate } from '@/Utils/dateFormat';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -321,7 +322,7 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
                                                 </p>
                                             )}
                                             <p className="text-[10px] text-neutral-400 font-mono mt-2">
-                                                {new Date(req.created_at).toLocaleDateString()}
+                                                {formatDate(req.created_at)}
                                             </p>
                                         </div>
                                     ))
@@ -497,7 +498,7 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
                                                         <div>
                                                             <p className="text-sm font-bold text-white">{audio.original_name}</p>
                                                             <p className="text-[11px] text-neutral-400 font-mono">
-                                                                Uploaded by {audio.uploader?.name || 'Client'} &bull; {new Date(audio.created_at).toLocaleDateString()}
+                                                                Uploaded by {audio.uploader?.name || 'Client'} &bull; {formatDate(audio.created_at)}
                                                             </p>
                                                         </div>
                                                     </div>

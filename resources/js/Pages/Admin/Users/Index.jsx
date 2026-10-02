@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { formatDate } from '@/Utils/dateFormat';
 import { 
     Plus, 
     Edit2, 
@@ -349,7 +350,7 @@ export default function Index({ users, services = [], stats = {}, filters = {} }
 
                                                 {/* Registered Date */}
                                                 <td className="py-3.5 px-3 text-slate-500 font-medium whitespace-nowrap">
-                                                    {new Date(user.created_at).toLocaleDateString()}
+                                                    {formatDate(user.created_at)}
                                                 </td>
 
                                                 {/* Actions */}
@@ -435,7 +436,7 @@ export default function Index({ users, services = [], stats = {}, filters = {} }
                                         )}
                                     </div>
                                     <p className="text-xs text-slate-400 mt-0.5">
-                                        Registered on {new Date(viewingUser.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        Registered on {formatDate(viewingUser.created_at)}
                                     </p>
                                 </div>
                             </div>
@@ -525,7 +526,7 @@ export default function Index({ users, services = [], stats = {}, filters = {} }
                                                             {ord.status}
                                                         </span>
                                                     </td>
-                                                    <td className="px-3.5 py-2 text-slate-500">{new Date(ord.created_at).toLocaleDateString()}</td>
+                                                    <td className="px-3.5 py-2 text-slate-500">{formatDate(ord.created_at)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

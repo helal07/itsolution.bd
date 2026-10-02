@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { formatDate } from '@/Utils/dateFormat';
 import { usePage, useForm, Link, router } from '@inertiajs/react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
@@ -281,7 +282,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                                 </span>
                                                             </div>
                                                             <p className="text-xs text-neutral-500 font-mono">
-                                                                {order.transaction_id || `ORD-#${order.id}`} &bull; {order.item?.name} &bull; {new Date(order.created_at).toLocaleDateString()}
+                                                                {order.transaction_id || `ORD-#${order.id}`} &bull; {order.item?.name} &bull; {formatDate(order.created_at)}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -321,7 +322,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                         </div>
                                                         {order.delivery_date && (
                                                             <span className="text-[11px] text-neutral-500 font-mono">
-                                                                Target Delivery: {new Date(order.delivery_date).toLocaleDateString()}
+                                                                Target Delivery: {formatDate(order.delivery_date)}
                                                             </span>
                                                         )}
                                                     </div>
@@ -375,7 +376,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                         {order.item?.name || 'Security Software App'}
                                                     </h3>
                                                     <p className="text-xs text-neutral-500 font-mono">
-                                                        Invoice Ref: {order.transaction_id || `INV-#${order.id}`} &bull; Generated: {new Date(order.created_at).toLocaleDateString()}
+                                                        Invoice Ref: {order.transaction_id || `INV-#${order.id}`} &bull; Generated: {formatDate(order.created_at)}
                                                     </p>
                                                 </div>
 
@@ -654,7 +655,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                     Invoice Details
                                 </span>
                                 <p className="text-neutral-700">
-                                    <span className="text-neutral-400">Issue Date:</span> <span className="font-mono font-bold">{new Date(selectedReceiptOrder.created_at).toLocaleDateString()}</span>
+                                    <span className="text-neutral-400">Issue Date:</span> <span className="font-mono font-bold">{formatDate(selectedReceiptOrder.created_at)}</span>
                                 </p>
                                 <p className="text-neutral-700">
                                     <span className="text-neutral-400">Payment Gateway:</span> <span className="font-bold text-neutral-900">{selectedReceiptOrder.payment_method || 'Online'}</span>

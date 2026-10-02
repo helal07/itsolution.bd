@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { formatDate } from '@/Utils/dateFormat';
 import { 
     Plus, 
     X, 
@@ -260,8 +261,8 @@ export default function Index({
         const paidAmount = parseFloat(order.paid_amount || 0);
         const dueAmount = Math.max(0, netAmount - paidAmount);
         const invoiceId = order.transaction_id || `INV-${order.id.toString().padStart(6, '0')}`;
-        const date = new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+        const date = formatDate(order.created_at);
+        const dueDate = order.due_date ? formatDate(order.due_date) : null;
         const isPaid = order.payment_status === 'paid' || dueAmount <= 0;
         const isPartial = order.payment_status === 'partial' || (paidAmount > 0 && dueAmount > 0);
 
@@ -853,7 +854,7 @@ export default function Index({
                                                 {/* 1. Date & Invoice Reference */}
                                                 <td className="py-3 pl-4 pr-2 whitespace-nowrap">
                                                     <p className="font-mono text-slate-900 font-bold text-xs">
-                                                        {new Date(o.created_at).toLocaleDateString()}
+                                                        {formatDate(o.created_at)}
                                                     </p>
                                                     <p className="text-[10px] text-blue-600 font-mono font-semibold">
                                                         #{o.transaction_id || `ORD-${o.id}`}
@@ -924,7 +925,7 @@ export default function Index({
                                                             </span>
                                                             {o.due_date && (
                                                                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                                                    তাগিদ: {new Date(o.due_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                                                    তাগিদ: {formatDate(o.due_date)}
                                                                 </p>
                                                             )}
                                                         </div>
@@ -1581,7 +1582,7 @@ export default function Index({
                                 </div>
                                 {viewModalOrder.due_date && (
                                     <p className="text-[11px] text-slate-500 text-right pt-1">
-                                        বাকি পরিশোধের শেষ তারিখ: <strong className="font-mono text-slate-800">{new Date(viewModalOrder.due_date).toLocaleDateString()}</strong>
+                                        বাকি পরিশোধের শেষ তারিখ: <strong className="font-mono text-slate-800">{formatDate(viewModalOrder.due_date)}</strong>
                                     </p>
                                 )}
                             </div>
@@ -1610,7 +1611,7 @@ export default function Index({
                                             <tbody className="divide-y divide-slate-100">
                                                 {payments.map(p => (
                                                     <tr key={p.id}>
-                                                        <td className="p-2.5 pl-3 font-mono text-slate-600">{new Date(p.payment_date).toLocaleDateString()}</td>
+                                                        <td className="p-2.5 pl-3 font-mono text-slate-600">{formatDate(p.payment_date)}</td>
                                                         <td className="p-2.5 font-semibold text-slate-800">{p.payment_method}</td>
                                                         <td className="p-2.5 font-mono text-slate-500">{p.transaction_id || '—'}</td>
                                                         <td className="p-2.5 text-right font-mono font-bold text-emerald-600">৳{parseFloat(p.amount).toLocaleString()}</td>
@@ -1738,11 +1739,11 @@ export default function Index({
                                             Invoice Details (ইনভয়েস বিবরণ)
                                         </span>
                                         <p className="text-slate-700">
-                                            <span className="text-slate-400">Issue Date:</span> <strong className="font-semibold text-slate-900 ml-1">{new Date(invoiceModalOrder.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</strong>
+                                            <span className="text-slate-400">Issue Date:</span> <strong className="font-semibold text-slate-900 ml-1">{formatDate(invoiceModalOrder.created_at)}</strong>
                                         </p>
                                         {invoiceModalOrder.due_date && (
                                             <p className="text-slate-700">
-                                                <span className="text-slate-400">Due Date (বাকি পরিশোধ):</span> <strong className="font-bold text-red-600 ml-1">{new Date(invoiceModalOrder.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</strong>
+                                                <span className="text-slate-400">Due Date (বাকি পরিশোধ):</span> <strong className="font-bold text-red-600 ml-1">{formatDate(invoiceModalOrder.due_date)}</strong>
                                             </p>
                                         )}
                                         <p className="text-slate-700">

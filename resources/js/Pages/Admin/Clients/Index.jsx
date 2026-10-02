@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { formatDate } from '@/Utils/dateFormat';
 import { 
     Plus, 
     Edit2, 
@@ -1028,7 +1029,7 @@ export default function Index({ clients, services = [], users = [], billingStats
                                                         {getPaymentStatusBadge(o.payment_status || (oPaid >= oNet ? 'paid' : oPaid > 0 ? 'partial' : 'due'))}
                                                     </td>
                                                     <td className="p-2.5 font-mono text-slate-400 text-[11px]">
-                                                        {new Date(o.created_at).toLocaleDateString()}
+                                                        {formatDate(o.created_at)}
                                                     </td>
                                                     <td className="p-2.5">
                                                         <button
@@ -1309,7 +1310,7 @@ export default function Index({ clients, services = [], users = [], billingStats
                                     <div style={{ textAlign: 'right' }}>
                                         <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#3b82f6', margin: 0 }}>INVOICE</h2>
                                         <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0' }}>{invoiceOrder.transaction_id || `INV-${invoiceOrder.id}`}</p>
-                                        <p style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(invoiceOrder.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                                        <p style={{ fontSize: '10px', color: '#94a3b8' }}>{formatDate(invoiceOrder.created_at)}</p>
                                         <span className={`status-badge ${pStatus === 'paid' ? 'status-paid' : pStatus === 'partial' ? 'status-partial' : 'status-due'}`} style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, marginTop: '4px', background: pStatus === 'paid' ? '#dcfce7' : pStatus === 'partial' ? '#fef3c7' : '#fee2e2', color: pStatus === 'paid' ? '#16a34a' : pStatus === 'partial' ? '#d97706' : '#dc2626' }}>
                                             {pStatus === 'paid' ? 'PAID' : pStatus === 'partial' ? 'PARTIAL' : 'DUE'}
                                         </span>
@@ -1385,7 +1386,7 @@ export default function Index({ clients, services = [], users = [], billingStats
                                 {/* Due Date */}
                                 {invoiceOrder.due_date && oDue > 0 && (
                                     <p style={{ fontSize: '10px', color: '#dc2626', textAlign: 'right' }}>
-                                        ⏰ Payment Due by: {new Date(invoiceOrder.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        ⏰ Payment Due by: {formatDate(invoiceOrder.due_date)}
                                     </p>
                                 )}
 

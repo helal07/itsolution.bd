@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { formatTime } from '@/Utils/dateFormat';
 import { 
     LayoutDashboard, 
     Layers, 
@@ -626,7 +627,7 @@ export default function AdminLayout({ children, title }) {
                             <span className="sm:hidden text-[11px]">Selfie</span>
                             {auth.today_attendance?.check_in_time && !auth.today_attendance?.check_out_time ? (
                                 <span className="hidden md:inline-block text-[10px] bg-emerald-200/70 text-emerald-900 px-1.5 py-0.5 rounded font-mono font-bold">
-                                    {auth.today_attendance.check_in_time.substring(0, 5)}
+                                    {formatTime(auth.today_attendance.check_in_time)}
                                 </span>
                             ) : null}
                         </Link>

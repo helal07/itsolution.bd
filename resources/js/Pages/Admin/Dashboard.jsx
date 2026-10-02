@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { formatDate, formatTime } from '@/Utils/dateFormat';
 import { 
     Layers, 
     FolderGit2, 
@@ -44,9 +45,10 @@ export default function Dashboard({
         if (phone.startsWith('+')) phone = phone.replace('+', '');
 
         const days = item.days_remaining;
+        const formattedFinish = formatDate(item.finish_date);
         let urgencyText = days < 0 
-            ? `expired on ${item.finish_date}` 
-            : (days === 0 ? `finishes TODAY (${item.finish_date})` : `finishes on ${item.finish_date} (in ${days} days)`);
+            ? `expired on ${formattedFinish}` 
+            : (days === 0 ? `finishes TODAY (${formattedFinish})` : `finishes on ${formattedFinish} (in ${days} days)`);
 
         const message = `Dear ${item.client_name},\n\nThis is a renewal reminder from ${brandName} regarding your *${item.package_name}* (${item.billing_cycle} package).\n\nYour subscription ${urgencyText}.\nRenewal Amount: ৳${Number(item.price).toLocaleString()} BDT\n\nPlease let us know if you would like to renew.\n\nThank you,\n*${brandName}*`;
         const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
@@ -126,12 +128,12 @@ export default function Dashboard({
                                 {currentAttendance?.check_out_time ? (
                                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/20 text-white border border-white/30 flex items-center gap-1">
                                         <CheckCircle2 className="w-3 h-3 text-emerald-300" />
-                                        <span>Shift Completed ({currentAttendance.check_out_time})</span>
+                                        <span>Shift Completed ({formatTime(currentAttendance.check_out_time)})</span>
                                     </span>
                                 ) : currentAttendance?.check_in_time ? (
                                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white text-emerald-900 border border-white/40 flex items-center gap-1 shadow-2xs">
                                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                        <span>Checked In ({currentAttendance.check_in_time})</span>
+                                        <span>Checked In ({formatTime(currentAttendance.check_in_time)})</span>
                                     </span>
                                 ) : (
                                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-amber-950 flex items-center gap-1 animate-pulse shadow-2xs">
@@ -144,7 +146,7 @@ export default function Dashboard({
                                 {currentAttendance?.check_out_time
                                     ? `Great work! Your daily shift is recorded. Total tracked hours: ${currentAttendance.total_hours || '0'} hrs.`
                                     : currentAttendance?.check_in_time
-                                    ? `You are on duty since ${currentAttendance.check_in_time}. Remember to take check-out selfie when leaving!`
+                                    ? `You are on duty since ${formatTime(currentAttendance.check_in_time)}. Remember to take check-out selfie when leaving!`
                                     : 'Quick 1-tap selfie camera check-in for attendance from any phone or laptop.'}
                             </p>
                         </div>
@@ -324,7 +326,7 @@ export default function Dashboard({
                                         <div className="space-y-0.5 text-xs">
                                             <p className="font-semibold text-slate-800 text-[11px] truncate">{item.package_name}</p>
                                             <p className="text-[10px] text-slate-500 font-mono">
-                                                Finish: <span className="font-bold text-slate-700">{item.finish_date}</span> ({item.billing_cycle})
+                                                Finish: <span className="font-bold text-slate-700">{formatDate(item.finish_date)}</span> ({item.billing_cycle})
                                             </p>
                                         </div>
 

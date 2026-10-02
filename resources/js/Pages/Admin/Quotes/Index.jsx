@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { formatDate } from '@/Utils/dateFormat';
 import { 
     Plus, 
     X, 
@@ -341,8 +342,8 @@ export default function Index({
                         <div class="badge">${isWO ? 'Official Work Order' : 'Commercial Quotation'}</div>
                         <div class="ref-title">#${quote.quote_number || quote.id}</div>
                         <div style="font-size: 10px; color: #64748b; margin-top: 4px;">
-                            Date: ${new Date(quote.created_at || Date.now()).toLocaleDateString()}<br>
-                            ${quote.valid_until ? `Valid Until: ${new Date(quote.valid_until).toLocaleDateString()}` : ''}
+                            Date: ${formatDate(quote.created_at || Date.now())}<br>
+                            ${quote.valid_until ? `Valid Until: ${formatDate(quote.valid_until)}` : ''}
                         </div>
                     </div>
                 </div>
@@ -428,7 +429,7 @@ export default function Index({
                             }
                         </div>
                         <strong>Client Acceptance & Signature</strong><br>
-                        ${quote.client_signer_name || quote.name} ${quote.client_signed_at ? `(${new Date(quote.client_signed_at).toLocaleDateString()})` : ''}
+                        ${quote.client_signer_name || quote.name} ${quote.client_signed_at ? `(${formatDate(quote.client_signed_at)})` : ''}
                     </div>
                 </div>
             </body>
@@ -706,7 +707,7 @@ export default function Index({
                                                             <div>
                                                                 <div>Signed by {q.client_signer_name || 'Client'}</div>
                                                                 <span className="text-[10px] text-slate-400 font-mono block">
-                                                                    {q.client_signed_at ? new Date(q.client_signed_at).toLocaleDateString() : ''}
+                                                                    {q.client_signed_at ? formatDate(q.client_signed_at) : ''}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -1067,7 +1068,7 @@ export default function Index({
                                     #{viewQuote.quote_number || `QUO-${viewQuote.id}`}
                                 </h2>
                                 <p className="text-xs text-slate-500">
-                                    Prepared by {brandName} &bull; Date: {new Date(viewQuote.created_at || Date.now()).toLocaleDateString()}
+                                    Prepared by {brandName} &bull; Date: {formatDate(viewQuote.created_at || Date.now())}
                                 </p>
                             </div>
 

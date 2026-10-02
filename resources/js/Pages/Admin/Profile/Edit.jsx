@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { formatDate } from '@/Utils/dateFormat';
 import { useForm, usePage } from '@inertiajs/react';
 import { 
     User, 
@@ -368,7 +369,7 @@ export default function Edit({ user, employee }) {
                                 <div className="py-2 flex items-center justify-between">
                                     <span className="text-slate-500">Registered:</span>
                                     <span className="text-slate-600 font-mono text-[11px]">
-                                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Active'}
+                                        {formatDate(user.created_at, 'Active')}
                                     </span>
                                 </div>
                             </div>

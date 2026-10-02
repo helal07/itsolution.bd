@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm } from '@inertiajs/react';
+import { formatDate } from '@/Utils/dateFormat';
 import { Star, Trash2, Edit2, X, User } from 'lucide-react';
 import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
@@ -127,7 +128,7 @@ export default function Index({ reviews }) {
                                         <User className="w-3 h-3 text-slate-400" />
                                         <span className="text-slate-700 font-semibold">{review.user?.name || 'Client'}</span>
                                         <span>&bull;</span>
-                                        <span>{new Date(review.created_at).toLocaleDateString()}</span>
+                                        <span>{formatDate(review.created_at)}</span>
                                     </div>
                                 </div>
 

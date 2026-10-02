@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Head, useForm } from '@inertiajs/react';
+import { formatDate, formatDateTime } from '@/Utils/dateFormat';
 import { 
     Printer, 
     Share2, 
@@ -300,10 +301,10 @@ export default function QuoteView({ quote, companyDetails = {} }) {
                                 </div>
                             )}
                             <div className="text-xs text-slate-500 space-y-0.5 pt-1">
-                                <div><strong>Date:</strong> {quote.created_at ? new Date(quote.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}</div>
+                                <div><strong>Date:</strong> {formatDate(quote.created_at)}</div>
                                 {quote.valid_until && (
                                     <div className="text-amber-700 font-medium">
-                                        <strong>Valid Until:</strong> {new Date(quote.valid_until).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        <strong>Valid Until:</strong> {formatDate(quote.valid_until)}
                                     </div>
                                 )}
                             </div>
@@ -563,7 +564,7 @@ export default function QuoteView({ quote, companyDetails = {} }) {
                                     <div className="font-bold">{quote.company_signer_name || 'Managing Director & Authorized Signatory'}</div>
                                     <div className="text-slate-500">{brandName} Operations</div>
                                     <div className="text-[10px] text-slate-400">
-                                        Date: {quote.company_signed_at ? new Date(quote.company_signed_at).toLocaleDateString() : new Date().toLocaleDateString()}
+                                        Date: {formatDate(quote.company_signed_at || new Date())}
                                     </div>
                                 </div>
                             </div>
@@ -590,7 +591,7 @@ export default function QuoteView({ quote, companyDetails = {} }) {
                                             <div className="font-bold text-emerald-700">{quote.client_signer_name}</div>
                                             <div className="text-slate-500">{quote.company_name || 'Authorized Client'}</div>
                                             <div className="text-[10px] text-slate-400">
-                                                Signed: {new Date(quote.client_signed_at).toLocaleString()} &bull; IP: {quote.client_signer_ip || 'Verified'}
+                                                Signed: {formatDateTime(quote.client_signed_at)} &bull; IP: {quote.client_signer_ip || 'Verified'}
                                             </div>
                                         </div>
                                     </>
