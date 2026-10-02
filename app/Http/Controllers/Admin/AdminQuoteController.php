@@ -10,6 +10,7 @@ use App\Models\Quote;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\MailConfigService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -153,7 +154,19 @@ class AdminQuoteController extends Controller
             $validated['estimated_budget'] = $validated['total_amount'];
         }
 
-        $quote = Quote::create($validated);
+        $maxRetries = 3;
+        $quote = null;
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $quote = Quote::create($validated);
+                break;
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempt >= $maxRetries) {
+                    throw $e;
+                }
+                unset($validated['quote_number']);
+            }
+        }
 
         return redirect()->route('admin.quotes.index')->with('success', "Quotation #{$quote->quote_number} generated successfully.");
     }

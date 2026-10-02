@@ -66,19 +66,51 @@ class Quote extends Model
     {
         static::creating(function (Quote $quote) {
             if (empty($quote->public_token)) {
-                $quote->public_token = Str::random(40);
+                do {
+                    $token = Str::random(40);
+                } while (static::where('public_token', $token)->exists());
+                $quote->public_token = $token;
             }
 
             if (empty($quote->quote_number)) {
-                $year = date('Y');
-                $nextSeq = (static::whereYear('created_at', $year)->count() + 1);
-                $quote->quote_number = 'QUO-' . $year . '-' . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
+                $quote->quote_number = static::generateQuoteNumber();
             }
 
             if (empty($quote->currency)) {
                 $quote->currency = 'BDT';
             }
         });
+    }
+
+    /**
+     * Generate a collision-free sequential quotation number.
+     * Pattern: QUO-{YYYY}-{0001}
+     */
+    public static function generateQuoteNumber(): string
+    {
+        $year = date('Y');
+        $prefix = "QUO-{$year}-";
+
+        // Query the highest existing sequence number for this year's prefix
+        $latest = static::where('quote_number', 'like', "{$prefix}%")
+            ->orderByRaw('LENGTH(quote_number) DESC, quote_number DESC')
+            ->value('quote_number');
+
+        $nextSeq = 1;
+        if ($latest && preg_match('/QUO-\d{4}-(\d+)/', $latest, $matches)) {
+            $nextSeq = ((int) $matches[1]) + 1;
+        }
+
+        // Loop to guarantee no conflict with any manual, restored, or existing entries
+        do {
+            $candidate = $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
+            $exists = static::where('quote_number', $candidate)->exists();
+            if ($exists) {
+                $nextSeq++;
+            }
+        } while ($exists);
+
+        return $candidate;
     }
 
     public function item(): BelongsTo

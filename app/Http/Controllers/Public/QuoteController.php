@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Item;
 use App\Models\Quote;
 use App\Models\SiteSetting;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -41,7 +42,18 @@ class QuoteController extends Controller
         $validated['status'] = 'new';
         $validated['total_amount'] = $validated['estimated_budget'] ?? 0;
 
-        Quote::create($validated);
+        $maxRetries = 3;
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                Quote::create($validated);
+                break;
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempt >= $maxRetries) {
+                    throw $e;
+                }
+                unset($validated['quote_number']);
+            }
+        }
 
         return back()->with('success', 'Your quote request has been received! Our team will reach out to you within 24 business hours.');
     }
