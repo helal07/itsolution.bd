@@ -61,7 +61,8 @@ Route::middleware('auth')->group(function () {
     // Client & Staff Order Requirements & Multimedia Hub
     Route::get('/orders/{order}/requirements', [\App\Http\Controllers\Client\ClientRequirementController::class, 'show'])->name('orders.requirements.show');
     Route::post('/orders/{order}/requirements', [\App\Http\Controllers\Client\ClientRequirementController::class, 'store'])->name('orders.requirements.store');
-    Route::post('/orders/{order}/requirements/{requirement}/attachments', [\App\Http\Controllers\Client\ClientRequirementController::class, 'storeAttachment'])->name('orders.requirements.attachments.store');
+    Route::post('/orders/{order}/requirements/{requirementId?}/attachments', [\App\Http\Controllers\Client\ClientRequirementController::class, 'storeAttachment'])->name('orders.requirements.attachments.store');
+    Route::post('/orders/{order}/attachments', [\App\Http\Controllers\Client\ClientRequirementController::class, 'storeAttachment'])->name('orders.attachments.store');
     Route::delete('/attachments/{attachment}', [\App\Http\Controllers\Client\ClientRequirementController::class, 'destroyAttachment'])->name('orders.requirements.attachments.destroy');
 
     // Staff Task Execution & Checklist

@@ -107,12 +107,30 @@ class ClientRequirementController extends Controller
     /**
      * Upload an attachment (Image, Voice Note Audio, Video, Document or External Link).
      */
-    public function storeAttachment(Request $request, Order $order, OrderRequirement $requirement): RedirectResponse
+    public function storeAttachment(Request $request, Order $order, $requirementId = null): RedirectResponse
     {
         $this->authorizeOrderAccess($request, $order);
 
-        if ($requirement->order_id !== $order->id) {
-            abort(404);
+        $requirement = null;
+        if (!empty($requirementId) && is_numeric($requirementId)) {
+            $requirement = OrderRequirement::where('id', $requirementId)
+                ->where('order_id', $order->id)
+                ->first();
+        }
+
+        if (!$requirement) {
+            $requirement = $order->requirements()->first();
+        }
+
+        if (!$requirement) {
+            $requirement = OrderRequirement::create([
+                'order_id' => $order->id,
+                'client_id' => $order->client_id,
+                'user_id' => $request->user()->id,
+                'title' => 'Project Requirements & Media Assets',
+                'description' => 'Client uploaded media briefings and design assets.',
+                'status' => 'submitted',
+            ]);
         }
 
         $validated = $request->validate([

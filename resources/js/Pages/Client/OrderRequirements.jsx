@@ -128,7 +128,7 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
     };
 
     const uploadVoiceNote = () => {
-        if (!recordedAudioBlob || !activeRequirement) return;
+        if (!recordedAudioBlob) return;
 
         const file = new File([recordedAudioBlob], `Voice_Note_${new Date().toISOString().slice(0, 10)}.webm`, {
             type: 'audio/webm'
@@ -140,7 +140,12 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
         formData.append('original_name', `Client Voice Briefing (${recordingTime}s)`);
         formData.append('duration_seconds', recordingTime);
 
-        router.post(route('orders.requirements.attachments.store', [order.id, activeRequirement.id]), formData, {
+        const targetReqId = activeRequirement?.id || (order.requirements?.[0]?.id) || '';
+        const uploadUrl = targetReqId 
+            ? route('orders.requirements.attachments.store', [order.id, targetReqId])
+            : route('orders.attachments.store', order.id);
+
+        router.post(uploadUrl, formData, {
             onSuccess: () => {
                 cancelRecording();
             }
@@ -150,13 +155,37 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
     // Generic file upload submit
     const handleFileUpload = (e) => {
         e.preventDefault();
-        if (!activeRequirement) {
-            alert('Please select or create a requirement section first.');
+
+        const computedFileType = activeTab === 'links' ? 'link' : (activeTab === 'images' ? 'image' : activeTab.slice(0, -1));
+
+        if (computedFileType !== 'link' && !fileData.file) {
+            alert('Please choose a file to upload first.');
             return;
         }
 
-        fileData.file_type = activeTab === 'links' ? 'link' : activeTab.slice(0, -1); // singular form
-        postFile(route('orders.requirements.attachments.store', [order.id, activeRequirement.id]), {
+        if (computedFileType === 'link' && !fileData.external_url) {
+            alert('Please enter a valid URL link.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file_type', computedFileType);
+        if (fileData.file) {
+            formData.append('file', fileData.file);
+        }
+        if (fileData.external_url) {
+            formData.append('external_url', fileData.external_url);
+        }
+        if (fileData.original_name) {
+            formData.append('original_name', fileData.original_name);
+        }
+
+        const targetReqId = activeRequirement?.id || (order.requirements?.[0]?.id) || '';
+        const uploadUrl = targetReqId 
+            ? route('orders.requirements.attachments.store', [order.id, targetReqId])
+            : route('orders.attachments.store', order.id);
+
+        router.post(uploadUrl, formData, {
             onSuccess: () => {
                 resetFile();
                 // Reset file input element
