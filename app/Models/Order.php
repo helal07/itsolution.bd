@@ -14,6 +14,7 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'client_id',
+        'quote_id',
         'item_id',
         'project_name',
         'amount',
@@ -77,6 +78,11 @@ class Order extends Model
             $this->payment_status = 'partial';
         }
         $this->saveQuietly();
+    }
+
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
     }
 
     public function user(): BelongsTo

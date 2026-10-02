@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Item;
 use App\Models\Quote;
 use App\Models\SiteSetting;
+use App\Services\QuoteOrderConversionService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -115,6 +116,18 @@ class QuoteController extends Controller
             $quote->update($updateData);
         }
 
-        return back()->with('success', 'Work Order signed and accepted successfully! Both parties now hold a mutually binding digital contract.');
+        // Automatic Pipeline: Convert Signed Quote to Order, CRM Client & Portal User
+        $conversion = QuoteOrderConversionService::convert($quote, 'Client Signatory: ' . $validated['signer_name']);
+
+        $msg = 'Work Order signed and accepted successfully! Both parties now hold a mutually binding digital contract.';
+        if (!empty($conversion['newUserCreated'])) {
+            $msg .= " A client portal account was created and your access credentials have been sent to {$quote->email}.";
+        }
+
+        return back()->with('success', $msg)->with('conversion', [
+            'order_id' => $conversion['order']->id ?? null,
+            'email' => $quote->email,
+            'user_created' => $conversion['newUserCreated'] ?? false,
+        ]);
     }
 }

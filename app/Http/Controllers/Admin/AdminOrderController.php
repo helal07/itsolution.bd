@@ -23,7 +23,7 @@ class AdminOrderController extends Controller
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
 
-        $query = Order::with(['user', 'client', 'item.category', 'payments', 'requirements.attachments', 'tasks.assignee']);
+        $query = Order::with(['user', 'client', 'item.category', 'payments', 'requirements.attachments', 'tasks.assignee', 'quote']);
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);

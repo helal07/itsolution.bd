@@ -10,6 +10,7 @@ use App\Models\Quote;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\MailConfigService;
+use App\Services\QuoteOrderConversionService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class AdminQuoteController extends Controller
         $endDate = $request->query('end_date');
         $viewType = $request->query('view_type'); // 'work_orders' or null
 
-        $query = Quote::with('item');
+        $query = Quote::with(['item', 'order']);
 
         if ($viewType === 'work_orders') {
             $query->where(function ($q) {
@@ -255,122 +256,14 @@ class AdminQuoteController extends Controller
 
     public function convert(Request $request, Quote $quote): RedirectResponse
     {
-        // 1. Find or create Client
-        $client = null;
-        if (!empty($quote->phone)) {
-            $client = Client::where('phone', $quote->phone)->first();
-        }
-        if (!$client && !empty($quote->email)) {
-            $client = Client::where('email', $quote->email)->first();
-        }
-
-        if (!$client) {
-            $client = Client::create([
-                'name' => $quote->company_name ?: $quote->name,
-                'contact_person' => $quote->name,
-                'email' => $quote->email,
-                'phone' => $quote->phone,
-                'rating' => 5,
-                'is_active' => true,
-            ]);
-        }
-
-        // 2. Find or create Client User Account
-        $newUserCreated = false;
-        $plainPassword = null;
-        $user = null;
-
-        if (!empty($quote->email)) {
-            $user = User::where('email', $quote->email)->first();
-        }
-        if (!$user && !empty($quote->phone)) {
-            $user = User::where('phone', $quote->phone)->first();
-        }
-
-        if (!$user) {
-            // Generate temporary password
-            $plainPassword = 'ITS@' . rand(100000, 999999);
-            $user = User::create([
-                'name' => $quote->name ?: ($quote->company_name ?: 'Client User'),
-                'email' => $quote->email ?: ('client_' . time() . '@itsolution.bd'),
-                'phone' => $quote->phone,
-                'password' => \Illuminate\Support\Facades\Hash::make($plainPassword),
-                'role' => 'client',
-            ]);
-            $newUserCreated = true;
-
-            // Spatie role assignment if role exists
-            if (class_exists(\Spatie\Permission\Models\Role::class) && \Spatie\Permission\Models\Role::where('name', 'Client')->exists()) {
-                $user->assignRole('Client');
-            }
-        }
-
-        // 3. Create Order
-        $amount = (float) ($quote->total_amount ?: ($quote->estimated_budget ?: ($quote->item ? $quote->item->price : 5000)));
-        $orderNotes = 'Converted from Quotation #' . ($quote->quote_number ?: $quote->id);
-        if ($quote->is_work_order) {
-            $orderNotes .= "\nOfficial Work Order #" . ($quote->work_order_number ?: $quote->id);
-            if ($quote->client_signer_name) {
-                $orderNotes .= " (Signed by " . $quote->client_signer_name . " on " . ($quote->client_signed_at ? $quote->client_signed_at->format('d M, Y') : 'N/A') . ")";
-            }
-        }
-
-        if ($newUserCreated && $plainPassword) {
-            $orderNotes .= "\n[System] Auto-generated client account:\nEmail: " . $user->email . "\nTemp Password: " . $plainPassword;
-        }
-
-        $order = Order::create([
-            'client_id' => $client->id,
-            'user_id' => $user->id,
-            'item_id' => $quote->item_id,
-            'project_name' => $quote->project_title ?: ($quote->item ? $quote->item->name : 'Project for ' . $client->name),
-            'amount' => $amount,
-            'currency' => $quote->currency ?: 'BDT',
-            'status' => 'pending',
-            'progress' => 0,
-            'payment_method' => 'bKash',
-            'transaction_id' => 'INV-' . strtoupper(substr(uniqid(), -6)),
-            'added_by' => $request->user()->name ?? 'Admin',
-            'notes' => $orderNotes,
-        ]);
-
-        // 4. Create Initial OrderRequirements for each Phase
-        if (!empty($quote->phases) && is_array($quote->phases)) {
-            foreach ($quote->phases as $idx => $phase) {
-                \App\Models\OrderRequirement::create([
-                    'order_id' => $order->id,
-                    'client_id' => $client->id,
-                    'user_id' => $user->id,
-                    'title' => ($idx + 1) . '. ' . ($phase['name'] ?? 'Phase Milestone'),
-                    'description' => ($phase['description'] ?? '') . "\nRequired Time: " . ($phase['duration'] ?? 'N/A') . " | Phase Cost: ৳" . number_format($phase['cost'] ?? 0, 2),
-                    'status' => 'submitted',
-                ]);
-            }
-        } elseif (!empty($quote->message)) {
-            \App\Models\OrderRequirement::create([
-                'order_id' => $order->id,
-                'client_id' => $client->id,
-                'user_id' => $user->id,
-                'title' => 'Initial Quotation Scope & Details',
-                'description' => $quote->message,
-                'status' => 'submitted',
-            ]);
-        }
-
-        // 5. Mark Quote Won & Work Order converted
-        $quote->update([
-            'status' => 'won',
-            'is_work_order' => true,
-        ]);
+        $result = QuoteOrderConversionService::convert($quote, $request->user()->name ?? 'Admin');
+        $order = $result['order'];
 
         $successMsg = 'Quotation converted to Order #' . $order->id . ' successfully!';
-        if ($newUserCreated && $plainPassword) {
-            $successMsg .= ' Client account created (Email: ' . $user->email . ' | Password: ' . $plainPassword . ').';
-
-            // Send notification email via SMTP Gateway
-            $emailResult = MailConfigService::sendClientAccountNotification($user, $plainPassword, $order);
-            if ($emailResult['success']) {
-                $successMsg .= ' [Email: Sent to client successfully]';
+        if ($result['newUserCreated'] && $result['plainPassword']) {
+            $successMsg .= ' Client account created (Email: ' . $result['user']->email . ' | Password: ' . $result['plainPassword'] . ').';
+            if ($result['emailSent']) {
+                $successMsg .= ' [Credentials emailed to client]';
             }
         }
 

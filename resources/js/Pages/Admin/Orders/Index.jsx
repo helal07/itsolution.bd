@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { formatDate } from '@/Utils/dateFormat';
 import { 
@@ -883,15 +883,27 @@ export default function Index({
                                                         <span>&bull;</span>
                                                         <span>{o.payment_method || 'Online'}</span>
                                                     </div>
-                                                    {o.requirements && o.requirements.length > 0 && (
-                                                        <a
-                                                            href={route('orders.requirements.show', o.id)}
-                                                            className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200 hover:bg-purple-100 transition mt-1"
-                                                        >
-                                                            <Paperclip className="w-2.5 h-2.5" />
-                                                            <span>{o.requirements.length} Briefing Media</span>
-                                                        </a>
-                                                    )}
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                        {o.quote && (
+                                                            <Link
+                                                                href={`/admin/quotes?search=${o.quote.quote_number || o.quote.id}`}
+                                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200 transition"
+                                                                title="View Origin Quotation / Work Order"
+                                                            >
+                                                                <FileText className="w-2.5 h-2.5" />
+                                                                <span>#{o.quote.quote_number || `QUO-${o.quote.id}`}</span>
+                                                            </Link>
+                                                        )}
+                                                        {o.requirements && o.requirements.length > 0 && (
+                                                            <a
+                                                                href={route('orders.requirements.show', o.id)}
+                                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200 hover:bg-purple-100 transition"
+                                                            >
+                                                                <Paperclip className="w-2.5 h-2.5" />
+                                                                <span>{o.requirements.length} Briefing Media</span>
+                                                            </a>
+                                                        )}
+                                                    </div>
                                                 </td>
 
                                                 {/* 4. Net Bill (মোট বিল) */}

@@ -594,6 +594,25 @@ export default function QuoteView({ quote, companyDetails = {} }) {
                                                 Signed: {formatDateTime(quote.client_signed_at)} &bull; IP: {quote.client_signer_ip || 'Verified'}
                                             </div>
                                         </div>
+
+                                        <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 no-print">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-slate-900 leading-tight">Client Portal &amp; Workspace Ready</p>
+                                                    <p className="text-[11px] text-slate-500">Access your portal to submit project requirements &amp; track progress.</p>
+                                                </div>
+                                            </div>
+                                            <a
+                                                href="/login"
+                                                className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition flex items-center gap-1.5 flex-shrink-0 shadow-sm"
+                                            >
+                                                <span>Open Portal</span>
+                                                <ArrowRight className="w-3.5 h-3.5" />
+                                            </a>
+                                        </div>
                                     </>
                                 ) : (
                                     /* Interactive Signature Pad Form (Client Sign) */

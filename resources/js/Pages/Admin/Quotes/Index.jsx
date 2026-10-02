@@ -22,6 +22,7 @@ import {
     Printer,
     Share2,
     DollarSign,
+    ShoppingBag,
     Layers,
     ShieldCheck,
     PenTool,
@@ -721,19 +722,33 @@ export default function Index({
 
                                                 {/* Status */}
                                                 <td className="py-3.5 px-3 whitespace-nowrap">
-                                                    <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${
-                                                        q.status === 'won' || q.status === 'signed'
-                                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                            : q.status === 'contacted'
-                                                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                                            : q.status === 'sent'
-                                                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                                            : q.status === 'lost'
-                                                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                    }`}>
-                                                        {q.status}
-                                                    </span>
+                                                    <div className="space-y-1">
+                                                        <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${
+                                                            q.status === 'won' || q.status === 'signed'
+                                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                                : q.status === 'contacted'
+                                                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                                                : q.status === 'sent'
+                                                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                                                : q.status === 'lost'
+                                                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                        }`}>
+                                                            {q.status}
+                                                        </span>
+                                                        {q.order && (
+                                                            <div>
+                                                                <Link
+                                                                    href={`/admin/orders?search=${q.order.id}`}
+                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition-colors"
+                                                                    title="View connected Order"
+                                                                >
+                                                                    <ShoppingBag className="w-2.5 h-2.5" />
+                                                                    <span>Order #{q.order.id}</span>
+                                                                </Link>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </td>
 
                                                 {/* Actions */}
@@ -794,11 +809,19 @@ export default function Index({
                                                                 label="Edit Phases & Milestones"
                                                                 onClick={() => handleOpenEdit(q)}
                                                             />
-                                                            <ActionItem
-                                                                icon={Briefcase}
-                                                                label="Convert to Active Order"
-                                                                onClick={() => handleConvertToOrder(q)}
-                                                            />
+                                                            {q.order ? (
+                                                                <ActionItem
+                                                                    icon={ShoppingBag}
+                                                                    label={`View Order #${q.order.id}`}
+                                                                    onClick={() => router.visit(`/admin/orders?search=${q.order.id}`)}
+                                                                />
+                                                            ) : (
+                                                                <ActionItem
+                                                                    icon={Briefcase}
+                                                                    label="Convert to Active Order"
+                                                                    onClick={() => handleConvertToOrder(q)}
+                                                                />
+                                                            )}
                                                             <ActionItem
                                                                 icon={Trash2}
                                                                 label="Delete Quotation"
