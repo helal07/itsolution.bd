@@ -60,7 +60,7 @@ class ClientRequirementController extends Controller
                 ])->orderBy('id', 'desc');
             },
             'tasks' => function ($q) {
-                $q->with(['assignee:id,name,designation,avatar', 'steps'])
+                $q->with(['assignee:id,name,designation,avatar', 'steps.assignee:id,name'])
                   ->orderBy('id', 'desc');
             }
         ]);
@@ -92,7 +92,16 @@ class ClientRequirementController extends Controller
             'status' => 'submitted',
         ]);
 
-        return back()->with('success', 'Requirements added successfully. You can now attach images, audio notes, or videos.');
+        // Dispatch alert notification to assigned team members and admin
+        \App\Services\MailConfigService::sendClientDirectiveNotification(
+            order: $order,
+            requirement: $requirement,
+            attachment: null,
+            uploader: $request->user(),
+            type: 'New Client Directive / Requirement'
+        );
+
+        return back()->with('success', 'Directive added successfully and assigned team members notified.');
     }
 
     /**
@@ -132,7 +141,7 @@ class ClientRequirementController extends Controller
             $originalName = $originalName ?: 'External Resource / Video Link';
         }
 
-        OrderAttachment::create([
+        $attachment = OrderAttachment::create([
             'order_requirement_id' => $requirement->id,
             'file_type' => $validated['file_type'],
             'file_path' => $filePath,
@@ -143,7 +152,16 @@ class ClientRequirementController extends Controller
             'uploaded_by' => $request->user()->id,
         ]);
 
-        return back()->with('success', ucfirst($validated['file_type']) . ' attached successfully!');
+        // Dispatch alert notification to assigned team members and admin
+        \App\Services\MailConfigService::sendClientDirectiveNotification(
+            order: $order,
+            requirement: $requirement,
+            attachment: $attachment,
+            uploader: $request->user(),
+            type: 'New Media / Attachment Uploaded (' . ucfirst($validated['file_type']) . ')'
+        );
+
+        return back()->with('success', ucfirst($validated['file_type']) . ' uploaded successfully and assigned team notified!');
     }
 
     /**

@@ -80,6 +80,52 @@ class Order extends Model
         $this->saveQuietly();
     }
 
+    /**
+     * Recalculate and synchronize overall order progress and status from linked tasks and subtasks.
+     */
+    public function recalculateProgress(): void
+    {
+        $tasks = $this->tasks()->with('steps')->get();
+        if ($tasks->isEmpty()) {
+            return;
+        }
+
+        $totalSteps = 0;
+        $completedSteps = 0;
+        $hasSteps = false;
+
+        foreach ($tasks as $task) {
+            $count = $task->steps->count();
+            if ($count > 0) {
+                $hasSteps = true;
+                $totalSteps += $count;
+                $completedSteps += $task->steps->where('is_completed', true)->count();
+            }
+        }
+
+        if ($hasSteps && $totalSteps > 0) {
+            $calculatedProgress = (int) round(($completedSteps / $totalSteps) * 100);
+        } else {
+            $calculatedProgress = (int) round($tasks->avg('progress') ?? 0);
+        }
+
+        $calculatedProgress = min(100, max(0, $calculatedProgress));
+
+        $updates = ['progress' => $calculatedProgress];
+
+        if ($calculatedProgress === 100) {
+            if (!in_array($this->status, ['cancelled', 'failed', 'refunded'])) {
+                $updates['status'] = 'completed';
+            }
+        } elseif ($calculatedProgress > 0) {
+            if ($this->status === 'pending' || $this->status === 'completed') {
+                $updates['status'] = 'processing';
+            }
+        }
+
+        $this->update($updates);
+    }
+
     public function quote(): BelongsTo
     {
         return $this->belongsTo(Quote::class);

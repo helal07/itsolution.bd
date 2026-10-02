@@ -340,12 +340,41 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                     </div>
 
                                                     {/* Milestone Steps */}
-                                                    <div className="grid grid-cols-4 text-[10px] font-mono text-neutral-400 pt-0.5">
-                                                        <span className={progress >= 0 ? 'text-blue-600 font-bold' : ''}>1. Order Placed</span>
-                                                        <span className={`text-center ${progress >= 25 ? 'text-blue-600 font-bold' : ''}`}>2. Planning</span>
-                                                        <span className={`text-center ${progress >= 50 ? 'text-blue-600 font-bold' : ''}`}>3. Development</span>
-                                                        <span className={`text-right ${progress >= 100 ? 'text-emerald-600 font-bold' : ''}`}>4. Delivered</span>
-                                                    </div>
+                                                    {order.tasks?.[0]?.steps?.length > 0 ? (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1.5">
+                                                            {order.tasks[0].steps.map((st, sIdx) => (
+                                                                <div 
+                                                                    key={st.id} 
+                                                                    className={`p-2 rounded-xl border text-[11px] font-mono transition-all flex items-center justify-between gap-1.5 ${
+                                                                        st.is_completed 
+                                                                            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800 font-bold' 
+                                                                            : 'bg-neutral-50/80 border-neutral-200 text-neutral-500'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-1.5 truncate">
+                                                                        {st.is_completed ? (
+                                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                                                        ) : (
+                                                                            <span className="w-3.5 h-3.5 rounded-full border border-neutral-300 flex items-center justify-center text-[9px] text-neutral-400 flex-shrink-0">
+                                                                                {sIdx + 1}
+                                                                            </span>
+                                                                        )}
+                                                                        <span className="truncate">{st.title}</span>
+                                                                    </div>
+                                                                    {st.is_completed && (
+                                                                        <span className="text-[9px] text-emerald-600 uppercase font-mono font-bold flex-shrink-0">Done</span>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-4 text-[10px] font-mono text-neutral-400 pt-0.5">
+                                                            <span className={progress >= 0 ? 'text-blue-600 font-bold' : ''}>1. Order Placed</span>
+                                                            <span className={`text-center ${progress >= 25 ? 'text-blue-600 font-bold' : ''}`}>2. Planning</span>
+                                                            <span className={`text-center ${progress >= 50 ? 'text-blue-600 font-bold' : ''}`}>3. Development</span>
+                                                            <span className={`text-right ${progress >= 100 ? 'text-emerald-600 font-bold' : ''}`}>4. Delivered</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         );

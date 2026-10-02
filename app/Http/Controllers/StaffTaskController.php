@@ -82,8 +82,14 @@ class StaffTaskController extends Controller
         $task->status = $validated['status'];
         if ($validated['status'] === 'completed') {
             $task->progress = 100;
+        } elseif ($validated['status'] === 'pending') {
+            $task->progress = 0;
         }
         $task->save();
+
+        if ($task->order_id) {
+            $task->order?->recalculateProgress();
+        }
 
         return redirect()->back()->with('success', 'Task status updated.');
     }

@@ -123,6 +123,9 @@ class AdminTaskController extends Controller
             if ($order) {
                 $clientId = $clientId ?: $order->client_id;
                 $itemId = $itemId ?: $order->item_id;
+                if ($order->status === 'pending') {
+                    $order->update(['status' => 'in_progress']);
+                }
             }
         }
 
@@ -191,6 +194,10 @@ class AdminTaskController extends Controller
             $task->update(['progress' => 100]);
         }
 
+        if ($task->order_id) {
+            $task->order?->recalculateProgress();
+        }
+
         return redirect()->back()->with('success', 'Task updated successfully.');
     }
 
@@ -200,7 +207,12 @@ class AdminTaskController extends Controller
     public function destroy(Task $task): RedirectResponse
     {
         $title = $task->title;
+        $order = $task->order;
         $task->delete();
+
+        if ($order) {
+            $order->recalculateProgress();
+        }
 
         return redirect()->back()->with('success', "Task '{$title}' deleted successfully.");
     }

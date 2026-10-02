@@ -25,7 +25,10 @@ import {
     ArrowUpRight,
     FileText,
     CalendarClock,
-    Paperclip
+    Paperclip,
+    CheckSquare,
+    Trash2,
+    Users
 } from 'lucide-react';
 import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
@@ -37,6 +40,7 @@ export default function Index({
     clients = [], 
     users = [], 
     items = [], 
+    employees = [],
     currentStatus = 'all',
     currentPaymentStatus = 'all',
     startDate = '', 
@@ -66,6 +70,7 @@ export default function Index({
     const [paymentModalOrder, setPaymentModalOrder] = useState(null);
     const [viewModalOrder, setViewModalOrder] = useState(null);
     const [invoiceModalOrder, setInvoiceModalOrder] = useState(null);
+    const [taskModalOrder, setTaskModalOrder] = useState(null);
     
     const [search, setSearch] = useState('');
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState(currentPaymentStatus || 'all');
@@ -73,6 +78,83 @@ export default function Index({
     const [filterStartDate, setFilterStartDate] = useState(startDate);
     const [filterEndDate, setFilterEndDate] = useState(endDate);
     const [copiedInvoice, setCopiedInvoice] = useState(false);
+
+    // Task Conversion Form
+    const taskForm = useForm({
+        order_id: '',
+        client_id: '',
+        item_id: '',
+        title: '',
+        description: '',
+        assigned_to: '',
+        priority: 'high',
+        status: 'pending',
+        due_date: '',
+        steps: [],
+    });
+
+    const openTaskModal = (order) => {
+        setTaskModalOrder(order);
+
+        let initialSteps = [];
+        if (order.quote?.phases && Array.isArray(order.quote.phases) && order.quote.phases.length > 0) {
+            initialSteps = order.quote.phases.map((p, idx) => ({
+                title: `${idx + 1}. ${p.name || 'Phase Milestone'}${p.duration ? ` (${p.duration})` : ''}`,
+                assigned_to: '',
+            }));
+        } else if (order.requirements && Array.isArray(order.requirements) && order.requirements.length > 0) {
+            initialSteps = order.requirements.map((r, idx) => ({
+                title: r.title || `Milestone ${idx + 1}`,
+                assigned_to: '',
+            }));
+        } else {
+            initialSteps = [
+                { title: '1. Architecture, Requirement Review & Setup', assigned_to: '' },
+                { title: '2. Core Engineering & Development Implementation', assigned_to: '' },
+                { title: '3. Quality Assurance, Security Testing & Handover', assigned_to: '' },
+            ];
+        }
+
+        taskForm.setData({
+            order_id: order.id,
+            client_id: order.client_id || '',
+            item_id: order.item_id || '',
+            title: `Deliverable: ${order.project_name || order.item?.name || `Order #${order.id}`}`,
+            description: `Order #${order.id} for ${order.client?.name || order.user?.name || 'Client'}\nNet Payable: ৳${order.net_amount || order.amount} BDT\nScope: ${order.item?.name || order.project_name || 'Software Development'}`,
+            assigned_to: '',
+            priority: 'high',
+            status: 'pending',
+            due_date: order.due_date || order.delivery_date || '',
+            steps: initialSteps,
+        });
+    };
+
+    const handleTaskSubmit = (e) => {
+        e.preventDefault();
+        taskForm.post(route('admin.tasks.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setTaskModalOrder(null);
+            },
+        });
+    };
+
+    const handleAddStep = () => {
+        taskForm.setData('steps', [
+            ...taskForm.data.steps,
+            { title: '', assigned_to: taskForm.data.assigned_to || '' },
+        ]);
+    };
+
+    const handleRemoveStep = (index) => {
+        taskForm.setData('steps', taskForm.data.steps.filter((_, i) => i !== index));
+    };
+
+    const handleStepChange = (index, field, value) => {
+        const updated = [...taskForm.data.steps];
+        updated[index][field] = value;
+        taskForm.setData('steps', updated);
+    };
 
     // Apply combined filters to backend
     const applyFilters = (pStatus, wStatus, sDate, eDate) => {
@@ -903,6 +985,16 @@ export default function Index({
                                                                 <span>{o.requirements.length} Briefing Media</span>
                                                             </a>
                                                         )}
+                                                        {o.tasks && o.tasks.length > 0 && (
+                                                            <Link
+                                                                href={`/admin/tasks?search=${o.id}`}
+                                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 transition"
+                                                                title="View assigned tasks in HRM"
+                                                            >
+                                                                <CheckSquare className="w-2.5 h-2.5 text-amber-600" />
+                                                                <span>{o.tasks.length} Task{o.tasks.length > 1 ? 's' : ''}</span>
+                                                            </Link>
+                                                        )}
                                                     </div>
                                                 </td>
 
@@ -994,6 +1086,9 @@ export default function Index({
                                                         <div className="py-1">
                                                             <ActionItem onClick={() => openPaymentModal(o)} icon={CreditCard} className="text-emerald-700 hover:text-emerald-800">
                                                                 Collect Payment
+                                                            </ActionItem>
+                                                            <ActionItem onClick={() => openTaskModal(o)} icon={CheckSquare} className="text-amber-700 hover:text-amber-800">
+                                                                Assign Tasks &amp; Team ({o.tasks?.length || 0})
                                                             </ActionItem>
                                                             <ActionItem onClick={() => openEditProgressModal(o)} icon={Sliders} className="text-blue-700 hover:text-blue-800">
                                                                 Edit Progress
@@ -1896,6 +1991,210 @@ export default function Index({
                         </div>
                     );
                 })()}
+            </Modal>
+
+            {/* ============================================================== */}
+            {/* 6. CONVERT TO TASK & ASSIGN TEAM MODAL                         */}
+            {/* ============================================================== */}
+            <Modal show={Boolean(taskModalOrder)} onClose={() => setTaskModalOrder(null)} maxWidth="2xl">
+                {taskModalOrder && (
+                    <form onSubmit={handleTaskSubmit} className="bg-white p-5 sm:p-6 space-y-4 rounded-2xl text-slate-800">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                                    <CheckSquare className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h2 className="font-bold text-base text-slate-900">
+                                        Assign Tasks &amp; Team (অর্ডার থেকে টাস্ক তৈরি ও কর্মী অ্যাসাইন)
+                                    </h2>
+                                    <p className="text-xs text-slate-500">
+                                        Order #{taskModalOrder.transaction_id || taskModalOrder.id} &bull; {taskModalOrder.client?.name || taskModalOrder.user?.name || 'Client'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setTaskModalOrder(null)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Quick Summary Banner */}
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div>
+                                <span className="text-slate-500">Deliverable Project:</span>{' '}
+                                <span className="font-bold text-slate-900">{taskModalOrder.project_name || taskModalOrder.item?.name}</span>
+                            </div>
+                            <div>
+                                <span className="text-slate-500">Net Amount:</span>{' '}
+                                <span className="font-mono font-bold text-emerald-700">৳{Math.round(taskModalOrder.net_amount || taskModalOrder.amount).toLocaleString()} BDT</span>
+                            </div>
+                            {taskModalOrder.delivery_date && (
+                                <div>
+                                    <span className="text-slate-500">Target Delivery:</span>{' '}
+                                    <span className="font-mono font-bold text-slate-700">{formatDate(taskModalOrder.delivery_date)}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-3.5">
+                            {/* Task Title */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Task / Project Headline *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={taskForm.data.title}
+                                    onChange={(e) => taskForm.setData('title', e.target.value)}
+                                    placeholder="e.g. Full-Stack Development for Sadia Online Shop"
+                                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                                    required
+                                />
+                            </div>
+
+                            {/* Primary Assignee & Priority & Due Date */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Primary Team Assignee (মূল কর্মী)
+                                    </label>
+                                    <select
+                                        value={taskForm.data.assigned_to}
+                                        onChange={(e) => taskForm.setData('assigned_to', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                                    >
+                                        <option value="">Unassigned (পরে অ্যাসাইন করবেন)</option>
+                                        {employees.map((emp) => (
+                                            <option key={emp.id} value={emp.id}>
+                                                {emp.name} {emp.designation ? `(${emp.designation})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Priority (অগ্রাধিকার)
+                                    </label>
+                                    <select
+                                        value={taskForm.data.priority}
+                                        onChange={(e) => taskForm.setData('priority', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none capitalize"
+                                    >
+                                        <option value="low">Low Priority</option>
+                                        <option value="medium">Medium Priority</option>
+                                        <option value="high">High Priority</option>
+                                        <option value="urgent">Urgent Priority 🔥</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Target Deadline (ডেডলাইন)
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={taskForm.data.due_date}
+                                        onChange={(e) => taskForm.setData('due_date', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Subtasks / Phases Checklist */}
+                            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                        <Sliders className="w-3.5 h-3.5 text-amber-600" />
+                                        Project Phases &amp; Execution Steps ({taskForm.data.steps.length})
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddStep}
+                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-100/70 hover:bg-amber-100 px-2 py-0.5 rounded-md transition cursor-pointer"
+                                    >
+                                        <Plus className="w-3 h-3" />
+                                        <span>Add Phase Step</span>
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                    {taskForm.data.steps.map((step, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 text-xs">
+                                            <span className="font-mono font-bold text-slate-400 text-[10px] w-5 text-center">
+                                                #{idx + 1}
+                                            </span>
+                                            <input
+                                                type="text"
+                                                value={step.title}
+                                                onChange={(e) => handleStepChange(idx, 'title', e.target.value)}
+                                                placeholder="Step / Milestone Title..."
+                                                className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-amber-500"
+                                                required
+                                            />
+                                            <select
+                                                value={step.assigned_to || ''}
+                                                onChange={(e) => handleStepChange(idx, 'assigned_to', e.target.value)}
+                                                className="w-36 px-2 py-1 text-[11px] border border-slate-200 rounded-md bg-white text-slate-600"
+                                            >
+                                                <option value="">(Main Assignee)</option>
+                                                {employees.map((emp) => (
+                                                    <option key={emp.id} value={emp.id}>
+                                                        {emp.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveStep(idx)}
+                                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                                                title="Remove Step"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Description & Technical Directives */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Task Briefing &amp; Scope Directives (কাজের বিবরণ ও নির্দেশনা)
+                                </label>
+                                <textarea
+                                    rows="3"
+                                    value={taskForm.data.description}
+                                    onChange={(e) => taskForm.setData('description', e.target.value)}
+                                    placeholder="Provide details for the developer or team..."
+                                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none leading-relaxed"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => setTaskModalOrder(null)}
+                                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={taskForm.processing}
+                                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                            >
+                                <CheckSquare className="w-4 h-4" />
+                                <span>{taskForm.processing ? 'Assigning...' : 'Assign & Dispatch to Team'}</span>
+                            </button>
+                        </div>
+                    </form>
+                )}
             </Modal>
         </AdminLayout>
     );

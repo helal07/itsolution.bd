@@ -26,7 +26,8 @@ import {
     Eye,
     Download,
     Sparkles,
-    Check
+    Check,
+    CheckSquare
 } from 'lucide-react';
 
 export default function OrderRequirements({ order, isStaffOrAdmin }) {
@@ -268,13 +269,105 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
 
                                 <div className="h-10 w-px bg-neutral-700/60"></div>
 
-                                <div>
-                                    <p className="text-[11px] text-neutral-400 uppercase font-mono">Progress</p>
-                                    <p className="text-lg font-black text-blue-400 font-mono">{order.progress || 0}%</p>
+                                <div className="w-28 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[11px] text-neutral-400 uppercase font-mono">Progress</p>
+                                        <p className="text-sm font-black text-blue-400 font-mono">{order.progress || 0}%</p>
+                                    </div>
+                                    <div className="w-full h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-700/80">
+                                        <div 
+                                            className={`h-full transition-all duration-500 rounded-full ${
+                                                (order.progress || 0) >= 100 ? 'bg-emerald-500' :
+                                                (order.progress || 0) >= 50 ? 'bg-blue-500' :
+                                                (order.progress || 0) >= 25 ? 'bg-indigo-500' : 'bg-amber-500'
+                                            }`}
+                                            style={{ width: `${order.progress || 0}%` }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Dynamic Task Milestones Section */}
+                    {order.tasks?.[0]?.steps?.length > 0 && (
+                        <div className="rounded-3xl bg-neutral-800/80 border border-neutral-700/60 p-5 backdrop-blur-md shadow-xl space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                                        <CheckSquare className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-sm font-black text-white font-heading tracking-wide">
+                                            Project Delivery Milestones &amp; Live Tracking
+                                        </h2>
+                                        <p className="text-[11px] text-neutral-400">
+                                            Task: <strong className="text-neutral-300">{order.tasks[0].title}</strong> &bull; {order.tasks[0].steps.filter(s => s.is_completed).length} of {order.tasks[0].steps.length} completed
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {isStaffOrAdmin && (
+                                    <span className="text-[10px] text-neutral-400 bg-neutral-900/80 px-2.5 py-1 rounded-full border border-neutral-700/80 font-mono">
+                                        Staff Action: Click milestone card to toggle completion
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                                {order.tasks[0].steps.map((step, idx) => (
+                                    <div
+                                        key={step.id}
+                                        onClick={() => {
+                                            if (isStaffOrAdmin) {
+                                                router.patch(route('staff.tasks.step.toggle', step.id), {}, { preserveScroll: true });
+                                            }
+                                        }}
+                                        className={`p-3.5 rounded-2xl border transition-all ${
+                                            isStaffOrAdmin ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]' : ''
+                                        } ${
+                                            step.is_completed
+                                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-sm'
+                                                : 'bg-neutral-900/50 border-neutral-700/50 text-neutral-300 hover:border-neutral-600'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-mono font-bold ${
+                                                    step.is_completed
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                                                }`}>
+                                                    {step.is_completed ? '✓' : idx + 1}
+                                                </span>
+                                                <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-neutral-400">
+                                                    Phase {idx + 1}
+                                                </span>
+                                            </div>
+                                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                                                step.is_completed
+                                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                                    : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                                            }`}>
+                                                {step.is_completed ? 'Completed' : 'Pending'}
+                                            </span>
+                                        </div>
+
+                                        <p className={`text-xs font-bold leading-snug line-clamp-2 ${step.is_completed ? 'text-white' : 'text-neutral-200'}`}>
+                                            {step.title}
+                                        </p>
+
+                                        {step.assignee && (
+                                            <div className="mt-2 pt-2 border-t border-neutral-800/60 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
+                                                <span>Assignee:</span>
+                                                <span className="text-neutral-300 font-bold">{step.assignee.name}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Main Workspace Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -286,15 +379,13 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
                                     <FileText className="w-4 h-4 text-blue-400" />
                                     Requirement Modules
                                 </h2>
-                                {!isStaffOrAdmin && (
-                                    <button
-                                        onClick={() => setShowNewReqModal(true)}
-                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow transition"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" />
-                                        Add Module
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => setShowNewReqModal(true)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg transition"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Add Directive
+                                </button>
                             </div>
 
                             {/* Requirements List */}
@@ -829,14 +920,19 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
                 </div>
             </div>
 
-            {/* Modal: Create Requirement Module */}
+            {/* Modal: Create Requirement Module / Directive */}
             {showNewReqModal && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="w-full max-w-lg bg-neutral-900 border border-neutral-700 rounded-3xl p-6 shadow-2xl space-y-4">
                         <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-                            <h3 className="text-base font-bold text-white font-heading">
-                                Add Requirement Specification
-                            </h3>
+                            <div>
+                                <h3 className="text-base font-bold text-white font-heading">
+                                    Submit Directive / Special Instruction
+                                </h3>
+                                <p className="text-xs text-neutral-400 mt-0.5">
+                                    Add requirements or revisions. Assigned team members will be alerted instantly.
+                                </p>
+                            </div>
                             <button
                                 onClick={() => setShowNewReqModal(false)}
                                 className="text-neutral-400 hover:text-white text-lg font-bold"
@@ -845,12 +941,38 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
                             </button>
                         </div>
 
+                        {/* Quick Type Selection Tags */}
+                        <div className="space-y-1.5">
+                            <span className="text-[11px] font-mono uppercase font-bold text-neutral-400">Quick Template Tags:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                                {[
+                                    { label: '🎨 Design Directive', prefix: '[Design Directive] ' },
+                                    { label: '⚡ Feature Spec', prefix: '[Feature Spec] ' },
+                                    { label: '🐛 Bug / Fix Request', prefix: '[Bug Fix] ' },
+                                    { label: '📝 Content Revision', prefix: '[Content Revision] ' },
+                                    { label: '🚨 Urgent Priority', prefix: '[Urgent] ' }
+                                ].map((tag, idx) => (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => {
+                                            const current = (reqData.title || '').replace(/^\[.*?\]\s*/, '');
+                                            setReqData('title', tag.prefix + current);
+                                        }}
+                                        className="text-[10px] px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-blue-600 hover:text-white text-neutral-300 border border-neutral-700 transition font-mono"
+                                    >
+                                        {tag.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <form onSubmit={handleReqSubmit} className="space-y-4">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-neutral-300">Requirement Module Title</label>
+                                <label className="text-xs font-semibold text-neutral-300">Directive Title</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Website Layout & Color Theme, Checkout Flow"
+                                    placeholder="e.g. [Design Directive] Update Homepage Hero & CTA Buttons"
                                     value={reqData.title}
                                     onChange={(e) => setReqData('title', e.target.value)}
                                     required
@@ -859,14 +981,19 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-neutral-300">Detailed Description / Instructions</label>
+                                <label className="text-xs font-semibold text-neutral-300">Detailed Instructions / Specific Expectations</label>
                                 <textarea
                                     rows="5"
-                                    placeholder="Write your bullet points, design requirements, or specific expectations..."
+                                    placeholder="Write your specific bullet points, design references, or functional notes here..."
                                     value={reqData.description}
                                     onChange={(e) => setReqData('description', e.target.value)}
                                     className="w-full px-4 py-2.5 rounded-xl bg-neutral-800 border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:border-blue-500 focus:outline-none"
                                 ></textarea>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                <span>Assigned engineers and project managers will receive an email notification upon submission.</span>
                             </div>
 
                             <div className="flex justify-end gap-3 pt-2">
@@ -880,9 +1007,9 @@ export default function OrderRequirements({ order, isStaffOrAdmin }) {
                                 <button
                                     type="submit"
                                     disabled={reqProcessing}
-                                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-md disabled:opacity-50"
+                                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-md disabled:opacity-50"
                                 >
-                                    Save Module
+                                    {reqProcessing ? 'Submitting...' : 'Submit Directive & Notify Team'}
                                 </button>
                             </div>
                         </form>

@@ -80,6 +80,9 @@ class Task extends Model
     {
         $total = $this->steps()->count();
         if ($total === 0) {
+            if ($this->order_id) {
+                $this->order?->recalculateProgress();
+            }
             return;
         }
 
@@ -89,7 +92,7 @@ class Task extends Model
         $status = $this->status;
         if ($percentage === 100) {
             $status = 'completed';
-        } elseif ($percentage > 0 && $status === 'pending') {
+        } elseif ($percentage > 0 && ($status === 'pending' || $status === 'completed')) {
             $status = 'in_progress';
         }
 
@@ -97,5 +100,9 @@ class Task extends Model
             'progress' => $percentage,
             'status' => $status,
         ]);
+
+        if ($this->order_id) {
+            $this->order?->recalculateProgress();
+        }
     }
 }

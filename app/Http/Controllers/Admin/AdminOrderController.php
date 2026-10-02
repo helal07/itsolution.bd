@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\ClientPayment;
+use App\Models\Employee;
 use App\Models\Item;
 use App\Models\Order;
 use App\Models\User;
@@ -86,6 +87,13 @@ class AdminOrderController extends Controller
             ->orderBy('name')
             ->get();
 
+        $employees = Employee::select('id', 'name', 'email', 'phone', 'designation', 'department')
+            ->where(function ($q) {
+                $q->where('status', 'active')->orWhereNull('status');
+            })
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Admin/Orders/Index', [
             'orders' => $orders,
             'currentStatus' => $status ?? 'all',
@@ -96,6 +104,7 @@ class AdminOrderController extends Controller
             'clients' => $clients,
             'users' => $users,
             'items' => $items,
+            'employees' => $employees,
         ]);
     }
 

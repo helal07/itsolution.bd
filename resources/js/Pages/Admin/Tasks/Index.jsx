@@ -20,7 +20,11 @@ import {
     ArrowUpRight,
     ListPlus,
     UserCheck,
-    Check
+    Check,
+    Paperclip,
+    Music,
+    Image as ImageIcon,
+    ExternalLink
 } from 'lucide-react';
 
 export default function AdminTasksIndex({ tasks, employees = [], items = [], stats = {}, filters = {} }) {
@@ -359,6 +363,22 @@ export default function AdminTasksIndex({ tasks, employees = [], items = [], sta
                                                     <CheckSquare className="w-3.5 h-3.5 text-slate-400" />
                                                     <span>{completedSteps}/{totalSteps} steps</span>
                                                 </div>
+
+                                                {task.order_id && (
+                                                    <a
+                                                        href={route('orders.requirements.show', task.order_id)}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-[11px] border border-purple-200 transition-colors shadow-2xs"
+                                                        title="View Client Directives, Voice Notes & Media"
+                                                    >
+                                                        <Paperclip className="w-3 h-3 text-purple-600" />
+                                                        <span>Directives & Media</span>
+                                                        {task.order?.requirements?.length > 0 && (
+                                                            <span className="px-1.5 py-0.2 rounded-full bg-purple-600 text-white text-[9px] font-mono">
+                                                                {task.order.requirements.length}
+                                                            </span>
+                                                        )}
+                                                    </a>
+                                                )}
                                             </div>
                                         </div>
 
@@ -396,7 +416,66 @@ export default function AdminTasksIndex({ tasks, employees = [], items = [], sta
 
                                     {/* Expandable Subtasks / Checklist Steps */}
                                     {isExpanded && (
-                                        <div className="p-4 bg-slate-50/60 border-t border-slate-100 space-y-3">
+                                        <div className="p-4 bg-slate-50/60 border-t border-slate-100 space-y-4">
+                                            {/* Client Directives & Briefing Media if linked to Order */}
+                                            {task.order?.requirements && task.order.requirements.length > 0 && (
+                                                <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-100 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <Paperclip className="w-4 h-4 text-purple-600" />
+                                                            <span className="text-xs font-bold uppercase tracking-wider text-purple-900 font-mono">
+                                                                Client Directives &amp; Briefing Media ({task.client?.name || task.order?.client?.name || 'Client'})
+                                                            </span>
+                                                        </div>
+                                                        <a
+                                                            href={route('orders.requirements.show', task.order_id)}
+                                                            className="text-xs font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1 hover:underline"
+                                                        >
+                                                            <span>Open Workspace</span>
+                                                            <ExternalLink className="w-3 h-3" />
+                                                        </a>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        {task.order.requirements.slice(0, 4).map((req) => {
+                                                            const audioFiles = req.attachments?.filter(a => a.file_type === 'audio') || [];
+                                                            const imageFiles = req.attachments?.filter(a => a.file_type === 'image') || [];
+
+                                                            return (
+                                                                <div key={req.id} className="p-3 bg-white rounded-lg border border-purple-100 shadow-2xs space-y-2">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <h5 className="text-xs font-bold text-slate-800">{req.title}</h5>
+                                                                        <span className="text-[10px] text-slate-400 font-mono">{req.attachments?.length || 0} media</span>
+                                                                    </div>
+                                                                    {req.description && (
+                                                                        <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed line-clamp-3">
+                                                                            {req.description}
+                                                                        </p>
+                                                                    )}
+                                                                    {audioFiles.length > 0 && (
+                                                                        <div className="pt-1">
+                                                                            <p className="text-[10px] font-bold text-purple-700 uppercase font-mono flex items-center gap-1">
+                                                                                <Music className="w-3 h-3" /> Voice Note ({audioFiles.length})
+                                                                            </p>
+                                                                            <audio src={audioFiles[0].url} controls className="h-7 w-full mt-1" />
+                                                                        </div>
+                                                                    )}
+                                                                    {imageFiles.length > 0 && (
+                                                                        <div className="pt-1 flex items-center gap-2 overflow-x-auto">
+                                                                            {imageFiles.map(img => (
+                                                                                <a key={img.id} href={img.url} target="_blank" rel="noreferrer" className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
+                                                                                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                                                                                </a>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
                                                 <span>Checklist & Sub-steps</span>
                                                 <span>{completedSteps} of {totalSteps} done</span>

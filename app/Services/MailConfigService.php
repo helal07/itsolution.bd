@@ -163,4 +163,80 @@ class MailConfigService
             ];
         }
     }
+
+    /**
+     * Send client directive / requirement / attachment notification to assigned team members and admin.
+     */
+    public static function sendClientDirectiveNotification(
+        Order $order,
+        \App\Models\OrderRequirement $requirement,
+        ?\App\Models\OrderAttachment $attachment = null,
+        ?User $uploader = null,
+        string $type = 'New Requirement / Directive'
+    ): array {
+        $configured = self::applySettings();
+        if (!$configured) {
+            return [
+                'success' => false,
+                'message' => 'SMTP gateway is not enabled.',
+            ];
+        }
+
+        // Collect all assigned employee emails
+        $assignedEmployees = \App\Models\Employee::whereHas('tasks', function ($q) use ($order) {
+            $q->where('order_id', $order->id);
+        })->orWhereHas('taskSteps', function ($q) use ($order) {
+            $q->whereHas('task', fn($tq) => $tq->where('order_id', $order->id));
+        })->whereNotNull('email')->get();
+
+        $recipients = $assignedEmployees->pluck('email')->filter()->unique()->toArray();
+
+        // Also add admin/contact email
+        $contactEmail = SiteSetting::get('contact_email');
+        if ($contactEmail && filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
+            $recipients[] = $contactEmail;
+        }
+
+        // Fallback to admin user if no recipients
+        if (empty($recipients)) {
+            $adminUser = User::where('role', 'admin')->first();
+            if ($adminUser && $adminUser->email) {
+                $recipients[] = $adminUser->email;
+            }
+        }
+
+        $recipients = array_unique(array_filter($recipients));
+        if (empty($recipients)) {
+            return [
+                'success' => false,
+                'message' => 'No active recipient found for notification.',
+            ];
+        }
+
+        try {
+            Mail::to($recipients)->send(new \App\Mail\ClientDirectiveNotificationMail(
+                order: $order,
+                requirement: $requirement,
+                attachment: $attachment,
+                uploader: $uploader,
+                type: $type
+            ));
+
+            return [
+                'success' => true,
+                'message' => 'Notification dispatched to team members.',
+                'recipients' => $recipients,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('SMTP Client Directive Notification Error: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'requirement_id' => $requirement->id,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to send notification: ' . $e->getMessage(),
+            ];
+        }
+    }
 }
