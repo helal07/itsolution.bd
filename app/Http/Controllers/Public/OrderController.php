@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
+use App\Models\Client;
+use App\Models\ClientPayment;
 use App\Models\Item;
 use App\Models\Order;
 use Illuminate\Http\RedirectResponse;
@@ -48,7 +50,7 @@ class OrderController extends Controller
         $user = $request->user();
 
         // Ensure user is registered as a CRM Client
-        $client = \App\Models\Client::firstOrCreate(
+        $client = Client::firstOrCreate(
             ['email' => $user->email],
             [
                 'name' => $user->name,
@@ -77,26 +79,75 @@ class OrderController extends Controller
      */
     public function payPending(Request $request, Order $order): RedirectResponse
     {
-        if ($order->user_id !== $request->user()->id) {
+        $user = $request->user();
+
+        $isAuthorized = ($order->user_id === $user->id) 
+            || ($order->client && strtolower($order->client->email) === strtolower($user->email));
+
+        if (! $isAuthorized) {
             abort(403, 'Unauthorized access to this order.');
         }
 
         $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:1'],
             'payment_method' => ['required', 'string', 'max:50'],
             'transaction_id' => ['nullable', 'string', 'max:150'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $amount = (float) $validated['amount'];
+
+        // Ensure order has a valid client_id linked
+        if (empty($order->client_id)) {
+            $client = Client::firstOrCreate(
+                ['email' => $user->email],
+                [
+                    'name' => $user->name,
+                    'phone' => $user->phone,
+                    'contact_person' => $user->name,
+                    'status' => 'active',
+                ]
+            );
+            $order->client_id = $client->id;
+        }
 
         $txn = !empty($validated['transaction_id']) 
-            ? $validated['transaction_id'] 
+            ? trim($validated['transaction_id']) 
             : 'TXN-' . strtoupper(Str::random(10));
 
-        $order->update([
-            'status' => 'paid',
+        // Always log payment into client_payments ledger
+        ClientPayment::create([
+            'client_id' => $order->client_id,
+            'order_id' => $order->id,
+            'amount' => $amount,
+            'currency' => $order->currency ?? 'BDT',
             'payment_method' => $validated['payment_method'],
             'transaction_id' => $txn,
+            'notes' => $validated['notes'] ?? ('Client portal payment of ৳' . number_format($amount, 2) . ' for Order #' . ($order->transaction_id ?? $order->id)),
+            'payment_date' => now()->toDateString(),
         ]);
 
-        return redirect()->route('profile.edit')->with('success', 'Payment submitted successfully! Your invoice is now marked as Paid.');
+        // Increment paid amount & deduct from dues
+        $order->paid_amount = (float) ($order->paid_amount ?? 0) + $amount;
+        $order->payment_method = $validated['payment_method'];
+        if (empty($order->transaction_id)) {
+            $order->transaction_id = $txn;
+        }
+        $order->save();
+        $order->syncPaymentStatus();
+
+        // If outstanding due is fully cleared and status is pending, mark as paid
+        if ($order->due_amount <= 0 && $order->status === 'pending') {
+            $order->status = 'paid';
+            $order->save();
+        }
+
+        $remainingDue = $order->due_amount;
+        $msg = $remainingDue <= 0 
+            ? "Payment of ৳" . number_format($amount, 2) . " received successfully! Invoice #{$order->id} is now fully settled."
+            : "Payment of ৳" . number_format($amount, 2) . " recorded successfully! Remaining due: ৳" . number_format($remainingDue, 2) . " BDT.";
+
+        return redirect()->route('profile.edit', ['tab' => 'payment'])->with('success', $msg);
     }
 
     /**

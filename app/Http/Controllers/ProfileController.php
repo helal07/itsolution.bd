@@ -24,7 +24,15 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $orders = Order::with(['item.category', 'item.images', 'requirements.attachments', 'tasks.assignee', 'tasks.steps', 'quote'])
+        $orders = Order::with([
+            'item.category', 
+            'item.images', 
+            'requirements.attachments', 
+            'tasks.assignee', 
+            'tasks.steps', 
+            'quote',
+            'payments' => fn($q) => $q->orderBy('payment_date', 'desc')->orderBy('id', 'desc'),
+        ])
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
                   ->orWhereHas('client', fn($cq) => $cq->where('email', $user->email));
