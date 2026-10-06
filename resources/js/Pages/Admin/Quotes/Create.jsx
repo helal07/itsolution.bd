@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import Modal from '@/Components/Modal';
@@ -24,7 +24,8 @@ import {
     CheckCircle2,
     X,
     UserPlus,
-    Search
+    Search,
+    ChevronDown
 } from 'lucide-react';
 
 export default function Create({ items = [], clients = [], companyDetails = {} }) {
@@ -131,6 +132,42 @@ export default function Create({ items = [], clients = [], companyDetails = {} }
     };
 
     const [showAddClientModal, setShowAddClientModal] = useState(false);
+    const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+    const [clientSearchQuery, setClientSearchQuery] = useState('');
+    const clientDropdownRef = useRef(null);
+    const clientSearchInputRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (clientDropdownRef.current && !clientDropdownRef.current.contains(event.target)) {
+                setClientDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Focus search input when dropdown opens
+    useEffect(() => {
+        if (clientDropdownOpen && clientSearchInputRef.current) {
+            setTimeout(() => {
+                clientSearchInputRef.current?.focus();
+            }, 50);
+        }
+    }, [clientDropdownOpen]);
+
+    // Live search filter matching Name, Contact Person, Phone, Email
+    const filteredClients = clients.filter(c => {
+        if (!clientSearchQuery.trim()) return true;
+        const q = clientSearchQuery.toLowerCase();
+        return (
+            (c.name && c.name.toLowerCase().includes(q)) ||
+            (c.contact_person && c.contact_person.toLowerCase().includes(q)) ||
+            (c.phone && c.phone.toLowerCase().includes(q)) ||
+            (c.email && c.email.toLowerCase().includes(q))
+        );
+    });
 
     const quickClientForm = useForm({
         name: '',
@@ -142,6 +179,8 @@ export default function Create({ items = [], clients = [], companyDetails = {} }
     });
 
     const handleClientSelect = (clientId) => {
+        setClientDropdownOpen(false);
+        setClientSearchQuery('');
         if (!clientId) {
             handleClearClient();
             return;
@@ -297,24 +336,180 @@ export default function Create({ items = [], clients = [], companyDetails = {} }
                                     )}
                                 </div>
 
-                                {/* Dropdown Selector */}
-                                <div className="grid grid-cols-1 gap-2">
-                                    <select
-                                        value={data.client_id}
-                                        onChange={(e) => handleClientSelect(e.target.value)}
-                                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                                            data.client_id 
-                                                ? 'bg-blue-50/50 border-blue-300 text-blue-950 font-bold focus:ring-blue-200' 
-                                                : 'bg-white border-slate-300 text-slate-700 focus:border-blue-500 focus:ring-blue-100'
+                                {/* Searchable Dropdown Selector (POS Select2 Style) */}
+                                <div className="relative" ref={clientDropdownRef}>
+                                    <div
+                                        onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
+                                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                                            clientDropdownOpen
+                                                ? 'bg-white border-blue-500 ring-2 ring-blue-100 shadow-sm'
+                                                : data.client_id
+                                                    ? 'bg-blue-50/70 border-blue-300 text-blue-950 font-bold'
+                                                    : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
                                         }`}
                                     >
-                                        <option value="">-- নতুন ক্লায়েন্ট / ম্যানুয়ালি ইনপুট দিন (New Client / Manual Input) --</option>
-                                        {clients.map(c => (
-                                            <option key={c.id} value={c.id}>
-                                                {c.name} {c.contact_person && c.contact_person !== c.name ? `[যোগাযোগ: ${c.contact_person}]` : ''} {c.phone ? `• 📱 ${c.phone}` : ''} {c.email ? `• ✉️ ${c.email}` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <div className="flex items-center gap-2 min-w-0 truncate">
+                                            <Search className="w-4 h-4 text-blue-600 shrink-0" />
+                                            {activeClient ? (
+                                                <span className="truncate">
+                                                    <strong className="text-blue-950">{activeClient.name}</strong>
+                                                    {activeClient.phone ? ` • 📱 ${activeClient.phone}` : ''}
+                                                    {activeClient.contact_person && activeClient.contact_person !== activeClient.name ? ` [যোগাযোগ: ${activeClient.contact_person}]` : ''}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-500 font-medium">
+                                                    -- ক্লায়েন্টের নাম, মোবাইল নম্বর বা প্রতিষ্ঠান দিয়ে খুঁজুন (Search Client...) --
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            {data.client_id && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleClearClient();
+                                                    }}
+                                                    className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                                    title="সিলেকশন মুছুন"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${clientDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
+                                        </div>
+                                    </div>
+
+                                    {/* Dropdown Popup Menu */}
+                                    {clientDropdownOpen && (
+                                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border border-slate-300 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                                            
+                                            {/* Live Search Input Bar */}
+                                            <div className="p-2.5 bg-slate-50 border-b border-slate-200">
+                                                <div className="relative">
+                                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                                    <input
+                                                        ref={clientSearchInputRef}
+                                                        type="text"
+                                                        value={clientSearchQuery}
+                                                        onChange={(e) => setClientSearchQuery(e.target.value)}
+                                                        placeholder="নাম, মোবাইল বা ইমেইল টাইপ করে খুঁজুন..."
+                                                        className="w-full pl-9 pr-8 py-2 text-xs bg-white rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium placeholder:text-slate-400"
+                                                    />
+                                                    {clientSearchQuery && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setClientSearchQuery('')}
+                                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-1 pt-2 text-[11px] text-slate-500">
+                                                    <span>{filteredClients.length} জন ক্লায়েন্ট পাওয়া গেছে</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setClientDropdownOpen(false);
+                                                            quickClientForm.setData('name', clientSearchQuery);
+                                                            setShowAddClientModal(true);
+                                                        }}
+                                                        className="text-blue-600 hover:text-blue-700 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                                    >
+                                                        <Plus className="w-3 h-3" />
+                                                        <span>+ নতুন তৈরি করুন</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* List Options */}
+                                            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 py-1">
+                                                {/* Manual Entry Option */}
+                                                <div
+                                                    onClick={() => handleClientSelect('')}
+                                                    className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                                                        !data.client_id ? 'bg-blue-50/60 font-bold text-blue-900' : 'hover:bg-slate-50 text-slate-700'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <User className="w-4 h-4 text-slate-400" />
+                                                        <div>
+                                                            <span className="text-xs">-- নতুন ক্লায়েন্ট / ম্যানুয়ালি ইনপুট দিন --</span>
+                                                            <span className="block text-[10px] text-slate-400 font-normal">নিচে ফর্ম ফিল্ডে নতুন তথ্য টাইপ করুন</span>
+                                                        </div>
+                                                    </div>
+                                                    {!data.client_id && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                                                </div>
+
+                                                {/* Filtered Clients List */}
+                                                {filteredClients.length > 0 ? (
+                                                    filteredClients.map((c) => {
+                                                        const isSelected = String(data.client_id) === String(c.id);
+                                                        return (
+                                                            <div
+                                                                key={c.id}
+                                                                onClick={() => handleClientSelect(c.id)}
+                                                                className={`px-4 py-2.5 cursor-pointer transition-colors flex items-center justify-between gap-3 ${
+                                                                    isSelected
+                                                                        ? 'bg-blue-600 text-white'
+                                                                        : 'hover:bg-blue-50 text-slate-800'
+                                                                }`}
+                                                            >
+                                                                <div className="min-w-0 space-y-0.5">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-950'}`}>
+                                                                            {c.name}
+                                                                        </span>
+                                                                        {c.contact_person && c.contact_person !== c.name && (
+                                                                            <span className={`text-[11px] font-medium ${isSelected ? 'text-blue-100' : 'text-slate-600'}`}>
+                                                                                ({c.contact_person})
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className={`flex items-center gap-3 text-[11px] font-mono ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                                                                        {c.phone && <span>📱 {c.phone}</span>}
+                                                                        {c.email && <span className="truncate">✉️ {c.email}</span>}
+                                                                    </div>
+                                                                    {c.address && (
+                                                                        <div className={`text-[10px] truncate ${isSelected ? 'text-blue-200' : 'text-slate-400'}`}>
+                                                                            📍 {c.address}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {isSelected && (
+                                                                    <div className="shrink-0 bg-white/20 p-1 rounded-full text-white">
+                                                                        <Check className="w-3.5 h-3.5" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <div className="p-6 text-center space-y-2">
+                                                        <p className="text-xs text-slate-500">
+                                                            "<strong>{clientSearchQuery}</strong>" নামে কোনো সেভড ক্লায়েন্ট পাওয়া যায়নি
+                                                        </p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setClientDropdownOpen(false);
+                                                                quickClientForm.setData('name', clientSearchQuery);
+                                                                setShowAddClientModal(true);
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+                                                        >
+                                                            <Plus className="w-3.5 h-3.5" />
+                                                            <span>"{clientSearchQuery}" নামে নতুন ক্লায়েন্ট তৈরি করুন</span>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Selected Client Live Pill / Banner */}
