@@ -54,6 +54,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/checkout/{item:slug}', [OrderController::class, 'checkout'])->name('checkout.show');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders')->name('orders.store');
     Route::post('/orders/{order}/pay', [OrderController::class, 'payPending'])->middleware('throttle:orders')->name('orders.pay');
+    Route::post('/orders/{order}/bkash-initiate', [OrderController::class, 'initiateBkash'])->middleware('throttle:orders')->name('orders.bkash.initiate');
+    Route::get('/payment/bkash/callback', [OrderController::class, 'bkashCallback'])->name('payment.bkash.callback');
 
     Route::get('/dashboard', [ProfileController::class, 'edit'])->name('dashboard');
     Route::get('/my-orders', [ProfileController::class, 'edit'])->name('client.dashboard');

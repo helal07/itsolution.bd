@@ -77,62 +77,81 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
         const epsOnline = siteSettings?.eps_enabled === '1';
         const sslOnline = siteSettings?.sslcommerz_enabled === '1';
 
-        // 1. bKash (Manual MFS or PGW)
-        if (bkashNum || bkashOnline) {
+        // 1. Automated bKash Merchant Gateway (PGW)
+        if (bkashOnline) {
             methods.push({
-                id: 'bKash',
-                name: 'bKash',
-                category: 'Mobile Banking',
-                accountNumber: bkashNum || (siteSettings?.contact_phone || '+880 1800-000000'),
-                instruction: 'Send Money or Merchant Payment to our official bKash wallet below, then copy & enter your Transaction ID (TrxID).',
-                badge: bkashOnline ? 'bKash Gateway' : 'bKash MFS',
+                id: 'bkash_gateway',
+                type: 'gateway',
+                name: 'bKash Merchant Gateway',
+                category: 'Instant Automated PGW',
+                accountNumber: `Official bKash Checkout (${(siteSettings?.bkash_mode || 'sandbox').toUpperCase()})`,
+                instruction: 'বিকাশ মার্চেন্ট গেটওয়েতে সরাসরি পেমেন্ট করুন। ওটিপি ও পিন দিয়ে সফল হলে আপনার ইনভয়েস সাথে সাথে স্বয়ংক্রিয়ভাবে পরিশোধিত হবে।',
+                badge: 'Instant Auto-Pay',
                 isMultiline: false,
             });
         }
 
-        // 2. Nagad
+        // 2. Manual bKash (Send Money / Agent / Personal)
+        if (bkashNum || !bkashOnline) {
+            methods.push({
+                id: 'bKash_manual',
+                type: 'manual',
+                name: 'bKash (Manual MFS)',
+                category: 'Mobile Banking (Manual)',
+                accountNumber: bkashNum || (siteSettings?.contact_phone || '+880 1800-000000'),
+                instruction: 'আমাদের বিকাশ অ্যাকাউন্টে টাকা পাঠিয়ে নিচে Transaction ID (TrxID) ও আপনার বিকাশ নম্বর দিন। অ্যাডমিন যাচাই করে অনুমোদন করবেন।',
+                badge: 'Admin Approval',
+                isMultiline: false,
+            });
+        }
+
+        // 3. Nagad (Manual)
         if (nagadNum) {
             methods.push({
                 id: 'Nagad',
-                name: 'Nagad',
-                category: 'Mobile Banking',
+                type: 'manual',
+                name: 'Nagad (Manual MFS)',
+                category: 'Mobile Banking (Manual)',
                 accountNumber: nagadNum,
-                instruction: 'Send Money or Merchant Payment to our official Nagad account number below, then enter your TrxID.',
-                badge: 'Nagad Wallet',
+                instruction: 'আমাদের নগদ অ্যাকাউন্টে টাকা পাঠিয়ে নিচে TrxID ও প্রেরক নম্বর লিখুন। অ্যাডমিন যাচাই করে অনুমোদন করবেন।',
+                badge: 'Admin Approval',
                 isMultiline: false,
             });
         }
 
-        // 3. Rocket
+        // 4. Rocket (Manual)
         if (rocketNum) {
             methods.push({
                 id: 'Rocket',
+                type: 'manual',
                 name: 'DBBL Rocket',
-                category: 'Mobile Banking',
+                category: 'Mobile Banking (Manual)',
                 accountNumber: rocketNum,
-                instruction: 'Transfer payment via Dutch-Bangla Bank Rocket to the account below, then enter your TrxID.',
-                badge: 'Rocket Wallet',
+                instruction: 'আমাদের রকেট অ্যাকাউন্টে টাকা পাঠিয়ে নিচে TrxID লিখুন। অ্যাডমিন যাচাই করে অনুমোদন করবেন।',
+                badge: 'Admin Approval',
                 isMultiline: false,
             });
         }
 
-        // 4. Corporate Bank Wire
+        // 5. Corporate Bank Wire (Manual)
         if (bankDetails) {
             methods.push({
                 id: 'Bank Transfer',
+                type: 'manual',
                 name: 'Corporate Bank Transfer',
                 category: 'Direct Bank Wire',
                 accountNumber: bankDetails,
-                instruction: 'Deposit or wire transfer via BEFTN/NPSB/Internet Banking to our corporate account details below.',
-                badge: 'BEFTN / NPSB',
+                instruction: 'আমাদের ব্যাংক অ্যাকাউন্টে ডিপোজিট/ট্রান্সফার করে স্লিপ নম্বর বা রেফারেন্স নিচে TrxID হিসেবে দিন। অ্যাডমিন যাচাই করে অনুমোদন করবেন।',
+                badge: 'Admin Approval',
                 isMultiline: true,
             });
         }
 
-        // 5. SSLCommerz (Card / Visa / MFS)
+        // 6. SSLCommerz (Card / Visa / MFS)
         if (sslOnline) {
             methods.push({
                 id: 'Card / Visa',
+                type: 'gateway',
                 name: 'Card / Visa / MFS (SSLCommerz)',
                 category: 'Online Gateway',
                 accountNumber: `SSLCommerz Multi-Channel Payment (${(siteSettings?.sslcommerz_mode || 'LIVE').toUpperCase()})`,
@@ -142,10 +161,11 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
             });
         }
 
-        // 6. EPS (Easy Payment System)
+        // 7. EPS (Easy Payment System)
         if (epsOnline) {
             methods.push({
                 id: 'EPS',
+                type: 'gateway',
                 name: 'EPS (Easy Payment System)',
                 category: 'Online Gateway',
                 accountNumber: `Easy Payment System Bangladesh (${(siteSettings?.eps_mode || 'LIVE').toUpperCase()})`,
@@ -160,30 +180,33 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
             const fallbackPhone = siteSettings?.contact_phone || '+880 1800-000000';
             methods.push(
                 {
-                    id: 'bKash',
-                    name: 'bKash',
+                    id: 'bKash_manual',
+                    type: 'manual',
+                    name: 'bKash (Manual MFS)',
                     category: 'Mobile Banking',
                     accountNumber: fallbackPhone,
-                    instruction: 'Send Money or Make Payment to the official bKash account below, then submit your TrxID.',
-                    badge: 'bKash',
+                    instruction: 'Send Money to the official bKash account below, then submit your TrxID for admin review.',
+                    badge: 'Admin Approval',
                     isMultiline: false,
                 },
                 {
                     id: 'Nagad',
-                    name: 'Nagad',
+                    type: 'manual',
+                    name: 'Nagad (Manual MFS)',
                     category: 'Mobile Banking',
                     accountNumber: fallbackPhone,
-                    instruction: 'Send Money or Make Payment to the official Nagad account below, then submit your TrxID.',
-                    badge: 'Nagad',
+                    instruction: 'Send Money to the official Nagad account below, then submit your TrxID for admin review.',
+                    badge: 'Admin Approval',
                     isMultiline: false,
                 },
                 {
                     id: 'Bank Transfer',
+                    type: 'manual',
                     name: 'Bank Transfer',
                     category: 'Direct Bank Wire',
                     accountNumber: `Bank Name: City Bank / Trust Bank\nAccount Name: ${brandName}\nAccount No: 1102938475001\nHotline: ${brandPhone}`,
-                    instruction: 'Deposit or wire transfer via BEFTN/NPSB/Internet Banking to the corporate bank details below.',
-                    badge: 'Bank Wire',
+                    instruction: 'Deposit or wire transfer to the corporate bank details below and submit receipt slip number as TrxID.',
+                    badge: 'Admin Approval',
                     isMultiline: true,
                 }
             );
@@ -228,6 +251,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
     const [payAmounts, setPayAmounts] = useState({});
     const [selectedMethods, setSelectedMethods] = useState({});
     const [transactionIds, setTransactionIds] = useState({});
+    const [senderNumbers, setSenderNumbers] = useState({});
     const [payNotes, setPayNotes] = useState({});
     const [expandedLedgers, setExpandedLedgers] = useState({});
     const [submittingOrderId, setSubmittingOrderId] = useState(null);
@@ -250,7 +274,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
         }
         const defaultKey = siteSettings?.payment_default_gateway;
         const matched = availablePaymentMethods.find(m => m.id.toLowerCase() === defaultKey?.toLowerCase());
-        return matched ? matched.id : availablePaymentMethods[0]?.id || 'bKash';
+        return matched ? matched.id : availablePaymentMethods[0]?.id || 'bKash_manual';
     };
 
     const handlePayPendingOrder = (order) => {
@@ -262,21 +286,44 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
             return;
         }
 
-        const method = getOrderMethod(order.id);
+        const methodId = getOrderMethod(order.id);
+        const methodObj = availablePaymentMethods.find(m => m.id === methodId) || availablePaymentMethods[0];
+
+        // Case 1: Automated bKash Merchant Gateway (PGW)
+        if (methodObj?.type === 'gateway' || methodObj?.id === 'bkash_gateway') {
+            setSubmittingOrderId(order.id);
+            router.post(route('orders.bkash.initiate', order.id), {
+                amount: amountNum,
+            }, {
+                preserveScroll: true,
+                onFinish: () => setSubmittingOrderId(null),
+            });
+            return;
+        }
+
+        // Case 2: Manual Payment (MFS / Bank Transfer) - requires TrxID and Admin Approval
         const trxId = (transactionIds[order.id] || '').trim();
+        const senderNum = (senderNumbers[order.id] || '').trim();
         const notes = (payNotes[order.id] || '').trim();
+
+        if (!trxId) {
+            alert('অনুগ্রহ করে পেমেন্ট করার পর প্রাপ্ত Transaction ID (TrxID) লিখুন।');
+            return;
+        }
 
         setSubmittingOrderId(order.id);
         router.post(route('orders.pay', order.id), {
             amount: amountNum,
-            payment_method: method,
+            payment_method: methodObj?.name || 'Manual Payment',
             transaction_id: trxId,
+            sender_number: senderNum,
             notes: notes,
         }, {
             preserveScroll: true,
             onFinish: () => {
                 setSubmittingOrderId(null);
                 setTransactionIds(prev => ({ ...prev, [order.id]: '' }));
+                setSenderNumbers(prev => ({ ...prev, [order.id]: '' }));
                 setPayNotes(prev => ({ ...prev, [order.id]: '' }));
             }
         });
@@ -652,6 +699,34 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                     </div>
                                                 </div>
 
+                                                {/* Pending Payment Submissions Alert Banner */}
+                                                {paymentsList.some(p => p.status === 'pending') && (
+                                                    <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-900 space-y-2">
+                                                        {paymentsList.filter(p => p.status === 'pending').map(pendingP => (
+                                                            <div key={pendingP.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                                <div className="flex items-start sm:items-center gap-2.5">
+                                                                    <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0 animate-pulse" />
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-amber-950">
+                                                                            পেমেন্ট যাচাই প্রক্রিয়াধীন (Pending Admin Verification): <span className="font-mono text-emerald-800 font-black">৳{parseFloat(pendingP.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT</span>
+                                                                        </p>
+                                                                        <p className="text-[11px] text-amber-800">
+                                                                            মেথড: <strong>{pendingP.payment_method}</strong> &bull; TrxID: <strong className="font-mono">{pendingP.transaction_id}</strong>
+                                                                            {pendingP.sender_number ? ` • প্রেরক: ${pendingP.sender_number}` : ''}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-200/70 text-amber-900 border border-amber-300 self-start sm:self-auto">
+                                                                    ⏳ অ্যাডমিন ভেরিফিকেশন চলছে
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        <p className="text-[10px] text-amber-700 pt-1 border-t border-amber-200">
+                                                            অ্যাডমিন আপনার ট্রানজেকশন যাচাই করে অ্যাপ্রুভ করার সাথে সাথে ইনভয়েসের বাকি ব্যালেন্স (Outstanding Due) স্বয়ংক্রিয়ভাবে সমন্বয় করা হবে।
+                                                        </p>
+                                                    </div>
+                                                )}
+
                                                 {/* Section 1: Customer Desired Amount Input with Presets */}
                                                 <div className="p-4 rounded-xl bg-neutral-50/70 border border-neutral-200/70 space-y-3">
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -739,34 +814,42 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                 <div className="space-y-3">
                                                     <div>
                                                         <label className="block text-xs font-bold text-neutral-800 mb-1.5">
-                                                            Choose Active System Payment Method
+                                                            Choose Payment Gateway / Method (পেমেন্ট পদ্ধতি নির্বাচন করুন)
                                                         </label>
-                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                                             {availablePaymentMethods.map((m) => {
                                                                 const isSelected = selectedMethod.id === m.id;
+                                                                const isGateway = m.type === 'gateway';
+
                                                                 return (
                                                                     <button
                                                                         type="button"
                                                                         key={m.id}
                                                                         onClick={() => setSelectedMethods(prev => ({ ...prev, [order.id]: m.id }))}
-                                                                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                                                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
                                                                             isSelected
-                                                                                ? 'bg-primary text-white border-primary shadow-xs ring-2 ring-primary/20'
+                                                                                ? isGateway
+                                                                                    ? 'bg-pink-700 text-white border-pink-700 shadow-xs ring-2 ring-pink-500/30'
+                                                                                    : 'bg-primary text-white border-primary shadow-xs ring-2 ring-primary/20'
                                                                                 : 'bg-white hover:bg-neutral-50 text-neutral-800 border-neutral-200'
                                                                         }`}
                                                                     >
-                                                                        <div className="flex items-center justify-between">
-                                                                            <span className="text-xs font-black block">{m.name}</span>
-                                                                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
-                                                                                isSelected ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-500'
+                                                                        <div className="flex items-center justify-between gap-1">
+                                                                            <span className="text-xs font-black block truncate">{m.name}</span>
+                                                                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0 ${
+                                                                                isSelected 
+                                                                                    ? 'bg-white/20 text-white' 
+                                                                                    : isGateway
+                                                                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                                                                    : 'bg-neutral-100 text-neutral-600'
                                                                             }`}>
                                                                                 {m.badge}
                                                                             </span>
                                                                         </div>
-                                                                        <span className={`text-[10px] block mt-0.5 truncate ${
-                                                                            isSelected ? 'text-blue-100' : 'text-neutral-500'
+                                                                        <span className={`text-[10px] block mt-1 truncate ${
+                                                                            isSelected ? 'text-white/80' : 'text-neutral-500'
                                                                         }`}>
-                                                                            {m.category}
+                                                                            {isGateway ? '⚡ Instant Gateway Auto-Credit' : '📝 Manual TrxID Verification'}
                                                                         </span>
                                                                     </button>
                                                                 );
@@ -774,94 +857,149 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                         </div>
                                                     </div>
 
-                                                    {/* Dynamic Settlement Account Details Card */}
-                                                    <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-blue-900 space-y-2">
-                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-blue-100">
-                                                            <div>
-                                                                <span className="font-bold text-xs block text-blue-950">
-                                                                    Official Account Details ({selectedMethod.name}):
-                                                                </span>
-                                                                <p className="text-[11px] text-blue-700 mt-0.5">
-                                                                    {selectedMethod.instruction}
-                                                                </p>
+                                                    {/* Gateway / Account Details Card */}
+                                                    {selectedMethod.type === 'gateway' ? (
+                                                        <div className="p-4 rounded-xl bg-pink-50 border border-pink-200 text-xs text-pink-950 space-y-2">
+                                                            <div className="flex items-center gap-2 font-bold text-xs text-pink-900">
+                                                                <CreditCard className="w-4 h-4 text-pink-600 shrink-0" />
+                                                                <span>অফিসিয়াল বিকাশ মার্চেন্ট গেটওয়ে (Official bKash PGW Checkout)</span>
+                                                            </div>
+                                                            <p className="text-[11px] text-pink-800 leading-relaxed">
+                                                                নিচের <strong>"Proceed to bKash Gateway"</strong> বাটনে ক্লিক করলে আপনাকে নিরাপদ বিকাশ চেকআউট স্ক্রিনে নিয়ে যাওয়া হবে। সেখানে আপনার বিকাশ নম্বর, ওটিপি এবং পিন দিয়ে পেমেন্ট সম্পন্ন হলে আপনার ইনভয়েস <strong>কোন প্রকার ম্যানুয়াল ভেরিফিকেশন ছাড়াই সাথে সাথে অটো পেমেন্ট</strong> হিসেবে সফলভাবে আপডেট হয়ে যাবে।
+                                                            </p>
+                                                            <div className="flex items-center justify-between text-[11px] font-mono text-pink-700 pt-1 border-t border-pink-200">
+                                                                <span>Payable Amount: <strong className="text-pink-900">৳{enteredNum.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT</strong></span>
+                                                                <span>Invoice: <strong className="text-pink-900">#{order.transaction_id || `INV-${order.id}`}</strong></span>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-blue-900 space-y-2">
+                                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-blue-100">
+                                                                <div>
+                                                                    <span className="font-bold text-xs block text-blue-950">
+                                                                        Official Settlement Account ({selectedMethod.name}):
+                                                                    </span>
+                                                                    <p className="text-[11px] text-blue-700 mt-0.5">
+                                                                        {selectedMethod.instruction}
+                                                                    </p>
+                                                                </div>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => copyToClipboard(selectedMethod.accountNumber, `wallet-${order.id}`)}
+                                                                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-blue-100 text-primary font-bold text-xs flex items-center gap-1.5 border border-blue-200 shadow-2xs self-start sm:self-auto transition-colors cursor-pointer"
+                                                                >
+                                                                    <Copy className="w-3.5 h-3.5" />
+                                                                    <span>{copiedKey === `wallet-${order.id}` ? 'Copied Details!' : 'Copy Account'}</span>
+                                                                </button>
                                                             </div>
 
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => copyToClipboard(selectedMethod.accountNumber, `wallet-${order.id}`)}
-                                                                className="px-3 py-1.5 rounded-lg bg-white hover:bg-blue-100 text-primary font-bold text-xs flex items-center gap-1.5 border border-blue-200 shadow-2xs self-start sm:self-auto transition-colors cursor-pointer"
-                                                            >
-                                                                <Copy className="w-3.5 h-3.5" />
-                                                                <span>{copiedKey === `wallet-${order.id}` ? 'Copied Details!' : 'Copy Account'}</span>
-                                                            </button>
-                                                        </div>
-
-                                                        {/* Account Number / Bank Wire Details */}
-                                                        <div className="p-3 bg-white rounded-lg border border-blue-200/80">
-                                                            {selectedMethod.isMultiline ? (
-                                                                <pre className="font-mono text-xs text-neutral-800 whitespace-pre-wrap leading-relaxed select-all">
-                                                                    {selectedMethod.accountNumber}
-                                                                </pre>
-                                                            ) : (
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="text-[11px] text-neutral-500 font-medium">Account / Phone:</span>
-                                                                    <span className="font-mono font-black text-sm text-primary select-all">
+                                                            {/* Account Number / Bank Wire Details */}
+                                                            <div className="p-3 bg-white rounded-lg border border-blue-200/80">
+                                                                {selectedMethod.isMultiline ? (
+                                                                    <pre className="font-mono text-xs text-neutral-800 whitespace-pre-wrap leading-relaxed select-all">
                                                                         {selectedMethod.accountNumber}
-                                                                    </span>
+                                                                    </pre>
+                                                                ) : (
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-[11px] text-neutral-500 font-medium">Account / Phone:</span>
+                                                                        <span className="font-mono font-black text-sm text-primary select-all">
+                                                                            {selectedMethod.accountNumber}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex items-center justify-between text-[11px] text-blue-800 font-mono">
+                                                                <span>Invoice Reference:</span>
+                                                                <span className="font-bold">#{order.transaction_id || `INV-${order.id}`}</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Transaction ID & Sender inputs (Only for Manual Payment) */}
+                                                    {selectedMethod.type !== 'gateway' && (
+                                                        <div className="space-y-3">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                <div>
+                                                                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                                                                        Transaction ID (TrxID) / Deposit Slip Ref <span className="text-red-500">*</span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        required
+                                                                        value={transactionIds[order.id] || ''}
+                                                                        onChange={(e) => setTransactionIds(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                                                        placeholder="e.g. BK789X1234 or Deposit Slip #"
+                                                                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-neutral-50/60 focus:bg-white focus:border-primary font-mono font-bold"
+                                                                    />
                                                                 </div>
-                                                            )}
-                                                        </div>
 
-                                                        <div className="flex items-center justify-between text-[11px] text-blue-800 font-mono">
-                                                            <span>Invoice Reference:</span>
-                                                            <span className="font-bold">#{order.transaction_id || `INV-${order.id}`}</span>
-                                                        </div>
-                                                    </div>
+                                                                <div>
+                                                                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                                                                        Sender Phone / Account Number (ঐচ্ছিক)
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={senderNumbers[order.id] || ''}
+                                                                        onChange={(e) => setSenderNumbers(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                                                        placeholder="e.g. 017XXXXXXXX"
+                                                                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-neutral-50/60 focus:bg-white focus:border-primary font-mono"
+                                                                    />
+                                                                </div>
+                                                            </div>
 
-                                                    {/* Transaction ID & Reference Note Inputs */}
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        <div>
-                                                            <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                                                                Transaction ID (TrxID) / Deposit Slip Ref
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                value={transactionIds[order.id] || ''}
-                                                                onChange={(e) => setTransactionIds(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                                                placeholder="e.g. 9J83KLM28P or Slip #1042"
-                                                                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-neutral-50/60 focus:bg-white focus:border-primary font-mono"
-                                                            />
-                                                        </div>
+                                                            <div>
+                                                                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                                                                    Payment Note / Remarks (ঐচ্ছিক)
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={payNotes[order.id] || ''}
+                                                                    onChange={(e) => setPayNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                                                    placeholder="e.g. Paid installment for project milestone"
+                                                                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-neutral-50/60 focus:bg-white focus:border-primary"
+                                                                />
+                                                            </div>
 
-                                                        <div>
-                                                            <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                                                                Sender Phone or Remarks (Optional)
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                value={payNotes[order.id] || ''}
-                                                                onChange={(e) => setPayNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                                                placeholder="e.g. Paid from 017XXXXXXXX"
-                                                                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-neutral-50/60 focus:bg-white focus:border-primary"
-                                                            />
+                                                            <p className="text-[11px] text-amber-800 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200/80">
+                                                                ⚠️ ম্যানুয়াল পেমেন্টে TrxID সাবমিট করার পর অ্যাডমিন অ্যাকাউন্ট চেক করে ভেরিফাই করবেন। অ্যাডমিন অনুমোদন করার পর আপনার বকেয়া সমন্বয় হবে।
+                                                            </p>
                                                         </div>
-                                                    </div>
+                                                    )}
 
-                                                    {/* Pay Now & Verify Submit Button */}
-                                                    <button
-                                                        type="button"
-                                                        disabled={isSubmitting || enteredNum <= 0}
-                                                        onClick={() => handlePayPendingOrder(order)}
-                                                        className="w-full py-3 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs sm:text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                                                    >
-                                                        <CreditCard className="w-4 h-4" />
-                                                        <span>
-                                                            {isSubmitting 
-                                                                ? 'Submitting & Verifying...' 
-                                                                : `Pay Now ৳${enteredNum.toLocaleString(undefined, { minimumFractionDigits: 2 })} & Verify`
-                                                            }
-                                                        </span>
-                                                    </button>
+                                                    {/* Submit Action Button */}
+                                                    {selectedMethod.type === 'gateway' ? (
+                                                        <button
+                                                            type="button"
+                                                            disabled={isSubmitting || enteredNum <= 0}
+                                                            onClick={() => handlePayPendingOrder(order)}
+                                                            className="w-full py-3 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-pink-600/20 hover:shadow-lg hover:shadow-pink-600/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                                                        >
+                                                            <CreditCard className="w-4 h-4" />
+                                                            <span>
+                                                                {isSubmitting 
+                                                                    ? 'Connecting to bKash Gateway...' 
+                                                                    : `Proceed to bKash Gateway (৳${enteredNum.toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+                                                                }
+                                                            </span>
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            disabled={isSubmitting || enteredNum <= 0}
+                                                            onClick={() => handlePayPendingOrder(order)}
+                                                            className="w-full py-3 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs sm:text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                            <span>
+                                                                {isSubmitting 
+                                                                    ? 'Submitting for Admin Verification...' 
+                                                                    : `Submit TrxID for Admin Verification (৳${enteredNum.toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+                                                                }
+                                                            </span>
+                                                        </button>
+                                                    )}
                                                 </div>
 
                                                 {/* Section 3: Payment History Ledger (Collapsible) */}
@@ -874,7 +1012,7 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                         >
                                                             <span className="flex items-center gap-1.5">
                                                                 <History className="w-3.5 h-3.5 text-primary" />
-                                                                <span>Payment History ({paymentsList.length} installment{paymentsList.length > 1 ? 's' : ''} recorded)</span>
+                                                                <span>Payment History ({paymentsList.length} transaction{paymentsList.length > 1 ? 's' : ''})</span>
                                                             </span>
                                                             {isLedgerOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                         </button>
@@ -886,23 +1024,49 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                                         <tr>
                                                                             <th className="p-2.5 pl-3">Date</th>
                                                                             <th className="p-2.5">Method</th>
-                                                                            <th className="p-2.5">TrxID</th>
+                                                                            <th className="p-2.5">TrxID / Sender</th>
                                                                             <th className="p-2.5 text-right">Amount</th>
+                                                                            <th className="p-2.5 text-center">Status</th>
                                                                             <th className="p-2.5 pr-3">Notes</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-neutral-100">
-                                                                        {paymentsList.map(pm => (
-                                                                            <tr key={pm.id} className="hover:bg-neutral-50/50">
-                                                                                <td className="p-2.5 pl-3 font-mono text-neutral-600">{formatDate(pm.payment_date || pm.created_at)}</td>
-                                                                                <td className="p-2.5 font-bold text-neutral-800">{pm.payment_method}</td>
-                                                                                <td className="p-2.5 font-mono text-neutral-500">{pm.transaction_id || '—'}</td>
-                                                                                <td className="p-2.5 text-right font-mono font-bold text-emerald-600">
-                                                                                    ৳{parseFloat(pm.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                                                </td>
-                                                                                <td className="p-2.5 pr-3 text-neutral-500 text-[11px] truncate max-w-[150px]">{pm.notes || '—'}</td>
-                                                                            </tr>
-                                                                        ))}
+                                                                        {paymentsList.map(pm => {
+                                                                            const isPending = pm.status === 'pending';
+                                                                            const isRejected = pm.status === 'rejected';
+
+                                                                            return (
+                                                                                <tr key={pm.id} className="hover:bg-neutral-50/50">
+                                                                                    <td className="p-2.5 pl-3 font-mono text-neutral-600">{formatDate(pm.payment_date || pm.created_at)}</td>
+                                                                                    <td className="p-2.5 font-bold text-neutral-800">{pm.payment_method}</td>
+                                                                                    <td className="p-2.5 font-mono text-neutral-500">
+                                                                                        <div>{pm.transaction_id || '—'}</div>
+                                                                                        {pm.sender_number && <div className="text-[10px] text-neutral-400 font-sans">Sender: {pm.sender_number}</div>}
+                                                                                    </td>
+                                                                                    <td className="p-2.5 text-right font-mono font-bold text-emerald-600">
+                                                                                        ৳{parseFloat(pm.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                                    </td>
+                                                                                    <td className="p-2.5 text-center">
+                                                                                        {isPending ? (
+                                                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                                ⏳ Pending Verification
+                                                                                            </span>
+                                                                                        ) : isRejected ? (
+                                                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={pm.rejection_reason || ''}>
+                                                                                                ✕ Rejected
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                                ✓ Approved & Credited
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td className="p-2.5 pr-3 text-neutral-500 text-[11px] truncate max-w-[150px]">
+                                                                                        {pm.notes || pm.rejection_reason || '—'}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
                                                                     </tbody>
                                                                 </table>
                                                             </div>

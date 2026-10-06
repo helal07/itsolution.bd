@@ -24,7 +24,15 @@ class AdminOrderController extends Controller
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
 
-        $query = Order::with(['user', 'client', 'item.category', 'payments', 'requirements.attachments', 'tasks.assignee', 'quote']);
+        $query = Order::with([
+            'user', 
+            'client', 
+            'item.category', 
+            'payments' => fn($q) => $q->with('approver')->orderBy('id', 'desc'), 
+            'requirements.attachments', 
+            'tasks.assignee', 
+            'quote'
+        ]);
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);
@@ -62,6 +70,7 @@ class AdminOrderController extends Controller
         $paidCount = (clone $statsBaseQuery)->where('payment_status', 'paid')->count();
         $partialCount = (clone $statsBaseQuery)->where('payment_status', 'partial')->count();
         $dueCount = (clone $statsBaseQuery)->where('payment_status', 'due')->count();
+        $pendingVerificationCount = ClientPayment::where('status', 'pending')->count();
 
         $orderStats = [
             'total_invoiced' => $totalInvoiced,
@@ -73,6 +82,7 @@ class AdminOrderController extends Controller
             'paid_count' => $paidCount,
             'partial_count' => $partialCount,
             'due_count' => $dueCount,
+            'pending_verification_count' => $pendingVerificationCount,
         ];
 
         $clients = Client::select('id', 'name', 'phone', 'email', 'contact_person', 'logo')
@@ -280,15 +290,19 @@ class AdminOrderController extends Controller
         $order->save();
         $order->syncPaymentStatus();
 
-        // Always log payment into client_payments ledger
+        // Always log payment into client_payments ledger as approved
         ClientPayment::create([
             'client_id' => $order->client_id ?? null,
             'order_id' => $order->id,
             'amount' => $collectedAmount,
             'currency' => 'BDT',
             'payment_method' => $validated['payment_method'],
+            'status' => 'approved',
+            'payment_type' => 'manual',
+            'approved_at' => now(),
+            'approved_by' => $request->user()->id,
             'transaction_id' => $validated['transaction_id'] ?? ('PAY-' . strtoupper(Str::random(8))),
-            'notes' => $validated['notes'] ?? ('Payment of ৳' . number_format($collectedAmount) . ' collected for Order #' . ($order->transaction_id ?? $order->id)),
+            'notes' => $validated['notes'] ?? ('Payment of ৳' . number_format($collectedAmount) . ' collected by Admin for Order #' . ($order->transaction_id ?? $order->id)),
             'payment_date' => $validated['payment_date'],
         ]);
 
@@ -297,6 +311,69 @@ class AdminOrderController extends Controller
             : ' Order is now FULLY PAID & SETTLED!';
 
         return back()->with('success', 'Payment of ৳' . number_format($collectedAmount) . ' recorded successfully.' . $statusMsg);
+    }
+
+    /**
+     * Admin approves a client's pending manual payment.
+     * Credits the amount to the order and synchronizes payment status.
+     */
+    public function approvePayment(Request $request, ClientPayment $clientPayment): RedirectResponse
+    {
+        if ($clientPayment->status === 'approved') {
+            return back()->with('info', 'This payment has already been approved.');
+        }
+
+        $clientPayment->update([
+            'status' => 'approved',
+            'approved_at' => now(),
+            'approved_by' => $request->user()->id,
+            'rejection_reason' => null,
+        ]);
+
+        $order = $clientPayment->order;
+        if ($order) {
+            $order->paid_amount = (float) ($order->paid_amount ?? 0) + (float) $clientPayment->amount;
+            $order->payment_method = $clientPayment->payment_method;
+            if (empty($order->transaction_id)) {
+                $order->transaction_id = $clientPayment->transaction_id;
+            }
+            $order->save();
+            $order->syncPaymentStatus();
+
+            if ($order->due_amount <= 0 && $order->status === 'pending') {
+                $order->status = 'paid';
+                $order->save();
+            }
+        }
+
+        return back()->with('success', 'Payment submission of ৳' . number_format($clientPayment->amount, 2) . ' (TrxID: ' . $clientPayment->transaction_id . ') approved and credited successfully.');
+    }
+
+    /**
+     * Admin rejects a client's pending manual payment.
+     */
+    public function rejectPayment(Request $request, ClientPayment $clientPayment): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        // If previously approved, reverse the credited amount
+        if ($clientPayment->status === 'approved') {
+            $order = $clientPayment->order;
+            if ($order) {
+                $order->paid_amount = max(0, (float) ($order->paid_amount ?? 0) - (float) $clientPayment->amount);
+                $order->save();
+                $order->syncPaymentStatus();
+            }
+        }
+
+        $clientPayment->update([
+            'status' => 'rejected',
+            'rejection_reason' => $validated['reason'] ?? 'Payment verification rejected by administrator.',
+        ]);
+
+        return back()->with('warning', 'Payment submission of ৳' . number_format($clientPayment->amount, 2) . ' (TrxID: ' . $clientPayment->transaction_id . ') has been rejected.');
     }
 
     public function destroy(Order $order): RedirectResponse

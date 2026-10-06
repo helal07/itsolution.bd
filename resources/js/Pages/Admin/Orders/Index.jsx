@@ -316,6 +316,45 @@ export default function Index({
         });
     };
 
+    const handleApprovePayment = (payment) => {
+        if (!payment) return;
+        if (confirm(`Approve payment of ৳${parseFloat(payment.amount).toLocaleString()} (TrxID: ${payment.transaction_id}) and credit to this order?`)) {
+            router.post(`/admin/payments/${payment.id}/approve`, {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setViewModalOrder(prev => {
+                        if (!prev) return null;
+                        const newPaid = parseFloat(prev.paid_amount || 0) + parseFloat(payment.amount);
+                        return {
+                            ...prev,
+                            paid_amount: newPaid,
+                            payments: (prev.payments || []).map(p => p.id === payment.id ? { ...p, status: 'approved' } : p)
+                        };
+                    });
+                }
+            });
+        }
+    };
+
+    const handleRejectPayment = (payment) => {
+        if (!payment) return;
+        const reason = prompt('Please enter rejection reason (e.g. TrxID not matched / amount not received):', 'Transaction not found in merchant account');
+        if (reason !== null) {
+            router.post(`/admin/payments/${payment.id}/reject`, { reason }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setViewModalOrder(prev => {
+                        if (!prev) return null;
+                        return {
+                            ...prev,
+                            payments: (prev.payments || []).map(p => p.id === payment.id ? { ...p, status: 'rejected', rejection_reason: reason } : p)
+                        };
+                    });
+                }
+            });
+        }
+    };
+
     // Calculate live numbers for Create Order Modal
     const createGross = parseFloat(createData.amount) || 0;
     const createDisc = parseFloat(createData.discount) || 0;
@@ -819,6 +858,14 @@ export default function Index({
                             >
                                 Due ({orderStats.due_count})
                             </button>
+                            {orderStats.pending_verification_count > 0 && (
+                                <div className="col-span-2 mt-1">
+                                    <span className="w-full py-1 px-2 rounded-xl text-center text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center justify-center gap-1.5 animate-pulse">
+                                        <Clock className="w-3 h-3 text-amber-700" />
+                                        <span>{orderStats.pending_verification_count} Payment{orderStats.pending_verification_count > 1 ? 's' : ''} Awaiting Verification</span>
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1042,15 +1089,27 @@ export default function Index({
 
                                                 {/* 7. Payment Status Badge */}
                                                 <td className="py-3 px-3 text-center whitespace-nowrap">
-                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wide border ${
-                                                        paymentStatus === 'paid'
-                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                                            : paymentStatus === 'partial'
-                                                            ? 'bg-amber-50 text-amber-700 border-amber-300'
-                                                            : 'bg-red-50 text-red-700 border-red-300'
-                                                    }`}>
-                                                        {paymentStatus === 'paid' ? '✓ Paid' : paymentStatus === 'partial' ? '⏳ Partial' : '⚠️ Due'}
-                                                    </span>
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wide border ${
+                                                            paymentStatus === 'paid'
+                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                                                : paymentStatus === 'partial'
+                                                                ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                                                : 'bg-red-50 text-red-700 border-red-300'
+                                                        }`}>
+                                                            {paymentStatus === 'paid' ? '✓ Paid' : paymentStatus === 'partial' ? '⏳ Partial' : '⚠️ Due'}
+                                                        </span>
+                                                        {(o.payments || []).some(p => p.status === 'pending') && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setViewModalOrder(o)}
+                                                                className="px-2 py-0.5 rounded-full font-bold text-[9px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 cursor-pointer animate-pulse transition-all shadow-2xs"
+                                                                title="Client submitted payment proof awaiting admin verification"
+                                                            >
+                                                                ⏳ Verify ({(o.payments || []).filter(p => p.status === 'pending').length})
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
 
                                                 {/* 8. Progress & Work Status */}
@@ -1696,9 +1755,29 @@ export default function Index({
 
                             {/* Payment Ledger / History */}
                             <div className="space-y-2">
-                                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                                    Payment Transactions Ledger ({payments.length})
-                                </span>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                                        Payment Transactions Ledger ({payments.length})
+                                    </span>
+                                    {payments.some(p => p.status === 'pending') && (
+                                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300 animate-pulse">
+                                            ⏳ {payments.filter(p => p.status === 'pending').length} Verification Pending
+                                        </span>
+                                    )}
+                                </div>
+
+                                {payments.some(p => p.status === 'pending') && (
+                                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
+                                            <div>
+                                                <span className="font-bold">পেমেন্ট ভেরিফিকেশন অপেক্ষমান (Pending Approval)</span>
+                                                <p className="text-[11px] text-amber-700">ক্লায়েন্ট TrxID সাবমিট করেছেন। ব্যাংক/বিকাশ একাউন্ট যাচাই করে নিচে Approve বা Reject করুন।</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {payments.length === 0 ? (
                                     <p className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-xl text-center">
                                         No payment transactions logged yet for this order.
@@ -1710,21 +1789,73 @@ export default function Index({
                                                 <tr>
                                                     <th className="p-2.5 pl-3">Date</th>
                                                     <th className="p-2.5">Method</th>
-                                                    <th className="p-2.5">TrxID</th>
+                                                    <th className="p-2.5">TrxID / Sender</th>
                                                     <th className="p-2.5 text-right">Amount</th>
-                                                    <th className="p-2.5 pr-3">Notes</th>
+                                                    <th className="p-2.5 text-center">Status</th>
+                                                    <th className="p-2.5 pr-3 text-right">Action / Notes</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
-                                                {payments.map(p => (
-                                                    <tr key={p.id}>
-                                                        <td className="p-2.5 pl-3 font-mono text-slate-600">{formatDate(p.payment_date)}</td>
-                                                        <td className="p-2.5 font-semibold text-slate-800">{p.payment_method}</td>
-                                                        <td className="p-2.5 font-mono text-slate-500">{p.transaction_id || '—'}</td>
-                                                        <td className="p-2.5 text-right font-mono font-bold text-emerald-600">৳{parseFloat(p.amount).toLocaleString()}</td>
-                                                        <td className="p-2.5 pr-3 text-slate-500 text-[11px]">{p.notes || '—'}</td>
-                                                    </tr>
-                                                ))}
+                                                {payments.map(p => {
+                                                    const isPending = p.status === 'pending';
+                                                    const isRejected = p.status === 'rejected';
+
+                                                    return (
+                                                        <tr key={p.id} className={isPending ? 'bg-amber-50/40' : ''}>
+                                                            <td className="p-2.5 pl-3 font-mono text-slate-600">{formatDate(p.payment_date)}</td>
+                                                            <td className="p-2.5 font-semibold text-slate-800">
+                                                                <div>{p.payment_method}</div>
+                                                                <div className="text-[10px] text-slate-400 capitalize">{p.payment_type || 'manual'}</div>
+                                                            </td>
+                                                            <td className="p-2.5 font-mono text-slate-600">
+                                                                <div className="font-bold">{p.transaction_id || '—'}</div>
+                                                                {p.sender_number && <div className="text-[10px] text-slate-500 font-sans">Sender: {p.sender_number}</div>}
+                                                            </td>
+                                                            <td className="p-2.5 text-right font-mono font-bold text-emerald-600">
+                                                                ৳{parseFloat(p.amount).toLocaleString()}
+                                                            </td>
+                                                            <td className="p-2.5 text-center whitespace-nowrap">
+                                                                {isPending ? (
+                                                                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                                                        ⏳ Pending
+                                                                    </span>
+                                                                ) : isRejected ? (
+                                                                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={p.rejection_reason || ''}>
+                                                                        ✕ Rejected
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                        ✓ Approved
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-2.5 pr-3 text-right whitespace-nowrap">
+                                                                {isPending ? (
+                                                                    <div className="inline-flex items-center gap-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleApprovePayment(p)}
+                                                                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition-colors cursor-pointer"
+                                                                        >
+                                                                            ✓ Approve & Credit
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRejectPayment(p)}
+                                                                            className="px-2 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[11px] transition-colors cursor-pointer"
+                                                                        >
+                                                                            ✕ Reject
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-slate-400 text-[11px] truncate max-w-[140px] block">
+                                                                        {p.notes || p.rejection_reason || '—'}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>

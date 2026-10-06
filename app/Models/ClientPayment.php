@@ -16,14 +16,21 @@ class ClientPayment extends Model
         'amount',
         'currency',
         'payment_method',
+        'status', // 'pending', 'approved', 'rejected'
+        'payment_type', // 'manual', 'gateway'
         'transaction_id',
+        'sender_number',
         'notes',
         'payment_date',
+        'approved_at',
+        'approved_by',
+        'rejection_reason',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'payment_date' => 'date',
+        'approved_at' => 'datetime',
     ];
 
     public function client(): BelongsTo
@@ -34,5 +41,20 @@ class ClientPayment extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
     }
 }
