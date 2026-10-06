@@ -376,6 +376,75 @@ class AdminOrderController extends Controller
         return back()->with('warning', 'Payment submission of ৳' . number_format($clientPayment->amount, 2) . ' (TrxID: ' . $clientPayment->transaction_id . ') has been rejected.');
     }
 
+    /**
+     * Admin updates an existing payment transaction and recalculates the order balance.
+     */
+    public function updatePayment(Request $request, ClientPayment $clientPayment): RedirectResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'payment_method' => ['required', 'string', 'max:50'],
+            'transaction_id' => ['nullable', 'string', 'max:150'],
+            'status' => ['required', 'in:approved,pending,rejected'],
+            'payment_date' => ['required', 'date'],
+            'sender_number' => ['nullable', 'string', 'max:50'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $order = $clientPayment->order;
+
+        if ($validated['status'] === 'approved' && empty($clientPayment->approved_at)) {
+            $validated['approved_at'] = now();
+            $validated['approved_by'] = $request->user()->id;
+        }
+
+        $clientPayment->update($validated);
+
+        if ($order) {
+            // Re-sync paid_amount from all approved payments linked to this order
+            $totalApprovedPaid = (float) $order->payments()->where('status', 'approved')->sum('amount');
+            $order->paid_amount = $totalApprovedPaid;
+            $order->save();
+            $order->syncPaymentStatus();
+
+            if ($order->due_amount > 0 && $order->status === 'paid') {
+                $order->status = ($order->progress > 0) ? 'processing' : 'pending';
+                $order->save();
+            } elseif ($order->due_amount <= 0 && $order->status === 'pending') {
+                $order->status = 'paid';
+                $order->save();
+            }
+        }
+
+        return back()->with('success', 'Payment transaction updated successfully. Order billing and dues synchronized.');
+    }
+
+    /**
+     * Admin deletes a payment transaction and reverses its credit from the order.
+     */
+    public function destroyPayment(ClientPayment $clientPayment): RedirectResponse
+    {
+        $order = $clientPayment->order;
+        $deletedAmount = (float) $clientPayment->amount;
+
+        $clientPayment->delete();
+
+        if ($order) {
+            // Re-sync paid_amount from all remaining approved payments
+            $totalApprovedPaid = (float) $order->payments()->where('status', 'approved')->sum('amount');
+            $order->paid_amount = $totalApprovedPaid;
+            $order->save();
+            $order->syncPaymentStatus();
+
+            if ($order->due_amount > 0 && $order->status === 'paid') {
+                $order->status = ($order->progress > 0) ? 'processing' : 'pending';
+                $order->save();
+            }
+        }
+
+        return back()->with('success', 'Payment transaction of ৳' . number_format($deletedAmount, 2) . ' deleted successfully. Outstanding due recalculated.');
+    }
+
     public function destroy(Order $order): RedirectResponse
     {
         // Clean up linked payments if any

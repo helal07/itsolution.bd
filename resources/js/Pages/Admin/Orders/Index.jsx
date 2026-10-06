@@ -71,6 +71,8 @@ export default function Index({
     const [viewModalOrder, setViewModalOrder] = useState(null);
     const [invoiceModalOrder, setInvoiceModalOrder] = useState(null);
     const [taskModalOrder, setTaskModalOrder] = useState(null);
+    const [editOrderModal, setEditOrderModal] = useState(null);
+    const [editPaymentModal, setEditPaymentModal] = useState(null);
     
     const [search, setSearch] = useState('');
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState(currentPaymentStatus || 'all');
@@ -348,6 +350,135 @@ export default function Index({
                         return {
                             ...prev,
                             payments: (prev.payments || []).map(p => p.id === payment.id ? { ...p, status: 'rejected', rejection_reason: reason } : p)
+                        };
+                    });
+                }
+            });
+        }
+    };
+
+    // 4. Edit Order / Invoice Form
+    const editOrderForm = useForm({
+        project_name: '',
+        amount: '',
+        discount: '0',
+        due_date: '',
+        delivery_date: '',
+        status: 'pending',
+        notes: '',
+    });
+
+    const openEditOrderModal = (order) => {
+        setEditOrderModal(order);
+        editOrderForm.setData({
+            project_name: order.project_name || '',
+            amount: String(order.amount || ''),
+            discount: String(order.discount || '0'),
+            due_date: order.due_date ? String(order.due_date).split('T')[0] : '',
+            delivery_date: order.delivery_date ? String(order.delivery_date).split('T')[0] : '',
+            status: order.status || 'pending',
+            notes: order.notes || '',
+        });
+    };
+
+    const handleEditOrderSubmit = (e) => {
+        e.preventDefault();
+        if (!editOrderModal) return;
+
+        editOrderForm.put(`/admin/orders/${editOrderModal.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setEditOrderModal(null);
+            }
+        });
+    };
+
+    const handleDeleteOrder = (order) => {
+        if (!order) return;
+        if (confirm(`Are you sure you want to delete Order #${order.transaction_id || order.id} for "${order.project_name || order.item?.name}"? All associated payment transaction records will also be permanently deleted.`)) {
+            router.delete(`/admin/orders/${order.id}`, {
+                preserveScroll: true,
+            });
+        }
+    };
+
+    // 5. Edit Payment Transaction Form
+    const editPaymentForm = useForm({
+        amount: '',
+        payment_method: 'bKash',
+        transaction_id: '',
+        sender_number: '',
+        status: 'approved',
+        payment_date: '',
+        notes: '',
+    });
+
+    const openEditPaymentModal = (payment) => {
+        setEditPaymentModal(payment);
+        editPaymentForm.setData({
+            amount: String(payment.amount || ''),
+            payment_method: payment.payment_method || 'bKash',
+            transaction_id: payment.transaction_id || '',
+            sender_number: payment.sender_number || '',
+            status: payment.status || 'approved',
+            payment_date: payment.payment_date ? String(payment.payment_date).split('T')[0] : new Date().toISOString().split('T')[0],
+            notes: payment.notes || '',
+        });
+    };
+
+    const handleEditPaymentSubmit = (e) => {
+        e.preventDefault();
+        if (!editPaymentModal) return;
+
+        editPaymentForm.put(`/admin/payments/${editPaymentModal.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                const updatedAmount = parseFloat(editPaymentForm.data.amount) || 0;
+                const updatedStatus = editPaymentForm.data.status;
+                const updatedId = editPaymentModal.id;
+
+                setViewModalOrder(prev => {
+                    if (!prev) return null;
+                    const updatedPayments = (prev.payments || []).map(p => 
+                        p.id === updatedId 
+                            ? { 
+                                ...p, 
+                                ...editPaymentForm.data, 
+                                amount: updatedAmount 
+                              } 
+                            : p
+                    );
+                    const newPaid = updatedPayments
+                        .filter(p => p.status === 'approved')
+                        .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                    return {
+                        ...prev,
+                        paid_amount: newPaid,
+                        payments: updatedPayments,
+                    };
+                });
+
+                setEditPaymentModal(null);
+            }
+        });
+    };
+
+    const handleDeletePayment = (payment) => {
+        if (!payment) return;
+        if (confirm(`Are you sure you want to delete payment transaction #${payment.transaction_id || payment.id} of ৳${parseFloat(payment.amount).toLocaleString()}? This will deduct the amount from the paid balance and recalculate outstanding dues.`)) {
+            router.delete(`/admin/payments/${payment.id}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setViewModalOrder(prev => {
+                        if (!prev) return null;
+                        const remaining = (prev.payments || []).filter(p => p.id !== payment.id);
+                        const newPaid = remaining
+                            .filter(p => p.status === 'approved')
+                            .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                        return {
+                            ...prev,
+                            paid_amount: newPaid,
+                            payments: remaining,
                         };
                     });
                 }
@@ -1149,6 +1280,9 @@ export default function Index({
                                                             <ActionItem onClick={() => openTaskModal(o)} icon={CheckSquare} className="text-amber-700 hover:text-amber-800">
                                                                 Assign Tasks &amp; Team ({o.tasks?.length || 0})
                                                             </ActionItem>
+                                                            <ActionItem onClick={() => openEditOrderModal(o)} icon={FileText} className="text-indigo-700 hover:text-indigo-800">
+                                                                Edit Order & Billing
+                                                            </ActionItem>
                                                             <ActionItem onClick={() => openEditProgressModal(o)} icon={Sliders} className="text-blue-700 hover:text-blue-800">
                                                                 Edit Progress
                                                             </ActionItem>
@@ -1161,8 +1295,11 @@ export default function Index({
                                                             <ActionItem onClick={() => setInvoiceModalOrder(o)} icon={Receipt} className="text-indigo-700 hover:text-indigo-800">
                                                                 Invoice &amp; Print
                                                             </ActionItem>
-                                                            <ActionItem onClick={() => handleCancelOrder(o)} icon={Ban} danger>
+                                                            <ActionItem onClick={() => handleCancelOrder(o)} icon={Ban} className="text-amber-750">
                                                                 Cancel Order
+                                                            </ActionItem>
+                                                            <ActionItem onClick={() => handleDeleteOrder(o)} icon={Trash2} danger>
+                                                                Delete Order
                                                             </ActionItem>
                                                         </div>
                                                     </ActionDropdown>
@@ -1830,28 +1967,48 @@ export default function Index({
                                                                 )}
                                                             </td>
                                                             <td className="p-2.5 pr-3 text-right whitespace-nowrap">
-                                                                {isPending ? (
-                                                                    <div className="inline-flex items-center gap-1.5">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleApprovePayment(p)}
-                                                                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition-colors cursor-pointer"
-                                                                        >
-                                                                            ✓ Approve & Credit
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleRejectPayment(p)}
-                                                                            className="px-2 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[11px] transition-colors cursor-pointer"
-                                                                        >
-                                                                            ✕ Reject
-                                                                        </button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-slate-400 text-[11px] truncate max-w-[140px] block">
-                                                                        {p.notes || p.rejection_reason || '—'}
-                                                                    </span>
-                                                                )}
+                                                                <div className="inline-flex items-center justify-end gap-1.5">
+                                                                    {isPending ? (
+                                                                        <>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleApprovePayment(p)}
+                                                                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition-colors cursor-pointer"
+                                                                                title="Approve and credit payment to order"
+                                                                            >
+                                                                                ✓ Approve
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleRejectPayment(p)}
+                                                                                className="px-2 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[11px] transition-colors cursor-pointer"
+                                                                                title="Reject unverified transaction"
+                                                                            >
+                                                                                ✕ Reject
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="text-slate-400 text-[11px] truncate max-w-[120px] block text-left mr-1" title={p.notes || p.rejection_reason || ''}>
+                                                                            {p.notes || p.rejection_reason || '—'}
+                                                                        </span>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openEditPaymentModal(p)}
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                                                                        title="Edit Payment Transaction"
+                                                                    >
+                                                                        <Sliders className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDeletePayment(p)}
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                                                        title="Delete Payment (Recalculate balance and dues)"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     );
@@ -2323,6 +2480,365 @@ export default function Index({
                                 <CheckSquare className="w-4 h-4" />
                                 <span>{taskForm.processing ? 'Assigning...' : 'Assign & Dispatch to Team'}</span>
                             </button>
+                        </div>
+                    </form>
+                )}
+            </Modal>
+
+            {/* ============================================================== */}
+            {/* 6. EDIT ORDER & BILLING MODAL (Full CRUD on Order / Invoice) */}
+            {/* ============================================================== */}
+            <Modal show={Boolean(editOrderModal)} onClose={() => setEditOrderModal(null)} maxWidth="lg">
+                {editOrderModal && (() => {
+                    const gross = parseFloat(editOrderForm.data.amount) || 0;
+                    const discount = parseFloat(editOrderForm.data.discount) || 0;
+                    const net = Math.max(0, gross - discount);
+                    const paid = parseFloat(editOrderModal.paid_amount || 0);
+                    const due = Math.max(0, net - paid);
+
+                    return (
+                        <form onSubmit={handleEditOrderSubmit} className="p-6 bg-white space-y-5 rounded-2xl">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                        <FileText className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-slate-800">
+                                            Edit Order &amp; Billing Details
+                                        </h3>
+                                        <p className="text-xs text-slate-400 font-mono">
+                                            Invoice #{editOrderModal.transaction_id || `ORD-${editOrderModal.id}`} &bull; {editOrderModal.client?.name || editOrderModal.user?.name}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditOrderModal(null)}
+                                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Project / Invoice Title
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editOrderForm.data.project_name}
+                                        onChange={(e) => editOrderForm.setData('project_name', e.target.value)}
+                                        placeholder="e.g. ERP System Development"
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                                            Gross Bill (৳ BDT)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={editOrderForm.data.amount}
+                                            onChange={(e) => editOrderForm.setData('amount', e.target.value)}
+                                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-mono font-bold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                                            Discount (৳ BDT)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={editOrderForm.data.discount}
+                                            onChange={(e) => editOrderForm.setData('discount', e.target.value)}
+                                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Financial calculation preview */}
+                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-3 gap-2 text-center text-xs">
+                                    <div>
+                                        <div className="text-[10px] text-slate-500 uppercase font-bold">Net Bill</div>
+                                        <div className="font-mono font-bold text-slate-800">৳{net.toLocaleString()}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] text-slate-500 uppercase font-bold">Total Paid</div>
+                                        <div className="font-mono font-bold text-emerald-600">৳{paid.toLocaleString()}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] text-slate-500 uppercase font-bold">Updated Due</div>
+                                        <div className={`font-mono font-bold ${due > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                            ৳{due.toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                                            Project Status
+                                        </label>
+                                        <select
+                                            value={editOrderForm.data.status}
+                                            onChange={(e) => editOrderForm.setData('status', e.target.value)}
+                                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                        >
+                                            <option value="pending">Pending</option>
+                                            <option value="processing">Processing</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="cancelled">Cancelled</option>
+                                            <option value="paid">Paid</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                                            Due Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={editOrderForm.data.due_date}
+                                            onChange={(e) => editOrderForm.setData('due_date', e.target.value)}
+                                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-mono"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                                            Delivery Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={editOrderForm.data.delivery_date}
+                                            onChange={(e) => editOrderForm.setData('delivery_date', e.target.value)}
+                                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Order &amp; Billing Notes / Remarks
+                                    </label>
+                                    <textarea
+                                        rows="2"
+                                        value={editOrderForm.data.notes}
+                                        onChange={(e) => editOrderForm.setData('notes', e.target.value)}
+                                        placeholder="Add notes, milestone details or terms..."
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const ord = editOrderModal;
+                                        setEditOrderModal(null);
+                                        handleDeleteOrder(ord);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Delete Order</span>
+                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditOrderModal(null)}
+                                        className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={editOrderForm.processing}
+                                        className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                                    >
+                                        {editOrderForm.processing ? 'Saving...' : 'Update Order & Billing'}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    );
+                })()}
+            </Modal>
+
+            {/* ============================================================== */}
+            {/* 7. EDIT PAYMENT TRANSACTION MODAL */}
+            {/* ============================================================== */}
+            <Modal show={Boolean(editPaymentModal)} onClose={() => setEditPaymentModal(null)} maxWidth="md">
+                {editPaymentModal && (
+                    <form onSubmit={handleEditPaymentSubmit} className="p-6 bg-white space-y-4 rounded-2xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <Sliders className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-800">
+                                        Edit Payment Transaction
+                                    </h3>
+                                    <p className="text-xs text-slate-400 font-mono">
+                                        Payment #{editPaymentModal.id} &bull; TrxID: {editPaymentModal.transaction_id || 'N/A'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditPaymentModal(null)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Paid Amount (৳ BDT)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        value={editPaymentForm.data.amount}
+                                        onChange={(e) => editPaymentForm.setData('amount', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-mono font-bold"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Payment Method
+                                    </label>
+                                    <select
+                                        value={editPaymentForm.data.payment_method}
+                                        onChange={(e) => editPaymentForm.setData('payment_method', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                        required
+                                    >
+                                        {PAYMENT_METHODS.map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Transaction ID / TrxID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editPaymentForm.data.transaction_id}
+                                        onChange={(e) => editPaymentForm.setData('transaction_id', e.target.value)}
+                                        placeholder="e.g. BL9A7K01"
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Sender Phone / Account
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editPaymentForm.data.sender_number}
+                                        onChange={(e) => editPaymentForm.setData('sender_number', e.target.value)}
+                                        placeholder="01XXXXXXXXX"
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Verification Status
+                                    </label>
+                                    <select
+                                        value={editPaymentForm.data.status}
+                                        onChange={(e) => editPaymentForm.setData('status', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold"
+                                    >
+                                        <option value="approved">✓ Approved (Credited to Order)</option>
+                                        <option value="pending">⏳ Pending (Under Verification)</option>
+                                        <option value="rejected">✕ Rejected (Not Credited)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Payment Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={editPaymentForm.data.payment_date}
+                                        onChange={(e) => editPaymentForm.setData('payment_date', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <p className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-normal">
+                                💡 <strong>নোট:</strong> স্ট্যাটাস <em>Pending</em> অথবা <em>Rejected</em> রাখলে এই টাকাটি অর্ডারের Paid Balance থেকে বাদ যাবে এবং বকেয়া (Due Amount) পুনরায় বৃদ্ধি পাবে। <em>Approved</em> থাকলে ব্যালেন্স ক্রেডিট হবে।
+                            </p>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Notes / Admin Remarks
+                                </label>
+                                <textarea
+                                    rows="2"
+                                    value={editPaymentForm.data.notes}
+                                    onChange={(e) => editPaymentForm.setData('notes', e.target.value)}
+                                    placeholder="Add payment notes or reason..."
+                                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const p = editPaymentModal;
+                                    setEditPaymentModal(null);
+                                    handleDeletePayment(p);
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete Payment</span>
+                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditPaymentModal(null)}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={editPaymentForm.processing}
+                                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                                >
+                                    {editPaymentForm.processing ? 'Saving...' : 'Save & Sync Balance'}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 )}
