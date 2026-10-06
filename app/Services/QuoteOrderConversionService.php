@@ -48,7 +48,10 @@ class QuoteOrderConversionService
 
         // 2. Find or Create CRM Client record
         $client = null;
-        if (!empty($quote->email)) {
+        if (!empty($quote->client_id)) {
+            $client = Client::find($quote->client_id);
+        }
+        if (!$client && !empty($quote->email)) {
             $client = Client::where('email', $quote->email)->first();
         }
         if (!$client && !empty($quote->phone)) {
@@ -151,10 +154,14 @@ class QuoteOrderConversionService
         }
 
         // 6. Update Quote status to won & is_work_order
-        $quote->update([
+        $quoteUpdates = [
             'status' => 'won',
             'is_work_order' => true,
-        ]);
+        ];
+        if (empty($quote->client_id)) {
+            $quoteUpdates['client_id'] = $client->id;
+        }
+        $quote->update($quoteUpdates);
 
         // 7. Send notification email with credentials if user was newly created
         $emailSent = false;

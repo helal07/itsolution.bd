@@ -61,6 +61,9 @@ class AdminQuoteController extends Controller
         $quotes = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
         $items = Item::select('id', 'name', 'price')->orderBy('name')->get();
+        $clients = Client::select('id', 'name', 'contact_person', 'email', 'phone', 'address', 'website_url')
+            ->orderBy('name')
+            ->get();
 
         // Metrics for summary cards
         $metrics = [
@@ -74,6 +77,7 @@ class AdminQuoteController extends Controller
         return Inertia::render('Admin/Quotes/Index', [
             'quotes' => $quotes,
             'items' => $items,
+            'clients' => $clients,
             'metrics' => $metrics,
             'currentStatus' => $status ?? 'all',
             'viewType' => $viewType ?? 'all',
@@ -93,9 +97,13 @@ class AdminQuoteController extends Controller
     public function create(): Response
     {
         $items = Item::select('id', 'name', 'price')->orderBy('name')->get();
+        $clients = Client::select('id', 'name', 'contact_person', 'email', 'phone', 'address', 'website_url')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/Quotes/Create', [
             'items' => $items,
+            'clients' => $clients,
             'companyDetails' => [
                 'name' => SiteSetting::get('site_name', config('app.name', 'IT Solution')),
                 'logo' => SiteSetting::get('site_logo'),
@@ -109,6 +117,8 @@ class AdminQuoteController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'client_id' => ['nullable', 'exists:clients,id'],
+            'save_as_new_client' => ['nullable', 'boolean'],
             'name' => ['required', 'string', 'max:150'],
             'company_name' => ['nullable', 'string', 'max:191'],
             'email' => ['required', 'email', 'max:191'],
@@ -133,6 +143,45 @@ class AdminQuoteController extends Controller
         if (empty($validated['status'])) {
             $validated['status'] = 'new';
         }
+
+        // Handle Client linking or creation
+        $clientId = $validated['client_id'] ?? null;
+        $saveAsNewClient = $request->boolean('save_as_new_client', false);
+
+        if ($clientId) {
+            $client = Client::find($clientId);
+            if ($client) {
+                $clientUpdates = [];
+                if (empty($client->contact_person) && !empty($validated['name'])) {
+                    $clientUpdates['contact_person'] = $validated['name'];
+                }
+                if (empty($client->phone) && !empty($validated['phone'])) {
+                    $clientUpdates['phone'] = $validated['phone'];
+                }
+                if (!empty($clientUpdates)) {
+                    $client->update($clientUpdates);
+                }
+            }
+        } elseif ($saveAsNewClient && !empty($validated['email'])) {
+            // Check if client already exists by email or phone
+            $client = Client::where('email', $validated['email'])->first();
+            if (!$client && !empty($validated['phone'])) {
+                $client = Client::where('phone', $validated['phone'])->first();
+            }
+
+            if (!$client) {
+                $client = Client::create([
+                    'name' => $validated['company_name'] ?: ($validated['name'] ?: 'Client Organization'),
+                    'contact_person' => $validated['name'],
+                    'email' => $validated['email'],
+                    'phone' => $validated['phone'] ?? null,
+                    'status' => 'active',
+                ]);
+            }
+            $validated['client_id'] = $client->id;
+        }
+
+        unset($validated['save_as_new_client']);
 
         // Auto calculate subtotal from phases if phases exist and subtotal is empty
         if (!empty($validated['phases']) && empty($validated['subtotal'])) {
@@ -175,6 +224,7 @@ class AdminQuoteController extends Controller
     public function update(Request $request, Quote $quote): RedirectResponse
     {
         $validated = $request->validate([
+            'client_id' => ['nullable', 'exists:clients,id'],
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'company_name' => ['nullable', 'string', 'max:191'],
             'email' => ['sometimes', 'required', 'email', 'max:191'],

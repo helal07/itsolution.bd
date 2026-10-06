@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useForm, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import Modal from '@/Components/Modal';
 import { 
     ArrowLeft, 
     Save, 
@@ -19,10 +20,14 @@ import {
     Phone, 
     Clock, 
     Briefcase,
-    HelpCircle
+    HelpCircle,
+    CheckCircle2,
+    X,
+    UserPlus,
+    Search
 } from 'lucide-react';
 
-export default function Create({ items = [], companyDetails = {} }) {
+export default function Create({ items = [], clients = [], companyDetails = {} }) {
     // Initial default 3 phases template
     const defaultPhases = [
         { name: 'Phase 1: Discovery, UI/UX & Wireframing', description: 'System requirements gathering, interactive UI/UX prototypes, and architecture design.', duration: '5-7 Days', cost: '' },
@@ -38,6 +43,8 @@ export default function Create({ items = [], companyDetails = {} }) {
     ];
 
     const { data, setData, post, processing, errors } = useForm({
+        client_id: '',
+        save_as_new_client: true,
         name: '',
         company_name: '',
         email: '',
@@ -123,6 +130,73 @@ export default function Create({ items = [], companyDetails = {} }) {
         setData('payment_terms', freshTerms);
     };
 
+    const [showAddClientModal, setShowAddClientModal] = useState(false);
+
+    const quickClientForm = useForm({
+        name: '',
+        contact_person: '',
+        email: '',
+        phone: '',
+        address: '',
+        status: 'active',
+    });
+
+    const handleClientSelect = (clientId) => {
+        if (!clientId) {
+            handleClearClient();
+            return;
+        }
+        const selected = clients.find(c => String(c.id) === String(clientId));
+        if (selected) {
+            setData(prev => ({
+                ...prev,
+                client_id: selected.id,
+                name: selected.contact_person || selected.name || '',
+                company_name: selected.name || '',
+                email: selected.email || '',
+                phone: selected.phone || '',
+            }));
+        }
+    };
+
+    const handleClearClient = () => {
+        setData(prev => ({
+            ...prev,
+            client_id: '',
+            name: '',
+            company_name: '',
+            email: '',
+            phone: '',
+        }));
+    };
+
+    const handleCreateQuickClient = (e) => {
+        e.preventDefault();
+        quickClientForm.post('/admin/clients', {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                setShowAddClientModal(false);
+                const newlyCreated = (page.props.clients || []).find(
+                    c => (quickClientForm.data.email && c.email === quickClientForm.data.email) || c.name === quickClientForm.data.name
+                );
+                if (newlyCreated) {
+                    handleClientSelect(newlyCreated.id);
+                } else {
+                    setData(prev => ({
+                        ...prev,
+                        name: quickClientForm.data.contact_person || quickClientForm.data.name,
+                        company_name: quickClientForm.data.name,
+                        email: quickClientForm.data.email || '',
+                        phone: quickClientForm.data.phone || '',
+                    }));
+                }
+                quickClientForm.reset();
+            },
+        });
+    };
+
+    const activeClient = clients.find(c => String(c.id) === String(data.client_id));
+
     const handleSubmit = (e) => {
         e.preventDefault();
         post('/admin/quotes');
@@ -182,14 +256,107 @@ export default function Create({ items = [], companyDetails = {} }) {
                         
                         {/* Step 1: Client Information */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                            <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
                                     <User className="w-4 h-4 text-blue-600" />
                                     <span>Step 1: Client &amp; Organization Particulars</span>
                                 </h2>
-                                <span className="text-[11px] font-bold text-slate-400">Recipient Details</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddClientModal(true)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all border border-blue-200 cursor-pointer shadow-2xs"
+                                    >
+                                        <UserPlus className="w-3.5 h-3.5" />
+                                        <span>+ নতুন ক্লায়েন্ট যোগ করুন (Quick Add)</span>
+                                    </button>
+                                    <span className="text-[11px] font-bold text-slate-400 hidden sm:inline">Recipient Details</span>
+                                </div>
                             </div>
 
+                            {/* Saved Clients Selector Bar */}
+                            <div className="p-3.5 rounded-xl bg-slate-50/90 border border-slate-200 space-y-2.5">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                        <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                                        <span>সেভড ক্লায়েন্ট তালিকা থেকে নির্বাচন করুন (Select From Saved Clients):</span>
+                                    </label>
+                                    {data.client_id ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleClearClient}
+                                            className="text-[11px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-md transition-colors inline-flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+                                        >
+                                            <X className="w-3 h-3" />
+                                            <span>সিলেকশন মুছুন / নতুন তথ্য লিখুন</span>
+                                        </button>
+                                    ) : (
+                                        <span className="text-[11px] text-slate-500 font-medium">
+                                            পুরাতন ক্লায়েন্ট সিলেক্ট করলে তথ্য স্বয়ংক্রিয়ভাবে বসে যাবে
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Dropdown Selector */}
+                                <div className="grid grid-cols-1 gap-2">
+                                    <select
+                                        value={data.client_id}
+                                        onChange={(e) => handleClientSelect(e.target.value)}
+                                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                                            data.client_id 
+                                                ? 'bg-blue-50/50 border-blue-300 text-blue-950 font-bold focus:ring-blue-200' 
+                                                : 'bg-white border-slate-300 text-slate-700 focus:border-blue-500 focus:ring-blue-100'
+                                        }`}
+                                    >
+                                        <option value="">-- নতুন ক্লায়েন্ট / ম্যানুয়ালি ইনপুট দিন (New Client / Manual Input) --</option>
+                                        {clients.map(c => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.name} {c.contact_person && c.contact_person !== c.name ? `[যোগাযোগ: ${c.contact_person}]` : ''} {c.phone ? `• 📱 ${c.phone}` : ''} {c.email ? `• ✉️ ${c.email}` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Selected Client Live Pill / Banner */}
+                                {activeClient ? (
+                                    <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                            <div className="truncate">
+                                                <strong className="text-emerald-950">{activeClient.name}</strong>
+                                                {activeClient.contact_person && activeClient.contact_person !== activeClient.name && (
+                                                    <span className="text-emerald-800"> ({activeClient.contact_person})</span>
+                                                )}
+                                                <span className="text-emerald-700 text-[11px] font-mono">
+                                                    {activeClient.email ? ` • ${activeClient.email}` : ''}
+                                                    {activeClient.phone ? ` • ${activeClient.phone}` : ''}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-200 text-emerald-900 shrink-0">
+                                            ✓ সেভড ক্লায়েন্ট
+                                        </span>
+                                    </div>
+                                ) : (
+                                    /* Option to save new client in directory */
+                                    <div className="pt-1 flex items-center justify-between">
+                                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 select-none">
+                                            <input
+                                                type="checkbox"
+                                                checked={data.save_as_new_client}
+                                                onChange={(e) => setData('save_as_new_client', e.target.checked)}
+                                                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                                            />
+                                            <span>এই ক্লায়েন্টকে ক্লায়েন্ট ডিরেক্টরিতে সেভ করুন (Save as New Client in Directory)</span>
+                                        </label>
+                                        <span className="text-[10px] text-slate-500 hidden sm:inline">
+                                            ভবিষ্যতে নতুন অর্ডারের জন্য সংরক্ষিত থাকবে
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Input Fields */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -682,6 +849,124 @@ export default function Create({ items = [], companyDetails = {} }) {
                 </form>
 
             </div>
+
+            {/* Quick Add Client Modal */}
+            <Modal show={showAddClientModal} onClose={() => setShowAddClientModal(false)} maxWidth="lg">
+                <div className="p-6 bg-white rounded-2xl space-y-5">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                                <UserPlus className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-extrabold text-slate-900 text-sm">নতুন ক্লায়েন্ট যোগ করুন (Quick Add Client)</h3>
+                                <p className="text-[11px] text-slate-500">ডিরেক্টরিতে সেভ হবে এবং সাথে সাথে কোটেশনে সিলেক্ট হয়ে যাবে</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowAddClientModal(false)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleCreateQuickClient} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">
+                                Company / Client Name (প্রতিষ্ঠান বা ক্লায়েন্টের নাম) <span className="text-rose-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={quickClientForm.data.name}
+                                onChange={(e) => quickClientForm.setData('name', e.target.value)}
+                                placeholder="যেমন: টেকনো সফটওয়্যার বা হেলিম উদ্দিন"
+                                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:border-blue-500"
+                                required
+                            />
+                            {quickClientForm.errors.name && (
+                                <p className="text-rose-600 text-[11px] mt-1 font-semibold">{quickClientForm.errors.name}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">
+                                Contact Person Name (যোগাযোগকারী ব্যক্তি)
+                            </label>
+                            <input
+                                type="text"
+                                value={quickClientForm.data.contact_person}
+                                onChange={(e) => quickClientForm.setData('contact_person', e.target.value)}
+                                placeholder="যেমন: মো: হেলাল উদ্দিন"
+                                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:border-blue-500"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Email Address (ইমেইল)
+                                </label>
+                                <input
+                                    type="email"
+                                    value={quickClientForm.data.email}
+                                    onChange={(e) => quickClientForm.setData('email', e.target.value)}
+                                    placeholder="client@company.com"
+                                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:border-blue-500 font-mono"
+                                />
+                                {quickClientForm.errors.email && (
+                                    <p className="text-rose-600 text-[11px] mt-1 font-semibold">{quickClientForm.errors.email}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Phone / WhatsApp Number (ফোন/হোয়াটসঅ্যাপ)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={quickClientForm.data.phone}
+                                    onChange={(e) => quickClientForm.setData('phone', e.target.value)}
+                                    placeholder="+880 1800 000000"
+                                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:border-blue-500 font-mono"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">
+                                Address (ঠিকানা)
+                            </label>
+                            <input
+                                type="text"
+                                value={quickClientForm.data.address}
+                                onChange={(e) => quickClientForm.setData('address', e.target.value)}
+                                placeholder="মিরপুর, ঢাকা - ১২১৬"
+                                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:border-blue-500"
+                            />
+                        </div>
+
+                        <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => setShowAddClientModal(false)}
+                                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                            >
+                                বাতিল (Cancel)
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={quickClientForm.processing}
+                                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                            >
+                                <Save className="w-3.5 h-3.5" />
+                                <span>{quickClientForm.processing ? 'সেভ হচ্ছে...' : 'সেভ করুন ও সিলেক্ট করুন'}</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
         </AdminLayout>
     );
 }

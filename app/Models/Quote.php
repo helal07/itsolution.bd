@@ -34,6 +34,7 @@ class Quote extends Model
         'company_signature',
         'company_signer_name',
         'company_signed_at',
+        'client_id',
         'item_id',
         'name',
         'company_name',
@@ -122,6 +123,11 @@ class Quote extends Model
     public function order(): HasOne
     {
         return $this->hasOne(Order::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function getPublicUrlAttribute(): string

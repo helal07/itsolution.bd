@@ -44,4 +44,9 @@ class Client extends Model
     {
         return $this->hasMany(ClientPayment::class)->orderBy('payment_date', 'desc')->orderBy('id', 'desc');
     }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class)->orderBy('created_at', 'desc');
+    }
 }
