@@ -35,7 +35,12 @@ class ProfileController extends Controller
         ])
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
-                  ->orWhereHas('client', fn($cq) => $cq->where('email', $user->email));
+                  ->orWhereHas('client', function ($cq) use ($user) {
+                      $cq->where('email', $user->email);
+                      if (!empty($user->phone)) {
+                          $cq->orWhere('phone', $user->phone);
+                      }
+                  });
             })
             ->orderBy('created_at', 'desc')
             ->get();

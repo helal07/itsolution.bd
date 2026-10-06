@@ -83,7 +83,10 @@ class OrderController extends Controller
         $user = $request->user();
 
         $isAuthorized = ($order->user_id === $user->id) 
-            || ($order->client && strtolower($order->client->email) === strtolower($user->email));
+            || ($order->client && (
+                strtolower($order->client->email) === strtolower($user->email)
+                || (!empty($user->phone) && $order->client->phone === $user->phone)
+            ));
 
         if (! $isAuthorized) {
             abort(403, 'Unauthorized access to this order.');
@@ -157,7 +160,10 @@ class OrderController extends Controller
         $user = $request->user();
 
         $isAuthorized = ($order->user_id === $user->id) 
-            || ($order->client && strtolower($order->client->email) === strtolower($user->email));
+            || ($order->client && (
+                strtolower($order->client->email) === strtolower($user->email)
+                || (!empty($user->phone) && $order->client->phone === $user->phone)
+            ));
 
         if (! $isAuthorized) {
             abort(403, 'Unauthorized access to this order.');

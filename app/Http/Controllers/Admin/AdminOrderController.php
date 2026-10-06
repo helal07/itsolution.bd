@@ -332,7 +332,9 @@ class AdminOrderController extends Controller
 
         $order = $clientPayment->order;
         if ($order) {
-            $order->paid_amount = (float) ($order->paid_amount ?? 0) + (float) $clientPayment->amount;
+            // Re-sync paid_amount from all approved payments linked to this order
+            $totalApprovedPaid = (float) $order->payments()->where('status', 'approved')->sum('amount');
+            $order->paid_amount = $totalApprovedPaid;
             $order->payment_method = $clientPayment->payment_method;
             if (empty($order->transaction_id)) {
                 $order->transaction_id = $clientPayment->transaction_id;
@@ -358,20 +360,24 @@ class AdminOrderController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        // If previously approved, reverse the credited amount
-        if ($clientPayment->status === 'approved') {
-            $order = $clientPayment->order;
-            if ($order) {
-                $order->paid_amount = max(0, (float) ($order->paid_amount ?? 0) - (float) $clientPayment->amount);
-                $order->save();
-                $order->syncPaymentStatus();
-            }
-        }
-
         $clientPayment->update([
             'status' => 'rejected',
             'rejection_reason' => $validated['reason'] ?? 'Payment verification rejected by administrator.',
         ]);
+
+        $order = $clientPayment->order;
+        if ($order) {
+            // Re-sync paid_amount from all approved payments linked to this order
+            $totalApprovedPaid = (float) $order->payments()->where('status', 'approved')->sum('amount');
+            $order->paid_amount = $totalApprovedPaid;
+            $order->save();
+            $order->syncPaymentStatus();
+
+            if ($order->due_amount > 0 && $order->status === 'paid') {
+                $order->status = ($order->progress > 0) ? 'processing' : 'pending';
+                $order->save();
+            }
+        }
 
         return back()->with('warning', 'Payment submission of ৳' . number_format($clientPayment->amount, 2) . ' (TrxID: ' . $clientPayment->transaction_id . ') has been rejected.');
     }

@@ -32,7 +32,9 @@ import {
     Receipt,
     History,
     AlertCircle,
-    ArrowRight
+    ArrowRight,
+    Clock,
+    XCircle
 } from 'lucide-react';
 
 export default function Edit({ mustVerifyEmail, status, orders = [], quotes = [], review = null }) {
@@ -47,23 +49,29 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
 
     // Financial breakdown helper for an order
     const getOrderFinancials = (order) => {
-        const gross = parseFloat(order.amount) || 0;
-        const discount = parseFloat(order.discount) || 0;
-        const net = parseFloat(order.net_amount ?? Math.max(0, gross - discount));
-        const paid = parseFloat(order.paid_amount) || 0;
-        const due = parseFloat(order.due_amount ?? Math.max(0, net - paid));
+        const gross = parseFloat(order?.amount) || 0;
+        const discount = parseFloat(order?.discount) || 0;
+        const net = parseFloat(order?.net_amount ?? Math.max(0, gross - discount));
+        // Calculate strictly from approved payments when present, fallback to order.paid_amount
+        let paid = parseFloat(order?.paid_amount) || 0;
+        if (Array.isArray(order?.payments) && order.payments.length > 0) {
+            paid = order.payments
+                .filter(p => p.status === 'approved')
+                .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        }
+        const due = Math.max(0, net - paid);
         return { gross, discount, net, paid, due };
     };
 
     // Filter orders with outstanding dues or pending status
     const pendingOrders = orderList.filter(o => {
         const { due } = getOrderFinancials(o);
-        return due > 0 || o.payment_status === 'due' || o.payment_status === 'partial' || o.status === 'pending';
+        return due > 0 || (o.payment_status !== 'paid' && o.status !== 'completed');
     });
 
     const paidOrders = orderList.filter(o => {
         const { due } = getOrderFinancials(o);
-        return (due <= 0 && o.status !== 'pending') || o.payment_status === 'paid' || o.status === 'paid' || o.status === 'completed';
+        return due <= 0 && (o.status === 'completed' || o.payment_status === 'paid' || o.status === 'paid');
     });
 
     // Dynamic Active Payment Methods configured in Admin Panel Settings
@@ -727,6 +735,34 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
                                                     </div>
                                                 )}
 
+                                                {/* Rejected Payment Submissions Alert Banner */}
+                                                {paymentsList.some(p => p.status === 'rejected') && (
+                                                    <div className="p-4 rounded-xl bg-rose-50/90 border border-rose-300 text-rose-900 space-y-2">
+                                                        {paymentsList.filter(p => p.status === 'rejected').map(rejectedP => (
+                                                            <div key={rejectedP.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                                <div className="flex items-start sm:items-center gap-2.5">
+                                                                    <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-rose-950">
+                                                                            পেমেন্ট যাচাই প্রত্যাখ্যাত (Payment Rejected): <span className="font-mono text-rose-800 font-black">৳{parseFloat(rejectedP.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT</span>
+                                                                        </p>
+                                                                        <p className="text-[11px] text-rose-800">
+                                                                            মেথড: <strong>{rejectedP.payment_method}</strong> &bull; TrxID: <strong className="font-mono">{rejectedP.transaction_id || '—'}</strong>
+                                                                            {rejectedP.rejection_reason ? ` • কারণ: ${rejectedP.rejection_reason}` : ''}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-200/70 text-rose-900 border border-rose-300 self-start sm:self-auto">
+                                                                    ✕ ভেরিফিকেশন বাতিল
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        <p className="text-[10px] text-rose-700 pt-1 border-t border-rose-200">
+                                                            দয়া করে সঠিক ট্রানজেকশন আইডি ও তথ্যাবলী দিয়ে পুনরায় পেমেন্ট সাবমিট করুন অথবা সহায়তার জন্য আমাদের সাথে যোগাযোগ করুন।
+                                                        </p>
+                                                    </div>
+                                                )}
+
                                                 {/* Section 1: Customer Desired Amount Input with Presets */}
                                                 <div className="p-4 rounded-xl bg-neutral-50/70 border border-neutral-200/70 space-y-3">
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1215,237 +1251,266 @@ export default function Edit({ mustVerifyEmail, status, orders = [], quotes = []
             </div>
 
             {/* Unique Official Invoice Document Modal */}
-            {selectedReceiptOrder && (
-                <div className="print-modal-parent fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-                    <div id="printable-invoice" className="bg-white text-neutral-900 rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-neutral-200 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 print:p-0 print:border-none print:shadow-none print:max-h-none print:overflow-visible">
-                        
-                        {/* Close button in corner */}
-                        <button
-                            onClick={() => setSelectedReceiptOrder(null)}
-                            className="absolute top-5 right-5 p-2 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors print:hidden"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+            {selectedReceiptOrder && (() => {
+                const liveReceiptOrder = orderList.find(o => o.id === selectedReceiptOrder.id) || selectedReceiptOrder;
+                const receiptFin = getOrderFinancials(liveReceiptOrder);
 
-                        {/* Top Invoice Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b-2 border-neutral-100">
-                            <div className="space-y-1.5">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0D3B66] via-primary to-cyan-500 text-white flex items-center justify-center font-display font-black text-base shadow-sm">
-                                        {brandName.substring(0, 2).toUpperCase()}
-                                    </div>
-                                    <span className="font-heading font-black text-xl text-neutral-900 tracking-tight">
-                                        {brandName}
-                                    </span>
-                                </div>
-                                <p className="text-xs text-neutral-500">
-                                    {brandTagline}
-                                </p>
-                                <div className="text-[11px] text-neutral-400 space-y-0.5 pt-1 font-mono">
-                                    <p>{brandAddress} &bull; Hotline: {brandPhone}</p>
-                                    <p>{brandEmail}</p>
-                                </div>
-                            </div>
-
-                            {/* Official Seal / Stamp */}
-                            <div className="sm:text-right space-y-2">
-                                <div className={`inline-block border-2 px-3.5 py-1 rounded-lg font-mono font-black text-xs uppercase tracking-widest rotate-[-3deg] shadow-xs ${
-                                    parseFloat(selectedReceiptOrder.due_amount || 0) <= 0 && selectedReceiptOrder.status !== 'pending'
-                                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                                        : parseFloat(selectedReceiptOrder.paid_amount || 0) > 0
-                                        ? 'border-amber-500 bg-amber-50 text-amber-700'
-                                        : 'border-red-500 bg-red-50 text-red-700'
-                                }`}>
-                                    {parseFloat(selectedReceiptOrder.due_amount || 0) <= 0 && selectedReceiptOrder.status !== 'pending'
-                                        ? '✓ PAID & SETTLED' 
-                                        : parseFloat(selectedReceiptOrder.paid_amount || 0) > 0
-                                        ? '⏳ PARTIAL PAYMENT'
-                                        : 'PENDING INVOICE'
-                                    }
-                                </div>
-                                <h2 className="font-heading font-black text-2xl text-neutral-900 tracking-tight">
-                                    TAX INVOICE
-                                </h2>
-                                <p className="text-xs font-mono font-bold text-primary">
-                                    #{selectedReceiptOrder.transaction_id || `INV-${selectedReceiptOrder.id.toString().padStart(6, '0')}`}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Invoice Metadata Grid (2-Column) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 rounded-2xl bg-neutral-50 border border-neutral-200/70 text-xs">
-                            <div className="space-y-1">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
-                                    Invoice Billed To
-                                </span>
-                                <h4 className="font-bold text-sm text-neutral-900">{user.name}</h4>
-                                <p className="text-neutral-600 font-mono">{user.email}</p>
-                                <p className="text-neutral-400 font-mono">Client ID: #{user.id.toString().padStart(4, '0')}</p>
-                            </div>
-
-                            <div className="space-y-1 sm:text-right">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
-                                    Invoice Details
-                                </span>
-                                <p className="text-neutral-700">
-                                    <span className="text-neutral-400">Issue Date:</span> <span className="font-mono font-bold">{formatDate(selectedReceiptOrder.created_at)}</span>
-                                </p>
-                                <p className="text-neutral-700">
-                                    <span className="text-neutral-400">Payment Gateway:</span> <span className="font-bold text-neutral-900">{selectedReceiptOrder.payment_method || 'Online'}</span>
-                                </p>
-                                <p className="text-neutral-700">
-                                    <span className="text-neutral-400">Currency:</span> <span className="font-mono font-bold">{selectedReceiptOrder.currency || 'BDT'}</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Itemized Table */}
-                        <div className="overflow-hidden rounded-2xl border border-neutral-200/80">
-                            <table className="w-full text-left text-xs">
-                                <thead className="bg-neutral-100/70 border-b border-neutral-200 text-neutral-500 font-bold uppercase tracking-wider text-[10px]">
-                                    <tr>
-                                        <th className="p-3.5">#</th>
-                                        <th className="p-3.5">Software / App Description</th>
-                                        <th className="p-3.5 text-center">Qty</th>
-                                        <th className="p-3.5 text-right">Price</th>
-                                        <th className="p-3.5 text-right">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-neutral-100">
-                                    <tr>
-                                        <td className="p-3.5 font-mono text-neutral-400">01</td>
-                                        <td className="p-3.5">
-                                            <p className="font-bold text-neutral-900 text-sm">
-                                                {selectedReceiptOrder.item?.name || 'Security Software Application'}
-                                            </p>
-                                            <p className="text-[11px] text-neutral-500">
-                                                Enterprise Software License & Security Protection
-                                            </p>
-                                        </td>
-                                        <td className="p-3.5 text-center font-mono font-bold">1</td>
-                                        <td className="p-3.5 text-right font-mono font-bold text-neutral-700">
-                                            ৳{parseFloat(selectedReceiptOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td className="p-3.5 text-right font-mono font-bold text-neutral-900">
-                                            ৳{parseFloat(selectedReceiptOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Calculation Summary */}
-                        <div className="flex justify-end pt-2">
-                            <div className="w-full sm:w-72 space-y-2 text-xs">
-                                <div className="flex justify-between py-1 border-b border-neutral-100 text-neutral-600">
-                                    <span>Gross Subtotal:</span>
-                                    <span className="font-mono font-bold text-neutral-900">
-                                        ৳{parseFloat(selectedReceiptOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
-                                    </span>
-                                </div>
-                                {parseFloat(selectedReceiptOrder.discount || 0) > 0 && (
-                                    <div className="flex justify-between py-1 border-b border-neutral-100 text-emerald-600">
-                                        <span>Special Discount (ছাড়):</span>
-                                        <span className="font-mono font-bold">
-                                            -৳{parseFloat(selectedReceiptOrder.discount).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
-                                        </span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between py-1 border-b border-neutral-100 text-neutral-700">
-                                    <span>Net Invoiced Amount:</span>
-                                    <span className="font-mono font-bold text-neutral-900">
-                                        ৳{parseFloat(selectedReceiptOrder.net_amount ?? (parseFloat(selectedReceiptOrder.amount) - (parseFloat(selectedReceiptOrder.discount) || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
-                                    </span>
-                                </div>
-                                <div className="flex justify-between py-1 border-b border-neutral-100 text-emerald-700">
-                                    <span>Amount Paid / Settled:</span>
-                                    <span className="font-mono font-bold">
-                                        ৳{parseFloat(selectedReceiptOrder.paid_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
-                                    </span>
-                                </div>
-                                <div className={`flex justify-between py-2.5 p-3 rounded-xl border text-sm ${
-                                    parseFloat(selectedReceiptOrder.due_amount || 0) > 0
-                                        ? 'bg-red-50/70 border-red-200 text-red-900'
-                                        : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                                }`}>
-                                    <span className="font-bold">
-                                        {parseFloat(selectedReceiptOrder.due_amount || 0) > 0 ? 'Remaining Due:' : 'Settlement Status:'}
-                                    </span>
-                                    <span className="font-heading font-black text-base">
-                                        {parseFloat(selectedReceiptOrder.due_amount || 0) > 0
-                                            ? `৳${parseFloat(selectedReceiptOrder.due_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT`
-                                            : '✓ FULLY SETTLED'
-                                        }
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Verified Settlement Receipts Ledger */}
-                        {selectedReceiptOrder.payments?.length > 0 && (
-                            <div className="space-y-2 pt-3 border-t border-neutral-100 text-xs">
-                                <span className="font-bold text-[10px] text-neutral-400 uppercase tracking-wider block">
-                                    Payment Transaction Receipts ({selectedReceiptOrder.payments.length})
-                                </span>
-                                <div className="overflow-hidden rounded-xl border border-neutral-200">
-                                    <table className="w-full text-left text-xs">
-                                        <thead className="bg-neutral-50 text-[10px] text-neutral-400 font-bold uppercase border-b border-neutral-200">
-                                            <tr>
-                                                <th className="p-2 pl-3">Date</th>
-                                                <th className="p-2">Method</th>
-                                                <th className="p-2">TrxID</th>
-                                                <th className="p-2 text-right pr-3">Paid Amount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-neutral-100">
-                                            {selectedReceiptOrder.payments.map((p) => (
-                                                <tr key={p.id}>
-                                                    <td className="p-2 pl-3 font-mono text-neutral-600">{formatDate(p.payment_date || p.created_at)}</td>
-                                                    <td className="p-2 font-semibold text-neutral-800">{p.payment_method}</td>
-                                                    <td className="p-2 font-mono text-neutral-500">{p.transaction_id || '—'}</td>
-                                                    <td className="p-2 text-right pr-3 font-mono font-bold text-emerald-600">
-                                                        ৳{parseFloat(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Security Verification & Signature Footer */}
-                        <div className="pt-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-neutral-500">
-                            <div className="flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                                <span>256-bit TLS Verified Digital Receipt &bull; {brandName}</span>
-                            </div>
-                            <div className="text-center sm:text-right">
-                                <span className="font-bold block text-neutral-800">Authorized Electronic Seal</span>
-                                <span className="font-mono text-[10px] text-neutral-400">System Settlement Engine</span>
-                            </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-3 pt-2 print:hidden">
+                return (
+                    <div className="print-modal-parent fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+                        <div id="printable-invoice" className="bg-white text-neutral-900 rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-neutral-200 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 print:p-0 print:border-none print:shadow-none print:max-h-none print:overflow-visible">
+                            
+                            {/* Close button in corner */}
                             <button
                                 onClick={() => setSelectedReceiptOrder(null)}
-                                className="flex-1 py-2.5 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
+                                className="absolute top-5 right-5 p-2 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors print:hidden"
                             >
-                                Close
+                                <X className="w-5 h-5" />
                             </button>
-                            <button
-                                onClick={() => window.print()}
-                                className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-md shadow-primary/25 inline-flex items-center justify-center gap-2"
-                            >
-                                <Printer className="w-4 h-4" />
-                                <span>Print / Save PDF</span>
-                            </button>
-                        </div>
 
+                            {/* Top Invoice Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b-2 border-neutral-100">
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0D3B66] via-primary to-cyan-500 text-white flex items-center justify-center font-display font-black text-base shadow-sm">
+                                            {brandName.substring(0, 2).toUpperCase()}
+                                        </div>
+                                        <span className="font-heading font-black text-xl text-neutral-900 tracking-tight">
+                                            {brandName}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-neutral-500">
+                                        {brandTagline}
+                                    </p>
+                                    <div className="text-[11px] text-neutral-400 space-y-0.5 pt-1 font-mono">
+                                        <p>{brandAddress} &bull; Hotline: {brandPhone}</p>
+                                        <p>{brandEmail}</p>
+                                    </div>
+                                </div>
+
+                                {/* Official Seal / Stamp */}
+                                <div className="sm:text-right space-y-2">
+                                    <div className={`inline-block border-2 px-3.5 py-1 rounded-lg font-mono font-black text-xs uppercase tracking-widest rotate-[-3deg] shadow-xs ${
+                                        receiptFin.due <= 0 && liveReceiptOrder.status !== 'pending'
+                                            ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                                            : receiptFin.paid > 0
+                                            ? 'border-amber-500 bg-amber-50 text-amber-700'
+                                            : 'border-red-500 bg-red-50 text-red-700'
+                                    }`}>
+                                        {receiptFin.due <= 0 && liveReceiptOrder.status !== 'pending'
+                                            ? '✓ PAID & SETTLED' 
+                                            : receiptFin.paid > 0
+                                            ? '⏳ PARTIAL PAYMENT'
+                                            : 'PENDING INVOICE'
+                                        }
+                                    </div>
+                                    <h2 className="font-heading font-black text-2xl text-neutral-900 tracking-tight">
+                                        TAX INVOICE
+                                    </h2>
+                                    <p className="text-xs font-mono font-bold text-primary">
+                                        #{liveReceiptOrder.transaction_id || `INV-${liveReceiptOrder.id.toString().padStart(6, '0')}`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Invoice Metadata Grid (2-Column) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 rounded-2xl bg-neutral-50 border border-neutral-200/70 text-xs">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                        Invoice Billed To
+                                    </span>
+                                    <h4 className="font-bold text-sm text-neutral-900">{user.name}</h4>
+                                    <p className="text-neutral-600 font-mono">{user.email}</p>
+                                    <p className="text-neutral-400 font-mono">Client ID: #{user.id.toString().padStart(4, '0')}</p>
+                                </div>
+
+                                <div className="space-y-1 sm:text-right">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                        Invoice Details
+                                    </span>
+                                    <p className="text-neutral-700">
+                                        <span className="text-neutral-400">Issue Date:</span> <span className="font-mono font-bold">{formatDate(liveReceiptOrder.created_at)}</span>
+                                    </p>
+                                    <p className="text-neutral-700">
+                                        <span className="text-neutral-400">Payment Gateway:</span> <span className="font-bold text-neutral-900">{liveReceiptOrder.payment_method || 'Online'}</span>
+                                    </p>
+                                    <p className="text-neutral-700">
+                                        <span className="text-neutral-400">Currency:</span> <span className="font-mono font-bold">{liveReceiptOrder.currency || 'BDT'}</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Itemized Table */}
+                            <div className="overflow-hidden rounded-2xl border border-neutral-200/80">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-neutral-100/70 border-b border-neutral-200 text-neutral-500 font-bold uppercase tracking-wider text-[10px]">
+                                        <tr>
+                                            <th className="p-3.5">#</th>
+                                            <th className="p-3.5">Software / App Description</th>
+                                            <th className="p-3.5 text-center">Qty</th>
+                                            <th className="p-3.5 text-right">Price</th>
+                                            <th className="p-3.5 text-right">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-100">
+                                        <tr>
+                                            <td className="p-3.5 font-mono text-neutral-400">01</td>
+                                            <td className="p-3.5">
+                                                <p className="font-bold text-neutral-900 text-sm">
+                                                    {liveReceiptOrder.item?.name || 'Security Software Application'}
+                                                </p>
+                                                <p className="text-[11px] text-neutral-500">
+                                                    Enterprise Software License & Security Protection
+                                                </p>
+                                            </td>
+                                            <td className="p-3.5 text-center font-mono font-bold">1</td>
+                                            <td className="p-3.5 text-right font-mono font-bold text-neutral-700">
+                                                ৳{parseFloat(liveReceiptOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="p-3.5 text-right font-mono font-bold text-neutral-900">
+                                                ৳{parseFloat(liveReceiptOrder.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Calculation Summary */}
+                            <div className="flex justify-end pt-2">
+                                <div className="w-full sm:w-72 space-y-2 text-xs">
+                                    <div className="flex justify-between py-1 border-b border-neutral-100 text-neutral-600">
+                                        <span>Gross Subtotal:</span>
+                                        <span className="font-mono font-bold text-neutral-900">
+                                            ৳{receiptFin.gross.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                        </span>
+                                    </div>
+                                    {receiptFin.discount > 0 && (
+                                        <div className="flex justify-between py-1 border-b border-neutral-100 text-emerald-600">
+                                            <span>Special Discount (ছাড়):</span>
+                                            <span className="font-mono font-bold">
+                                                -৳{receiptFin.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between py-1 border-b border-neutral-100 text-neutral-700">
+                                        <span>Net Invoiced Amount:</span>
+                                        <span className="font-mono font-bold text-neutral-900">
+                                            ৳{receiptFin.net.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between py-1 border-b border-neutral-100 text-emerald-700">
+                                        <span>Amount Paid / Settled:</span>
+                                        <span className="font-mono font-bold">
+                                            ৳{receiptFin.paid.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT
+                                        </span>
+                                    </div>
+                                    <div className={`flex justify-between py-2.5 p-3 rounded-xl border text-sm ${
+                                        receiptFin.due > 0
+                                            ? 'bg-red-50/70 border-red-200 text-red-900'
+                                            : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                                    }`}>
+                                        <span className="font-bold">
+                                            {receiptFin.due > 0 ? 'Remaining Due:' : 'Settlement Status:'}
+                                        </span>
+                                        <span className="font-heading font-black text-base">
+                                            {receiptFin.due > 0
+                                                ? `৳${receiptFin.due.toLocaleString(undefined, { minimumFractionDigits: 2 })} BDT`
+                                                : '✓ FULLY SETTLED'
+                                            }
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Verified Settlement Receipts Ledger */}
+                            {(liveReceiptOrder.payments || []).length > 0 && (
+                                <div className="space-y-2 pt-3 border-t border-neutral-100 text-xs">
+                                    <span className="font-bold text-[10px] text-neutral-400 uppercase tracking-wider block">
+                                        Payment Transaction Receipts ({(liveReceiptOrder.payments || []).length})
+                                    </span>
+                                    <div className="overflow-hidden rounded-xl border border-neutral-200">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-neutral-50 text-[10px] text-neutral-400 font-bold uppercase border-b border-neutral-200">
+                                                <tr>
+                                                    <th className="p-2 pl-3">Date</th>
+                                                    <th className="p-2">Method</th>
+                                                    <th className="p-2">TrxID</th>
+                                                    <th className="p-2 text-center">Status</th>
+                                                    <th className="p-2 text-right pr-3">Paid Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-neutral-100">
+                                                {(liveReceiptOrder.payments || []).map((p) => (
+                                                    <tr key={p.id}>
+                                                        <td className="p-2 pl-3 font-mono text-neutral-600">{formatDate(p.payment_date || p.created_at)}</td>
+                                                        <td className="p-2 font-semibold text-neutral-800">{p.payment_method}</td>
+                                                        <td className="p-2 font-mono text-neutral-500">{p.transaction_id || '—'}</td>
+                                                        <td className="p-2 text-center">
+                                                            {p.status === 'approved' && (
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                                    অনুমোদিত (Approved)
+                                                                </span>
+                                                            )}
+                                                            {p.status === 'pending' && (
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                                                    যাচাইাধীন (Pending)
+                                                                </span>
+                                                            )}
+                                                            {p.status === 'rejected' && (
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                                                    প্রত্যাখ্যাত (Rejected)
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className={`p-2 text-right pr-3 font-mono font-bold ${
+                                                            p.status === 'approved' 
+                                                                ? 'text-emerald-600' 
+                                                                : p.status === 'rejected' 
+                                                                ? 'text-rose-500 line-through' 
+                                                                : 'text-amber-600'
+                                                        }`}>
+                                                            ৳{parseFloat(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Security Verification & Signature Footer */}
+                            <div className="pt-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-neutral-500">
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                    <span>256-bit TLS Verified Digital Receipt &bull; {brandName}</span>
+                                </div>
+                                <div className="text-center sm:text-right">
+                                    <span className="font-bold block text-neutral-800">Authorized Electronic Seal</span>
+                                    <span className="font-mono text-[10px] text-neutral-400">System Settlement Engine</span>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-3 pt-2 print:hidden">
+                                <button
+                                    onClick={() => setSelectedReceiptOrder(null)}
+                                    className="flex-1 py-2.5 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => window.print()}
+                                    className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-md shadow-primary/25 inline-flex items-center justify-center gap-2"
+                                >
+                                    <Printer className="w-4 h-4" />
+                                    <span>Print / Save PDF</span>
+                                </button>
+                            </div>
+
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
         </PublicLayout>
     );
