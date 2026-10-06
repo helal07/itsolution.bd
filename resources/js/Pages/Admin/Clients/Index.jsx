@@ -37,7 +37,9 @@ import {
     ArrowRight,
     BarChart3,
     Clock,
-    Download
+    Download,
+    Sliders,
+    BookOpen
 } from 'lucide-react';
 import Modal from '@/Components/Modal';
 import ActionDropdown, { ActionItem } from '@/Components/ActionDropdown';
@@ -67,6 +69,9 @@ export default function Index({ clients, services = [], users = [], billingStats
     const [modalOpen, setModalOpen] = useState(false);
     const [ordersModalClient, setOrdersModalClient] = useState(null);
     const [paymentsModalClient, setPaymentsModalClient] = useState(null);
+    const [ledgerModalClient, setLedgerModalClient] = useState(null);
+    const [editPaymentModal, setEditPaymentModal] = useState(null);
+    const [ledgerStatusFilter, setLedgerStatusFilter] = useState('all');
     const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
     const [invoiceOrder, setInvoiceOrder] = useState(null);
 
@@ -119,6 +124,17 @@ export default function Index({ clients, services = [], users = [], billingStats
         status: 'pending',
         payment_method: 'bKash',
         due_date: '',
+        notes: '',
+    });
+
+    // Edit Payment Transaction Form
+    const editPaymentForm = useForm({
+        amount: '',
+        payment_method: 'bKash',
+        transaction_id: '',
+        sender_number: '',
+        status: 'approved',
+        payment_date: new Date().toISOString().split('T')[0],
         notes: '',
     });
 
@@ -329,6 +345,136 @@ export default function Index({ clients, services = [], users = [], billingStats
         const disc = parseFloat(orderForm.data.discount) || 0;
         const paid = parseFloat(orderForm.data.paid_amount) || 0;
         return Math.max(0, amt - disc - paid);
+    };
+
+    // ============== Client Ledger & Transactions Handlers ==============
+    const getClientTransactions = (client) => {
+        if (!client) return [];
+        const direct = client.payments || [];
+        const orderPayments = (client.orders || []).flatMap(o => (o.payments || []).map(p => ({ ...p, order: p.order || o })));
+
+        const map = new Map();
+        [...direct, ...orderPayments].forEach(p => {
+            if (p && p.id) {
+                const existing = map.get(p.id);
+                map.set(p.id, { ...existing, ...p, order: p.order || existing?.order });
+            }
+        });
+        return Array.from(map.values()).sort((a, b) => new Date(b.payment_date || b.created_at) - new Date(a.payment_date || a.created_at));
+    };
+
+    const openLedgerModal = (client) => {
+        setLedgerModalClient(client);
+        setLedgerStatusFilter('all');
+    };
+
+    const openEditPaymentModal = (payment) => {
+        setEditPaymentModal(payment);
+        editPaymentForm.setData({
+            amount: String(payment.amount || ''),
+            payment_method: payment.payment_method || 'bKash',
+            transaction_id: payment.transaction_id || '',
+            sender_number: payment.sender_number || '',
+            status: payment.status || 'approved',
+            payment_date: payment.payment_date ? String(payment.payment_date).split('T')[0] : new Date().toISOString().split('T')[0],
+            notes: payment.notes || '',
+        });
+    };
+
+    const handleEditPaymentSubmit = (e) => {
+        e.preventDefault();
+        if (!editPaymentModal) return;
+
+        editPaymentForm.put(`/admin/payments/${editPaymentModal.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                const updatedAmount = parseFloat(editPaymentForm.data.amount) || 0;
+                const updatedId = editPaymentModal.id;
+
+                setLedgerModalClient(prev => {
+                    if (!prev) return null;
+                    const updatedDirect = (prev.payments || []).map(p => 
+                        p.id === updatedId ? { ...p, ...editPaymentForm.data, amount: updatedAmount } : p
+                    );
+                    const updatedOrders = (prev.orders || []).map(o => {
+                        const updatedOrderPayments = (o.payments || []).map(p => 
+                            p.id === updatedId ? { ...p, ...editPaymentForm.data, amount: updatedAmount } : p
+                        );
+                        const newPaid = updatedOrderPayments
+                            .filter(p => p.status === 'approved')
+                            .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                        return { ...o, payments: updatedOrderPayments, paid_amount: newPaid };
+                    });
+                    return { ...prev, payments: updatedDirect, orders: updatedOrders };
+                });
+
+                setEditPaymentModal(null);
+            }
+        });
+    };
+
+    const handleDeletePayment = (payment) => {
+        if (!payment) return;
+        if (confirm(`Are you sure you want to delete payment transaction #${payment.transaction_id || payment.id} of ৳${parseFloat(payment.amount).toLocaleString()}? This will deduct the amount from client/order balances and recalculate outstanding dues.`)) {
+            router.delete(`/admin/payments/${payment.id}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setLedgerModalClient(prev => {
+                        if (!prev) return null;
+                        const filteredDirect = (prev.payments || []).filter(p => p.id !== payment.id);
+                        const updatedOrders = (prev.orders || []).map(o => {
+                            const filteredOrderPayments = (o.payments || []).filter(p => p.id !== payment.id);
+                            const newPaid = filteredOrderPayments
+                                .filter(p => p.status === 'approved')
+                                .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                            return { ...o, payments: filteredOrderPayments, paid_amount: newPaid };
+                        });
+                        return { ...prev, payments: filteredDirect, orders: updatedOrders };
+                    });
+                }
+            });
+        }
+    };
+
+    const handleApprovePayment = (payment) => {
+        if (!payment) return;
+        if (confirm(`Approve payment of ৳${parseFloat(payment.amount).toLocaleString()} (TrxID: ${payment.transaction_id || 'N/A'}) and credit to this client's account?`)) {
+            router.post(`/admin/payments/${payment.id}/approve`, {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setLedgerModalClient(prev => {
+                        if (!prev) return null;
+                        const updatedDirect = (prev.payments || []).map(p => p.id === payment.id ? { ...p, status: 'approved' } : p);
+                        const updatedOrders = (prev.orders || []).map(o => ({
+                            ...o,
+                            payments: (o.payments || []).map(p => p.id === payment.id ? { ...p, status: 'approved' } : p)
+                        }));
+                        return { ...prev, payments: updatedDirect, orders: updatedOrders };
+                    });
+                }
+            });
+        }
+    };
+
+    const handleRejectPayment = (payment) => {
+        if (!payment) return;
+        const reason = prompt('Please enter rejection reason (e.g. TrxID not matched / amount not received):', 'Transaction not found in merchant account');
+        if (reason !== null) {
+            router.post(`/admin/payments/${payment.id}/reject`, { reason }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setLedgerModalClient(prev => {
+                        if (!prev) return null;
+                        const updatedDirect = (prev.payments || []).map(p => p.id === payment.id ? { ...p, status: 'rejected', rejection_reason: reason } : p);
+                        const updatedOrders = (prev.orders || []).map(o => ({
+                            ...o,
+                            payments: (o.payments || []).map(p => p.id === payment.id ? { ...p, status: 'rejected', rejection_reason: reason } : p)
+                        }));
+                        return { ...prev, payments: updatedDirect, orders: updatedOrders };
+                    });
+                }
+            });
+        }
     };
 
     // ============== Client Filters ==============
@@ -687,17 +833,27 @@ export default function Index({ clients, services = [], users = [], billingStats
 
                                                 {/* আদায় */}
                                                 <td className="py-3 px-3 font-mono">
-                                                    <span className="text-emerald-700 font-bold text-[11px]">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openLedgerModal(client)}
+                                                        className="text-emerald-700 hover:text-emerald-800 hover:underline font-bold text-[11px] cursor-pointer"
+                                                        title="Click to view Client Ledger & Transactions"
+                                                    >
                                                         ৳{totalPaid.toLocaleString()}
-                                                    </span>
+                                                    </button>
                                                 </td>
 
                                                 {/* বাকি */}
                                                 <td className="py-3 px-3 font-mono">
                                                     {dueBalance > 0 ? (
-                                                        <span className="font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-[11px]">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openLedgerModal(client)}
+                                                            className="font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition"
+                                                            title="Click to view Client Ledger & Transactions"
+                                                        >
                                                             ৳{dueBalance.toLocaleString()}
-                                                        </span>
+                                                        </button>
                                                     ) : (
                                                         <span className="text-slate-300 text-[11px]">৳0</span>
                                                     )}
@@ -726,11 +882,14 @@ export default function Index({ clients, services = [], users = [], billingStats
                                                 <td className="py-3 pl-3 pr-6 text-right whitespace-nowrap">
                                                     <ActionDropdown label="Actions">
                                                         <div className="py-1">
-                                                            <ActionItem onClick={() => openOrdersModal(client)} icon={ShoppingBag} className="text-blue-700 hover:text-blue-800">
-                                                                Invoices & Orders
+                                                            <ActionItem onClick={() => openLedgerModal(client)} icon={BookOpen} className="text-emerald-700 hover:text-emerald-800 font-bold">
+                                                                See Ledger &amp; Transactions ({getClientTransactions(client).length})
                                                             </ActionItem>
-                                                            <ActionItem onClick={() => openPaymentsModal(client)} icon={CreditCard} className="text-emerald-700 hover:text-emerald-800">
-                                                                {getFinancials(client).dueBalance > 0 ? 'Collect Due' : 'Payments'}
+                                                            <ActionItem onClick={() => openOrdersModal(client)} icon={ShoppingBag} className="text-blue-700 hover:text-blue-800">
+                                                                Invoices &amp; Orders ({client.orders?.length || 0})
+                                                            </ActionItem>
+                                                            <ActionItem onClick={() => openPaymentsModal(client)} icon={CreditCard} className="text-indigo-700 hover:text-indigo-800">
+                                                                {getFinancials(client).dueBalance > 0 ? 'Collect Due Payment' : 'Record Payment'}
                                                             </ActionItem>
                                                         </div>
                                                         <div className="py-1">
@@ -1215,6 +1374,23 @@ export default function Index({ clients, services = [], users = [], billingStats
 
                             {/* Payment History */}
                             <div className="rounded-xl border border-slate-200 overflow-hidden">
+                                <div className="p-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-slate-700 uppercase">
+                                        Payment Transactions ({paymentsModalClient.payments?.length || 0})
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const c = paymentsModalClient;
+                                            setPaymentsModalClient(null);
+                                            openLedgerModal(c);
+                                        }}
+                                        className="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer"
+                                    >
+                                        <BookOpen className="w-3.5 h-3.5" />
+                                        <span>Full Ledger &amp; Audit &rarr;</span>
+                                    </button>
+                                </div>
                                 <table className="w-full text-left text-xs">
                                     <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-mono border-b border-slate-200">
                                         <tr>
@@ -1223,12 +1399,14 @@ export default function Index({ clients, services = [], users = [], billingStats
                                             <th className="p-2.5">Amount</th>
                                             <th className="p-2.5">Invoice</th>
                                             <th className="p-2.5">Trx ID</th>
+                                            <th className="p-2.5 text-center">Status</th>
+                                            <th className="p-2.5 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-slate-700">
                                         {!paymentsModalClient.payments || paymentsModalClient.payments.length === 0 ? (
                                             <tr>
-                                                <td colSpan="5" className="p-5 text-center text-slate-400">
+                                                <td colSpan="7" className="p-5 text-center text-slate-400">
                                                     No payments recorded.
                                                 </td>
                                             </tr>
@@ -1236,7 +1414,7 @@ export default function Index({ clients, services = [], users = [], billingStats
                                             paymentsModalClient.payments.map(p => (
                                                 <tr key={p.id} className="hover:bg-slate-50/60">
                                                     <td className="p-2.5 font-mono text-slate-600 text-[11px]">
-                                                        {p.payment_date}
+                                                        {formatDate(p.payment_date)}
                                                     </td>
                                                     <td className="p-2.5">
                                                         <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
@@ -1251,6 +1429,35 @@ export default function Index({ clients, services = [], users = [], billingStats
                                                     </td>
                                                     <td className="p-2.5 font-mono text-slate-500 text-[11px]">
                                                         {p.transaction_id || '—'}
+                                                    </td>
+                                                    <td className="p-2.5 text-center">
+                                                        {p.status === 'pending' ? (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>
+                                                        ) : p.status === 'rejected' ? (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Rejected</span>
+                                                        ) : (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Approved</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-2.5 text-right whitespace-nowrap">
+                                                        <div className="inline-flex items-center justify-end gap-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openEditPaymentModal(p)}
+                                                                className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                                                                title="Edit Payment Transaction"
+                                                            >
+                                                                <Sliders className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeletePayment(p)}
+                                                                className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                                                title="Delete Payment (Recalculate due)"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
@@ -1643,6 +1850,449 @@ export default function Index({ clients, services = [], users = [], billingStats
                         </div>
                     </form>
                 </div>
+            </Modal>
+
+            {/* ============================================================ */}
+            {/* 4. CLIENT FINANCIAL LEDGER & TRANSACTIONS MODAL              */}
+            {/* ============================================================ */}
+            <Modal show={Boolean(ledgerModalClient)} onClose={() => setLedgerModalClient(null)} maxWidth="3xl">
+                {ledgerModalClient && (() => {
+                    const { totalInvoiced, totalDiscount, totalNet, totalPaid, dueBalance } = getFinancials(ledgerModalClient);
+                    const allTransactions = getClientTransactions(ledgerModalClient);
+                    const filteredTransactions = allTransactions.filter(p => {
+                        if (ledgerStatusFilter === 'all') return true;
+                        return p.status === ledgerStatusFilter;
+                    });
+                    const pendingCount = allTransactions.filter(p => p.status === 'pending').length;
+
+                    return (
+                        <div className="bg-white p-5 sm:p-6 space-y-5 rounded-2xl text-slate-800">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                        <BookOpen className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h2 className="font-black text-base sm:text-lg text-slate-900 tracking-tight flex items-center gap-2">
+                                            <span>Financial Ledger &amp; Transactions</span>
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-normal">
+                                                ID #{ledgerModalClient.id}
+                                            </span>
+                                        </h2>
+                                        <p className="text-xs text-slate-500 font-medium">
+                                            {ledgerModalClient.name} &bull; {ledgerModalClient.phone || ledgerModalClient.email || 'No contact specified'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setLedgerModalClient(null)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Client Financial Stat Cards */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Gross Invoiced</p>
+                                    <p className="text-sm sm:text-base font-bold text-slate-900 font-mono">
+                                        ৳{totalInvoiced.toLocaleString()}
+                                    </p>
+                                    {totalDiscount > 0 && (
+                                        <p className="text-[10px] text-orange-600 font-mono">-৳{totalDiscount.toLocaleString()} disc</p>
+                                    )}
+                                </div>
+                                <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+                                    <p className="text-[10px] text-blue-600 uppercase font-bold tracking-wider">Net Payable</p>
+                                    <p className="text-sm sm:text-base font-bold text-blue-900 font-mono">
+                                        ৳{totalNet.toLocaleString()}
+                                    </p>
+                                    <p className="text-[10px] text-blue-500">{ledgerModalClient.orders?.length || 0} Invoices</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                                    <p className="text-[10px] text-emerald-700 uppercase font-bold tracking-wider">Total Paid</p>
+                                    <p className="text-sm sm:text-base font-bold text-emerald-700 font-mono">
+                                        ৳{totalPaid.toLocaleString()}
+                                    </p>
+                                    <p className="text-[10px] text-emerald-600">{allTransactions.filter(p => p.status === 'approved').length} Payments</p>
+                                </div>
+                                <div className={`p-3 rounded-xl border ${dueBalance > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                    <p className={`text-[10px] uppercase font-bold tracking-wider ${dueBalance > 0 ? 'text-red-700' : 'text-slate-500'}`}>
+                                        Outstanding Due
+                                    </p>
+                                    <p className={`text-sm sm:text-base font-bold font-mono ${dueBalance > 0 ? 'text-red-700' : 'text-slate-700'}`}>
+                                        ৳{dueBalance.toLocaleString()}
+                                    </p>
+                                    <p className={`text-[10px] ${dueBalance > 0 ? 'text-red-600 font-semibold' : 'text-emerald-600'}`}>
+                                        {dueBalance > 0 ? 'Pending Collection' : '✓ Fully Settled'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Pending Verification Alert if any */}
+                            {pendingCount > 0 && (
+                                <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
+                                        <div>
+                                            <span className="font-bold">⏳ {pendingCount} টি পেমেন্ট ভেরিফিকেশন অপেক্ষমান (Pending Approval)</span>
+                                            <p className="text-[11px] text-amber-700">ক্লায়েন্ট পোর্টাল থেকে পেমেন্ট সাবমিট হয়েছে। ব্যাংক/বিকাশ স্টেটমেন্ট মিলিয়ে নিচে Approve বা Reject করুন।</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Filter Bar & Quick Action */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-bold text-slate-700 mr-1">Filter:</span>
+                                    {['all', 'approved', 'pending', 'rejected'].map(st => (
+                                        <button
+                                            key={st}
+                                            type="button"
+                                            onClick={() => setLedgerStatusFilter(st)}
+                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold capitalize transition cursor-pointer ${
+                                                ledgerStatusFilter === st
+                                                    ? 'bg-slate-900 text-white shadow-2xs'
+                                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                            }`}
+                                        >
+                                            {st} {st !== 'all' && `(${allTransactions.filter(p => p.status === st).length})`}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const c = ledgerModalClient;
+                                            setLedgerModalClient(null);
+                                            openPaymentsModal(c);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-2xs transition cursor-pointer"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        <span>Record Payment</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Complete Transactions Ledger Table */}
+                            <div className="rounded-xl border border-slate-200 overflow-x-auto">
+                                <table className="w-full text-left text-xs min-w-[700px]">
+                                    <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-mono border-b border-slate-200">
+                                        <tr>
+                                            <th className="p-2.5 pl-3">Date</th>
+                                            <th className="p-2.5">Invoice / Order</th>
+                                            <th className="p-2.5">Method</th>
+                                            <th className="p-2.5">TrxID / Sender</th>
+                                            <th className="p-2.5 text-right">Amount</th>
+                                            <th className="p-2.5 text-center">Status</th>
+                                            <th className="p-2.5">Notes</th>
+                                            <th className="p-2.5 pr-3 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {filteredTransactions.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="8" className="p-6 text-center text-slate-400 italic">
+                                                    No transaction records found matching this filter.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredTransactions.map(p => {
+                                                const isPending = p.status === 'pending';
+                                                const isRejected = p.status === 'rejected';
+
+                                                return (
+                                                    <tr key={p.id} className={`hover:bg-slate-50/70 transition-colors ${isPending ? 'bg-amber-50/40' : ''}`}>
+                                                        <td className="p-2.5 pl-3 font-mono text-slate-600 whitespace-nowrap">
+                                                            {formatDate(p.payment_date || p.created_at)}
+                                                        </td>
+                                                        <td className="p-2.5">
+                                                            {p.order ? (
+                                                                <div>
+                                                                    <span className="font-mono font-bold text-blue-600">
+                                                                        {p.order.transaction_id || `#${p.order.id}`}
+                                                                    </span>
+                                                                    <div className="text-[10px] text-slate-400 truncate max-w-[120px]">
+                                                                        {p.order.project_name || p.order.item?.name || 'Order'}
+                                                                    </div>
+                                                                </div>
+                                                            ) : p.order_id ? (
+                                                                <span className="font-mono text-slate-500">Order #{p.order_id}</span>
+                                                            ) : (
+                                                                <span className="text-slate-400 italic">General Credit</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-2.5 whitespace-nowrap">
+                                                            <div className="font-semibold text-slate-800">{p.payment_method}</div>
+                                                            <div className="text-[10px] text-slate-400 capitalize">{p.payment_type || 'manual'}</div>
+                                                        </td>
+                                                        <td className="p-2.5 font-mono text-slate-600 whitespace-nowrap">
+                                                            <div className="font-bold">{p.transaction_id || '—'}</div>
+                                                            {p.sender_number && (
+                                                                <div className="text-[10px] text-slate-400 font-sans">Sender: {p.sender_number}</div>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-2.5 text-right font-mono font-bold text-emerald-600 whitespace-nowrap">
+                                                            ৳{parseFloat(p.amount).toLocaleString()}
+                                                        </td>
+                                                        <td className="p-2.5 text-center whitespace-nowrap">
+                                                            {isPending ? (
+                                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                                                    ⏳ Pending
+                                                                </span>
+                                                            ) : isRejected ? (
+                                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={p.rejection_reason || ''}>
+                                                                    ✕ Rejected
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                    ✓ Approved
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-2.5 text-[11px] text-slate-500 max-w-[150px] truncate" title={p.notes || p.rejection_reason || ''}>
+                                                            {p.notes || p.rejection_reason || '—'}
+                                                        </td>
+                                                        <td className="p-2.5 pr-3 text-right whitespace-nowrap">
+                                                            <div className="inline-flex items-center justify-end gap-1.5">
+                                                                {isPending && (
+                                                                    <>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleApprovePayment(p)}
+                                                                            className="px-2 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-2xs transition cursor-pointer"
+                                                                            title="Approve and credit payment"
+                                                                        >
+                                                                            ✓ Approve
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRejectPayment(p)}
+                                                                            className="px-2 py-1 rounded-md bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[10px] transition cursor-pointer"
+                                                                            title="Reject unverified transaction"
+                                                                        >
+                                                                            ✕ Reject
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openEditPaymentModal(p)}
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                                                                    title="Edit Transaction Details"
+                                                                >
+                                                                    <Sliders className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeletePayment(p)}
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                                                    title="Delete Payment (Reverses credit and recalculates due)"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                <span className="text-[11px] text-slate-400">
+                                    Total {filteredTransactions.length} of {allTransactions.length} transaction entries logged.
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setLedgerModalClient(null)}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </Modal>
+
+            {/* ============================================================ */}
+            {/* 5. EDIT PAYMENT TRANSACTION MODAL                            */}
+            {/* ============================================================ */}
+            <Modal show={Boolean(editPaymentModal)} onClose={() => setEditPaymentModal(null)} maxWidth="md">
+                {editPaymentModal && (
+                    <form onSubmit={handleEditPaymentSubmit} className="p-6 bg-white space-y-4 rounded-2xl text-slate-800">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <Sliders className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-900">
+                                        Edit Payment Transaction
+                                    </h3>
+                                    <p className="text-xs text-slate-400 font-mono">
+                                        Payment #{editPaymentModal.id} &bull; TrxID: {editPaymentModal.transaction_id || 'N/A'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditPaymentModal(null)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Paid Amount (৳ BDT) *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        value={editPaymentForm.data.amount}
+                                        onChange={(e) => editPaymentForm.setData('amount', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-mono font-bold"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Payment Method *
+                                    </label>
+                                    <select
+                                        value={editPaymentForm.data.payment_method}
+                                        onChange={(e) => editPaymentForm.setData('payment_method', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                        required
+                                    >
+                                        {MULTI_PAY_METHODS.map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Transaction ID / TrxID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editPaymentForm.data.transaction_id}
+                                        onChange={(e) => editPaymentForm.setData('transaction_id', e.target.value)}
+                                        placeholder="e.g. BL9A7K01"
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Sender Phone / Account
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editPaymentForm.data.sender_number}
+                                        onChange={(e) => editPaymentForm.setData('sender_number', e.target.value)}
+                                        placeholder="01XXXXXXXXX"
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Verification Status
+                                    </label>
+                                    <select
+                                        value={editPaymentForm.data.status}
+                                        onChange={(e) => editPaymentForm.setData('status', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold"
+                                    >
+                                        <option value="approved">✓ Approved (Credited)</option>
+                                        <option value="pending">⏳ Pending (Under Verification)</option>
+                                        <option value="rejected">✕ Rejected (Not Credited)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                        Payment Date *
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={editPaymentForm.data.payment_date}
+                                        onChange={(e) => editPaymentForm.setData('payment_date', e.target.value)}
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <p className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-normal">
+                                💡 <strong>নোট:</strong> স্ট্যাটাস <em>Pending</em> অথবা <em>Rejected</em> রাখলে এই টাকাটি অর্ডারের Paid Balance থেকে বাদ যাবে এবং বকেয়া (Due Amount) পুনরায় বৃদ্ধি পাবে। <em>Approved</em> থাকলে ব্যালেন্স ক্রেডিট হবে।
+                            </p>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Notes / Admin Remarks
+                                </label>
+                                <textarea
+                                    rows="2"
+                                    value={editPaymentForm.data.notes}
+                                    onChange={(e) => editPaymentForm.setData('notes', e.target.value)}
+                                    placeholder="Add payment notes or reason..."
+                                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const p = editPaymentModal;
+                                    setEditPaymentModal(null);
+                                    handleDeletePayment(p);
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete Payment</span>
+                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditPaymentModal(null)}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={editPaymentForm.processing}
+                                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                                >
+                                    {editPaymentForm.processing ? 'Saving...' : 'Save & Sync Balance'}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                )}
             </Modal>
         </AdminLayout>
     );

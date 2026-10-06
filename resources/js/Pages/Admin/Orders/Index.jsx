@@ -1802,7 +1802,7 @@ export default function Index({
             {/* ============================================================== */}
             {/* 4. VIEW ORDER DETAILS MODAL (Full Billing & Payments Breakdown)*/}
             {/* ============================================================== */}
-            <Modal show={Boolean(viewModalOrder)} onClose={() => setViewModalOrder(null)} maxWidth="lg">
+            <Modal show={Boolean(viewModalOrder)} onClose={() => setViewModalOrder(null)} maxWidth="2xl">
                 {viewModalOrder && (() => {
                     const gross = parseFloat(viewModalOrder.amount || 0);
                     const discount = parseFloat(viewModalOrder.discount || 0);
@@ -1920,8 +1920,8 @@ export default function Index({
                                         No payment transactions logged yet for this order.
                                     </p>
                                 ) : (
-                                    <div className="overflow-hidden rounded-xl border border-slate-200">
-                                        <table className="w-full text-left text-xs">
+                                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                        <table className="w-full text-left text-xs min-w-[640px]">
                                             <thead className="bg-slate-50 text-[10px] text-slate-400 font-bold uppercase border-b border-slate-200">
                                                 <tr>
                                                     <th className="p-2.5 pl-3">Date</th>

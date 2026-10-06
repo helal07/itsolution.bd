@@ -21,7 +21,7 @@ class AdminClientController extends Controller
     public function index(Request $request): Response
     {
         $clients = Client::withCount('portfolios')
-            ->with(['orders.item', 'orders.payments', 'payments'])
+            ->with(['orders.item', 'orders.payments', 'payments.order'])
             ->orderBy('sort_order', 'asc')
             ->orderBy('id', 'desc')
             ->paginate(50);
